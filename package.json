@@ -1,0 +1,40 @@
+{
+  "name": "@eliware/agentx",
+  "type": "module",
+  "version": "1.1.0",
+  "description": "A template for starting new Node.js projects.",
+  "main": "agentx.mjs",
+  "scripts": {
+    "start": "node agentx.mjs",
+    "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eliware/agentx.git"
+  },
+  "keywords": [
+    "agentx",
+    "nodejs"
+  ],
+  "author": "Eli Sterling, eliware.org <eli@eliware.org>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/eliware/agentx/issues"
+  },
+  "homepage": "https://github.com/eliware/agentx#readme",
+  "devDependencies": {
+    "jest": "^30.0.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/?(*.)+(spec|test).[jt]s?(x)",
+      "**/?(*.)+(spec|test).mjs",
+      "**/?(*.)+(spec|test).cjs"
+    ]
+  },
+  "dependencies": {
+    "@eliware/common": "^1.1.4",
+    "@eliware/openai": "^1.1.2"
+  }
+}
