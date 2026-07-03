@@ -11,6 +11,10 @@ export function parseInternalCommand(message) {
     return { type: 'session_clear' };
   }
 
+  if (message === '/compact') {
+    return { type: 'compact' };
+  }
+
   if (message === '/usage') {
     return { type: 'usage' };
   }

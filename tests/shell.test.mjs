@@ -16,6 +16,7 @@ describe('shell helpers', () => {
   test('parseInternalCommand recognizes clear and exit commands', () => {
     expect(parseInternalCommand('clear')).toEqual({ type: 'clear' });
     expect(parseInternalCommand('/clear')).toEqual({ type: 'session_clear' });
+    expect(parseInternalCommand('/compact')).toEqual({ type: 'compact' });
     expect(parseInternalCommand('/usage')).toEqual({ type: 'usage' });
     expect(parseInternalCommand('quit')).toEqual({ type: 'exit' });
     expect(parseInternalCommand('exit')).toEqual({ type: 'exit' });
