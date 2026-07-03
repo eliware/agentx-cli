@@ -1,3 +1,5 @@
+import { normalizeUsage } from './usage.mjs';
+
 export function extractTextFromResponse(response) {
   const parts = [];
   for (const item of response?.output ?? []) {
@@ -15,15 +17,11 @@ export function isFunctionCall(item) {
 
 export function extractUsage(response) {
   const usage = response?.usage ?? {};
-  const inputTokens = Number(usage.input_tokens ?? 0);
-  const outputTokens = Number(usage.output_tokens ?? 0);
-  const cachedTokens = Number(usage.input_tokens_details?.cached_tokens ?? 0);
-
-  return {
-    inputTokens,
-    cachedTokens,
-    outputTokens,
-  };
+  return normalizeUsage({
+    inputTokens: Number(usage.input_tokens ?? 0),
+    cachedTokens: Number(usage.input_tokens_details?.cached_tokens ?? 0),
+    outputTokens: Number(usage.output_tokens ?? 0),
+  });
 }
 
 export function createUsageTotals() {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { extractTextFromResponse, extractUsage, isFunctionCall, formatUsageSummary, createUsageTotals, addUsageTotals, addTurn, formatUsageReport, formatTurnUsageReport } from '../src/response.mjs';
 
-const sampleUsage = { input_tokens: 1, input_tokens_details: { cached_tokens: 2 }, output_tokens: 3 };
+const sampleUsage = { input_tokens: 5, input_tokens_details: { cached_tokens: 2 }, output_tokens: 3 };
 
 describe('response helpers', () => {
   test('extractTextFromResponse joins assistant text output', () => {
@@ -25,8 +25,8 @@ describe('response helpers', () => {
     expect(isFunctionCall({ type: 'message' })).toBe(false);
   });
 
-  test('extractUsage reads input, cached, and output tokens', () => {
-    expect(extractUsage({ usage: { input_tokens: 120, input_tokens_details: { cached_tokens: 45 }, output_tokens: 80 } })).toEqual({ inputTokens: 120, cachedTokens: 45, outputTokens: 80 });
+  test('extractUsage subtracts cached tokens from input tokens', () => {
+    expect(extractUsage({ usage: { input_tokens: 120, input_tokens_details: { cached_tokens: 45 }, output_tokens: 80 } })).toEqual({ inputTokens: 75, cachedTokens: 45, outputTokens: 80 });
   });
 
   test('usage totals accumulate', () => {
@@ -41,6 +41,6 @@ describe('response helpers', () => {
   test('format helpers render usage stats', () => {
     expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 })).toBe('in=1 ($0.000), cache=2 ($0.000), out=3 ($0.000), sum=$0.000, msgs=4, avg=$0.000');
     expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe('in=1 ($0.000), cache=2 ($0.000), out=3 ($0.000), sum=$0.000');
-    expect(formatUsageSummary({ usage: sampleUsage })).toBe('in=1 ($0.000), cache=2 ($0.000), out=3 ($0.000), sum=$0.000, msgs=1, avg=$0.000');
+    expect(formatUsageSummary({ usage: sampleUsage })).toBe('in=3 ($0.000), cache=2 ($0.000), out=3 ($0.000), sum=$0.000, msgs=1, avg=$0.000');
   });
 });

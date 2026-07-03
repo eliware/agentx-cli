@@ -22,9 +22,9 @@ export async function handleToolCalls(openai, response, tools, cwd, onResponseUs
   }
 }
 
-export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage) {
+export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null) {
   const baseRequest = JSON.parse(JSON.stringify(template));
-  const request = previousResponseId
+  const request = requestOverride ?? (previousResponseId
     ? {
         model: baseRequest.model,
         input: [buildInputMessage(userMessage)],
@@ -35,7 +35,7 @@ export async function sendMessage(openai, template, previousResponseId, userMess
     : {
         ...applyFirstUserMessage(baseRequest, userMessage, agentsText, cwd),
         store: true,
-      };
+      });
 
   let response = await openai.responses.create(request);
   response = await handleToolCalls(openai, response, baseRequest.tools, cwd, onResponseUsage);

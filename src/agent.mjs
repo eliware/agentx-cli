@@ -43,6 +43,11 @@ export async function runAgent({ promptPath, cwd }) {
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found')}\n`);
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
 
+  const debugEnabled = process.argv.includes('--debug');
+  const debugLog = (...args) => {
+    if (debugEnabled) console.log(...args);
+  };
+
   const openai = await createOpenAI(process.env.agentx_api_key || process.env.AGENTX_API_KEY);
   const rl = createReplInterface(cwd);
   let previousResponseId = savedResponseId;
@@ -116,9 +121,43 @@ export async function runAgent({ promptPath, cwd }) {
       const requestMessage = cwdNote ? `${cwdNote}\n\n${message}` : message;
       cwdNote = '';
       const turnUsage = createUsageTotals();
-      const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => addUsageTotals(turnUsage, usage));
+      const request = previousResponseId
+        ? {
+            model: template.model,
+            input: [{ role: 'user', content: [{ type: 'input_text', text: requestMessage }] }],
+            store: true,
+            tools: template.tools,
+            previous_response_id: previousResponseId,
+          }
+        : {
+            ...template,
+            input: template.input?.map?.((item) => ({ ...item, content: item.content?.map?.((part) => ({ ...part })) })),
+            store: true,
+          };
+      if (!previousResponseId) {
+        const developer = request?.input?.find?.((item) => item?.role === 'developer');
+        const developerContent = developer?.content?.[0];
+        if (developerContent?.type === 'input_text') {
+          const { buildDeveloperText } = await import('./prompt-text.mjs');
+          developerContent.text = buildDeveloperText(request, agentsText, cwd);
+        }
+        const firstUser = request?.input?.find?.((item) => item?.role === 'user');
+        const firstContent = firstUser?.content?.[0];
+        if (firstContent?.type === 'input_text') {
+          const original = String(firstContent.text ?? '');
+          firstContent.text = original.includes('first user message')
+            ? original.replaceAll('first user message', requestMessage)
+            : requestMessage;
+        }
+      }
+      if (debugEnabled) {
+        debugLog('OpenAI request:', JSON.stringify(request, null, 2));
+      }
+      const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => addUsageTotals(turnUsage, usage), request);
+      if (debugEnabled) {
+        debugLog('OpenAI response:', JSON.stringify(response, null, 2));
+      }
       previousResponseId = response?.id || previousResponseId;
-      addUsageTotals(turnUsage, extractUsage(response));
       addUsageTotals(sessionUsage, turnUsage);
       addTurn(sessionUsage);
       await saveState();
