@@ -1,7 +1,7 @@
 {
     "name": "@eliware/agentx",
     "type": "module",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "description": "A template for starting new Node.js projects.",
     "main": "agentx.mjs",
     "scripts": {

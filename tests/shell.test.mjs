@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from '@jest/globals';
+import { promises as fs } from 'node:fs';
 import { parseInternalCommand } from '../src/shell-commands.mjs';
 import { resolveCdTarget, buildWorkingDirectoryNote } from '../src/shell-paths.mjs';
 import { formatPromptForCwd } from '../src/shell-display.mjs';
@@ -34,12 +35,20 @@ describe('shell helpers', () => {
     expect(formatPromptForCwd('/tmp/work')).toContain('/tmp/work');
   });
 
-  test('readAgentsFromCwdAndParents merges parent AGENTS files', async () => {
+  test('readAgentsFromCwdAndParents merges parent AGENTS files from least to most specific', async () => {
     makeDirectory(tmp, 'parent/child');
     makeFile(tmp, 'AGENTS.md', 'root');
     makeFile(tmp, 'parent/AGENTS.md', 'parent');
     const text = await readAgentsFromCwdAndParents(`${tmp}/parent/child`);
-    expect(text).toContain('root');
-    expect(text).toContain('parent');
+    expect(text).toMatch(/root[\s\S]*parent/);
+  });
+
+  test('readAgentsFromCwdAndParents deduplicates symlinked AGENTS files by real path', async () => {
+    makeDirectory(tmp, 'docs');
+    await fs.writeFile(`${tmp}/docs/AGENTS.md`, 'docs');
+    await fs.symlink(`${tmp}/docs/AGENTS.md`, `${tmp}/AGENTS.md`);
+    const text = await readAgentsFromCwdAndParents(tmp);
+    expect(text).toContain(`# AGENTS.md (${tmp})`);
+    expect(text).toContain('docs');
   });
 });
