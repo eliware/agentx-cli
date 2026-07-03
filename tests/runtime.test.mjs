@@ -16,12 +16,12 @@ describe('runtime helpers', () => {
   test('isDirectInvocation resolves symlinks to the real launcher', () => {
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'agentx-link-'));
     const link = path.join(tmp, 'agentx');
-    symlinkSync('/opt/agentx/agentx.mjs', link);
+    symlinkSync('/opt/agentx-cli/agentx.mjs', link);
     const originalArgv1 = process.argv[1];
 
     try {
       process.argv[1] = link;
-      expect(isDirectInvocation(new URL('file:///opt/agentx/agentx.mjs').href)).toBe(true);
+      expect(isDirectInvocation(new URL('file:///opt/agentx-cli/agentx.mjs').href)).toBe(true);
     } finally {
       process.argv[1] = originalArgv1;
       rmSync(tmp, { recursive: true, force: true });
