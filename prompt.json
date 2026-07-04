@@ -27,8 +27,8 @@
     "verbosity": "low"
   },
   "reasoning": {
-    "effort": "low",
-    "summary": "detailed"
+    "effort": "medium",
+    "summary": null
   },
   "tools": [
     {
@@ -107,8 +107,5 @@
     }
   ],
   "store": true,
-  "include": [
-    "reasoning.encrypted_content",
-    "web_search_call.action.sources"
-  ]
+  "include": []
 }

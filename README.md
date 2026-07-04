@@ -98,6 +98,12 @@ Run the test suite with:
 npm test
 ```
 
+Run coverage when you need the full coverage report:
+
+```bash
+npm run coverage
+```
+
 The tests cover:
 - prompt assembly
 - internal command parsing

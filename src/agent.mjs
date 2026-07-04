@@ -142,10 +142,9 @@ export async function runAgent({ promptPath, cwd }) {
       const turnUsage = createUsageTotals();
       const request = previousResponseId
         ? {
-            model: template.model,
+            ...template,
             input: [{ role: 'user', content: [{ type: 'input_text', text: requestMessage }] }],
             store: true,
-            tools: template.tools,
             previous_response_id: previousResponseId,
           }
         : {

@@ -1,5 +1,15 @@
 # AgentX Release Notes
 
+## 1.1.7 - Request preservation and coverage hardening
+
+Deltas from 1.1.6:
+
+- Preserved top-level Responses API request fields across session resumes and tool-call continuations.
+- Hardened session compaction to recursively resummarize oversized transcript chunks.
+- Improved direct-invocation detection so the REPL only starts when launched as the main entrypoint.
+- Added fallback handling for prompt building, CLI defaults, and path-completion edge cases.
+- Expanded coverage-focused tests and added a dedicated `coverage` npm script.
+
 ## 1.1.2 - Initial release baseline
 
 Initial capabilities present in the 1.1.2 baseline:

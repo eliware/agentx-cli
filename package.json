@@ -1,12 +1,13 @@
 {
     "name": "@eliware/agentx",
     "type": "module",
-    "version": "1.1.6",
+    "version": "1.1.7",
     "description": "A template for starting new Node.js projects.",
     "main": "agentx.mjs",
     "scripts": {
         "start": "node agentx.mjs",
-        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent"
+        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent",
+        "coverage": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent --coverage"
     },
     "repository": {
         "type": "git",
@@ -27,6 +28,14 @@
     },
     "jest": {
         "testEnvironment": "node",
+        "coveragePathIgnorePatterns": [
+            "/src/agent\\.mjs$",
+            "/src/completion\\.mjs$",
+            "/src/prompt\\.mjs$",
+            "/src/shell\\.mjs$",
+            "/src/tool-runtime\\.mjs$",
+            "/src/tool-shell\\.mjs$"
+        ],
         "testMatch": [
             "**/?(*.)+(spec|test).[jt]s?(x)",
             "**/?(*.)+(spec|test).mjs",

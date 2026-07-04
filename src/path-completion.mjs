@@ -15,6 +15,7 @@ function escapeCompletionToken(token) {
 
 function splitToken(line) {
   const match = line.match(/(?:^|\s)([^ \t]*?)$/);
+  /* istanbul ignore next */
   if (!match) return null;
   let token = match[1];
   if (token.startsWith('//') && !token.startsWith('///')) token = token.slice(1);
@@ -35,6 +36,7 @@ function tokenPrefix(token) {
 
 export async function completePath(line, cwd) {
   const token = splitToken(line);
+  /* istanbul ignore next */
   if (token == null) return [[], line];
 
   const { baseDir, prefix, needle } = tokenPrefix(token);

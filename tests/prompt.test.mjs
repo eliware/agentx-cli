@@ -31,6 +31,21 @@ describe('prompt helpers', () => {
     expect(next.input[1].content[0].text).toBe('hello world');
   });
 
+  test('applyFirstUserMessage leaves templates unchanged when placeholder content is missing', () => {
+    const template = { input: [{ role: 'developer', content: [{ type: 'output_text', text: 'base prompt' }] }] };
+    const next = applyFirstUserMessage(template, 'hello world', '', '/tmp/work');
+
+    expect(next).not.toBe(template);
+    expect(next.input[0].content[0].text).toBe('base prompt');
+  });
+
+  test('buildDeveloperText falls back to template instructions and a missing AGENTS notice', () => {
+    const text = buildDeveloperText({ instructions: 'instructions only' }, '', '/tmp/work');
+
+    expect(text).toContain('instructions only');
+    expect(text).toContain('AGENTS.md not present in the current working directory or any parent directory.');
+  });
+
   test('buildInputMessage returns a user text input payload', () => {
     expect(buildInputMessage('hi')).toEqual({
       role: 'user',

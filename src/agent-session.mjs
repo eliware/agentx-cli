@@ -203,11 +203,11 @@ export async function compactSession(openai, template, previousResponseId, agent
   };
 
   let response = await openai.responses.create(request);
-  response = await handleToolCalls(openai, response, baseRequest.tools, cwd, onResponseUsage);
+  response = await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage);
   return { response, summary, recentCount: recentEntries.length, summarizedCount: summaryEntries.length };
 }
 
-export async function handleToolCalls(openai, response, tools, cwd, onResponseUsage) {
+export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage) {
   let current = response;
   for (;;) {
     if (onResponseUsage) onResponseUsage(extractUsage(current));
@@ -221,18 +221,22 @@ export async function handleToolCalls(openai, response, tools, cwd, onResponseUs
       outputs.push({ type: 'function_call_output', call_id: call.call_id, output });
     }
 
-    current = await openai.responses.create({ model: current.model, input: outputs, previous_response_id: current.id, store: true, tools });
+    current = await openai.responses.create({
+      ...baseRequest,
+      input: outputs,
+      previous_response_id: current.id,
+      store: true,
+    });
   }
 }
 
 export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null) {
   const baseRequest = JSON.parse(JSON.stringify(template));
-  const request = requestOverride ?? (previousResponseId
+  const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
-        model: baseRequest.model,
+        ...baseRequest,
         input: [buildInputMessage(userMessage)],
         store: true,
-        tools: baseRequest.tools,
         previous_response_id: previousResponseId,
       }
     : {
@@ -241,7 +245,7 @@ export async function sendMessage(openai, template, previousResponseId, userMess
       });
 
   let response = await openai.responses.create(request);
-  response = await handleToolCalls(openai, response, baseRequest.tools, cwd, onResponseUsage);
+  response = await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage);
   return response;
 }
 

@@ -13,6 +13,7 @@
 
 ## Tooling
 - Use `npm test` to verify changes.
+- Use `npm run coverage` when validating coverage-focused changes.
 - Keep runtime output concise and purposeful.
 - If you add a new module under `src/`, give it a single responsibility.
 

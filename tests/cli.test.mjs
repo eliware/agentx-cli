@@ -9,6 +9,10 @@ describe('cli prompt', () => {
   test('buildCliPrompt supports custom values', () => {
     expect(buildCliPrompt({ name: 'x', user: 'me', host: 'box', cwd: '/tmp' })).toContain('[\u001b[33mx me@box:/tmp\u001b[0m] ');
   });
+
+  test('buildCliPrompt falls back to its default values', () => {
+    expect(buildCliPrompt()).toContain('[\u001b[33mAgentX root@dev:/opt\u001b[0m] ');
+  });
 });
 
 
