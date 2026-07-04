@@ -1,0 +1,56 @@
+# AgentX Release Notes
+
+## 1.1.2 - Initial release baseline
+
+Initial capabilities present in the 1.1.2 baseline:
+
+- CLI agent entrypoint wired through `agentx.mjs` and `src/agent.mjs`.
+- OpenAI Responses API session flow with persisted response IDs for continuity.
+- Session resume on startup when `.agentx_responseid` exists.
+- Interactive REPL behavior with prompt that tracks the current working directory.
+- Internal command handling for:
+  - `clear` to clear the terminal display.
+  - `/clear` to clear stored session state and start a new session.
+  - `/exit` and `exit` to quit.
+  - `/quit` and `quit` to quit.
+  - `cd` to change the working directory internally.
+  - `/usage` to display usage totals.
+- CWD-aware path completion.
+- Agent instructions loaded from `AGENTS.md` in the current directory and parent directories.
+- Working-directory context included in the agent prompt.
+- Response text extraction and usage reporting.
+- Terminal output wrapping and prompt formatting.
+
+## 1.1.3 - Version bump
+
+Deltas from 1.1.2:
+
+- No functional code changes.
+- Package metadata and lockfile version updates only.
+
+## 1.1.4 - Shell agent improvements
+
+Deltas from 1.1.3:
+
+- Improved shell-agent handling in `src/shell-agents.mjs`.
+- Updated shell test coverage in `tests/shell.test.mjs`.
+- Package metadata and lockfile version updates.
+
+## 1.1.5 - Session compaction and shell command expansion
+
+Deltas from 1.1.4:
+
+- Added full session-state management in `src/agent-session.mjs`.
+- Expanded `src/agent.mjs` to support persisted session usage tracking and resume behavior.
+- Added support for shell commands in `src/shell-commands.mjs`.
+- Added and expanded tests for session management and shell behavior.
+- Introduced context-compaction behavior for long-running conversations.
+- Added usage aggregation and per-turn reporting.
+
+## 1.1.6 - File tools
+
+Deltas from 1.1.5:
+
+- Added file tool support in `src/tool-files.mjs`.
+- Added corresponding test coverage in `tests/tool-files.test.mjs`.
+- Package metadata and lockfile version updates.
