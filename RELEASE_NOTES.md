@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.1.8 - Session transcript persistence and local shell passthrough
+
+Deltas from 1.1.7:
+
+- Added leading `>` shell command passthrough that runs locally and buffers output into the next AI request.
+- Persisted last user/assistant messages and pending CLI transcript in `.agentx_responseid`, with legacy-state normalization on load/save.
+- Restored and printed the last exchanged messages when resuming a saved session.
+- Expanded README docs and test coverage for session restore, shell passthrough, and state migration.
+
 ## 1.1.7 - Request preservation and coverage hardening
 
 Deltas from 1.1.6:

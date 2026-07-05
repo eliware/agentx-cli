@@ -2,8 +2,9 @@ import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { log, registerHandlers, path } from '@eliware/common';
 import { createOpenAI } from '@eliware/openai';
+import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
-import { compactSession, extractTextFromResponse, extractUsage, isContextWindowExceeded, persistResponseState, clearSession, sendMessage, readSessionState } from './agent-session.mjs';
+import { compactSession, extractTextFromResponse, isContextWindowExceeded, persistResponseState, clearSession, sendMessage, readSessionState } from './agent-session.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
 import { readJson } from './runtime.mjs';
 import { createUsageTotals, addUsageTotals, addTurn, formatUsageReport, formatTurnUsageReport } from './response.mjs';
@@ -14,6 +15,12 @@ registerHandlers({ log });
 function printAgentText(text) {
   const wrapped = wrapText(text, getTerminalWidth());
   process.stdout.write(wrapped.endsWith('\n') ? wrapped : `${wrapped}\n`);
+}
+
+function printResumeMessage(label, text) {
+  if (!text) return;
+  process.stdout.write(`${formatSystemMessage(`${label}:`)}\n`);
+  printAgentText(text);
 }
 
 function createReplInterface(cwd) {
@@ -32,6 +39,32 @@ function printCumulativeUsage(sessionUsage) {
   process.stdout.write(`${formatSystemMessage(formatUsageReport(sessionUsage))}\n`);
 }
 
+function printRestoredSession(savedState) {
+  if (savedState?.last_user_message || savedState?.last_assistant_message) {
+    printResumeMessage('Last user message', savedState.last_user_message);
+    printResumeMessage('Last assistant message', savedState.last_assistant_message);
+  }
+}
+
+function appendCliTranscript(existingTranscript, command, outputText) {
+  const entry = [`> ${command}`];
+  const trimmedOutput = String(outputText ?? '').trimEnd();
+  if (trimmedOutput) entry.push(trimmedOutput);
+  return [existingTranscript, entry.join('\n')].filter(Boolean).join('\n\n');
+}
+
+function buildRequestMessage({ pendingCliTranscript, cwdNote, message }) {
+  const contextParts = [];
+  if (pendingCliTranscript) {
+    contextParts.push(`Local shell commands and output since the last assistant message:\n\n${pendingCliTranscript}`);
+  }
+  if (cwdNote) {
+    contextParts.push(cwdNote);
+  }
+  contextParts.push(message);
+  return contextParts.join('\n\n');
+}
+
 export async function runAgent({ promptPath, cwd }) {
   const launchCwd = cwd;
   const statePath = path(launchCwd, '.agentx_responseid');
@@ -42,6 +75,7 @@ export async function runAgent({ promptPath, cwd }) {
 
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found')}\n`);
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
+  printRestoredSession(savedState);
 
   const debugEnabled = process.argv.includes('--debug');
   const debugLog = (...args) => {
@@ -52,12 +86,21 @@ export async function runAgent({ promptPath, cwd }) {
   const rl = createReplInterface(cwd);
   let previousResponseId = savedResponseId;
   let cwdNote = '';
+  let lastUserMessage = savedState?.last_user_message || '';
+  let lastAssistantMessage = savedState?.last_assistant_message || '';
+  let pendingCliTranscript = savedState?.pending_cli_transcript || '';
   let sessionUsage = savedState?.usage
     ? { inputTokens: Number(savedState.usage.inputTokens ?? 0), cachedTokens: Number(savedState.usage.cachedTokens ?? 0), outputTokens: Number(savedState.usage.outputTokens ?? 0), turns: Number(savedState.usage.turns ?? 0) }
     : createUsageTotals();
 
   async function saveState() {
-    await persistResponseState(statePath, { response_id: previousResponseId, usage: sessionUsage });
+    await persistResponseState(statePath, {
+      response_id: previousResponseId,
+      usage: sessionUsage,
+      last_user_message: lastUserMessage,
+      last_assistant_message: lastAssistantMessage,
+      pending_cli_transcript: pendingCliTranscript,
+    });
   }
 
   async function exitWithSummary({ leadingNewline = false } = {}) {
@@ -82,6 +125,17 @@ export async function runAgent({ promptPath, cwd }) {
       const message = line.trim();
       if (!message) continue;
 
+      if (message.startsWith('>')) {
+        const command = message.slice(1).trim();
+        if (!command) continue;
+        process.stdout.write(`${formatSystemMessage(`Running shell command: ${command}`)}\n`);
+        const result = await shellExec(command, cwd);
+        if (result) process.stdout.write(result.endsWith('\n') ? result : `${result}\n`);
+        pendingCliTranscript = appendCliTranscript(pendingCliTranscript, command, result);
+        await saveState();
+        continue;
+      }
+
       const internal = parseInternalCommand(message);
       if (internal?.type === 'exit') {
         await exitWithSummary();
@@ -96,6 +150,9 @@ export async function runAgent({ promptPath, cwd }) {
       if (internal?.type === 'session_clear') {
         printUsageReport(sessionUsage);
         previousResponseId = '';
+        lastUserMessage = '';
+        lastAssistantMessage = '';
+        pendingCliTranscript = '';
         sessionUsage = createUsageTotals();
         await clearSession(statePath);
         process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
@@ -118,8 +175,9 @@ export async function runAgent({ promptPath, cwd }) {
         previousResponseId = compacted.response?.id || previousResponseId;
         addUsageTotals(sessionUsage, turnUsage);
         addTurn(sessionUsage);
+        lastAssistantMessage = extractTextFromResponse(compacted.response);
         await saveState();
-        const text = extractTextFromResponse(compacted.response);
+        const text = lastAssistantMessage;
         if (text) printAgentText(text);
         printTurnUsage(turnUsage);
         printCumulativeUsage(sessionUsage);
@@ -137,7 +195,7 @@ export async function runAgent({ promptPath, cwd }) {
         continue;
       }
 
-      const requestMessage = cwdNote ? `${cwdNote}\n\n${message}` : message;
+      const requestMessage = buildRequestMessage({ pendingCliTranscript, cwdNote, message });
       cwdNote = '';
       const turnUsage = createUsageTotals();
       const request = previousResponseId
@@ -184,10 +242,13 @@ export async function runAgent({ promptPath, cwd }) {
         debugLog('OpenAI response:', JSON.stringify(response, null, 2));
       }
       previousResponseId = response?.id || previousResponseId;
+      lastUserMessage = message;
+      lastAssistantMessage = extractTextFromResponse(response);
+      pendingCliTranscript = '';
       addUsageTotals(sessionUsage, turnUsage);
       addTurn(sessionUsage);
       await saveState();
-      const text = extractTextFromResponse(response);
+      const text = lastAssistantMessage;
       if (text) printAgentText(text);
       printTurnUsage(turnUsage);
       printCumulativeUsage(sessionUsage);

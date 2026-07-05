@@ -20,7 +20,8 @@
 ## Agent Behavior
 - The agent should wait for the user’s first message before contacting OpenAI.
 - Respect `/clear`, `/quit`, and `/exit`.
-- Persist the latest response id in `.agentx_responseid` in the current working directory.
+- Run commands that start with `>` locally in the shell and buffer their output into the next AI request.
+- Persist the latest response id, usage totals, last user/assistant messages, and pending CLI transcript in `.agentx_responseid` in the current working directory.
 - Continue using the Responses API with `previous_response_id` and `store: true` for session continuity.
 
 ## Runtime Notes

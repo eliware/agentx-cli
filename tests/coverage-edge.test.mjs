@@ -40,12 +40,13 @@ describe('helper coverage', () => {
     tempDirs.push(tmp);
     const filePath = path.join(tmp, '.agentx_responseid');
 
-    await persistResponseState(filePath, { response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 } });
+    await persistResponseState(filePath, { response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: 'hello', last_assistant_message: 'hi', pending_cli_transcript: '' });
     expect(readFileSync(filePath, 'utf8')).toContain('"response_id": "resp-1"');
-    await expect(readSessionState(filePath)).resolves.toEqual({ response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 } });
+    expect(readFileSync(filePath, 'utf8')).toContain('"last_user_message": "hello"');
+    await expect(readSessionState(filePath)).resolves.toEqual({ response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: 'hello', last_assistant_message: 'hi', pending_cli_transcript: '' });
 
     await writeText(filePath, '42\n');
-    await expect(readSessionState(filePath)).resolves.toEqual({ response_id: '42', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 } });
+    await expect(readSessionState(filePath)).resolves.toEqual({ response_id: '42', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '' });
 
     await clearSession(filePath);
     expect(existsSync(filePath)).toBe(false);

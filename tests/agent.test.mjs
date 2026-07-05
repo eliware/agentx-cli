@@ -53,6 +53,9 @@ describe('agent loop', () => {
     writeFileSync(path.join(cwd, '.agentx_responseid'), JSON.stringify({
       response_id: 'resp-saved',
       usage: { inputTokens: 10, cachedTokens: 2, outputTokens: 5, turns: 3 },
+      last_user_message: 'what time is it?',
+      last_assistant_message: 'It is 3pm.',
+      pending_cli_transcript: '',
     }));
 
     originalArgv = [...process.argv];
@@ -98,12 +101,17 @@ describe('agent loop', () => {
     }));
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
+      shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : 'pwd /tmp/work')),
+    }));
 
     const persistResponseState = jest.fn(async () => {});
     const clearSession = jest.fn(async () => {});
     const readSessionState = jest.fn(async () => ({
       response_id: 'resp-saved',
       usage: { inputTokens: 10, cachedTokens: 2, outputTokens: 5, turns: 3 },
+      last_user_message: 'what time is it?',
+      last_assistant_message: 'It is 3pm.',
     }));
     const extractTextFromResponse = jest.fn((response) => response?.output?.map?.((item) => item?.content?.map?.((part) => part?.text || '').join('') || '').join('\n') || '');
     const isContextWindowExceeded = jest.fn((error) => error?.code === 'context_length_exceeded');
@@ -184,7 +192,104 @@ describe('agent loop', () => {
     expect(process.exit).toHaveBeenCalledWith(0);
     expect(logs.some((line) => line.includes('OpenAI request:'))).toBe(true);
     expect(writes.join(' ')).toContain('AGENTS.md not found');
+    expect(writes.join(' ')).toContain('Last user message');
+    expect(writes.join(' ')).toContain('what time is it?');
+    expect(writes.join(' ')).toContain('Last assistant message');
+    expect(writes.join(' ')).toContain('It is 3pm.');
     expect(writes.join(' ')).toContain('No active session to compact');
+  });
+
+  test('runs direct shell commands locally and prepends them to the next AI request', async () => {
+    const questionQueue = ['>ls', '>pwd', 'hello', '/exit'];
+
+    await jest.unstable_mockModule('node:readline/promises', () => ({
+      createInterface: () => ({
+        question: async () => questionQueue.shift() ?? '/exit',
+        close: jest.fn(),
+      }),
+    }));
+
+    await jest.unstable_mockModule('@eliware/openai', () => ({
+      createOpenAI: jest.fn(async () => ({ responses: {} })),
+    }));
+
+    await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
+      shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : '/tmp/work')),
+    }));
+
+    const persistResponseState = jest.fn(async () => {});
+    const clearSession = jest.fn(async () => {});
+    const readSessionState = jest.fn(async () => null);
+    const extractTextFromResponse = jest.fn(() => 'assistant reply');
+    const sendMessage = jest.fn(async (_openai, _template, previousResponseId, userMessage, _agentsText, _activeCwd, onResponseUsage, requestOverride) => {
+      expect(previousResponseId).toBe('');
+      expect(userMessage).toContain('Local shell commands and output since the last assistant message:');
+      expect(userMessage).toContain('> ls');
+      expect(userMessage).toContain('one.txt');
+      expect(userMessage).toContain('> pwd');
+      expect(userMessage).toContain('/tmp/work');
+      expect(requestOverride.input[1].content[0].text).toContain('> ls');
+      expect(requestOverride.input[1].content[0].text).toContain('> pwd');
+      onResponseUsage({ inputTokens: 1, cachedTokens: 0, outputTokens: 1 });
+      return {
+        id: 'resp-1',
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }],
+        usage: { input_tokens: 1, output_tokens: 1 },
+      };
+    });
+    const compactSession = jest.fn(async () => {
+      throw new Error('compact should not be called');
+    });
+
+    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+      clearSession,
+      compactSession,
+      extractTextFromResponse,
+      extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
+      isContextWindowExceeded: () => false,
+      persistResponseState,
+      readSessionState,
+      sendMessage,
+    }));
+
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({
+      readJson: async () => ({
+        model: 'test-model',
+        input: [
+          { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
+          { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
+        ],
+        tools: [],
+      }),
+    }));
+
+    await jest.unstable_mockModule('../src/text-wrap.mjs', () => ({
+      getTerminalWidth: () => 80,
+      wrapText: (text) => text,
+    }));
+
+    const { runAgent } = await import('../src/agent.mjs');
+    await runAgent({ promptPath, cwd });
+
+    expect(persistResponseState).toHaveBeenCalledTimes(3);
+    expect(persistResponseState.mock.calls[0][1]).toMatchObject({
+      response_id: '',
+      pending_cli_transcript: '> ls\none.txt\ntwo.txt',
+    });
+    expect(persistResponseState.mock.calls[1][1]).toMatchObject({
+      response_id: '',
+      pending_cli_transcript: '> ls\none.txt\ntwo.txt\n\n> pwd\n/tmp/work',
+    });
+    expect(persistResponseState.mock.calls[2][1]).toMatchObject({
+      response_id: 'resp-1',
+      pending_cli_transcript: '',
+    });
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(writes.join(' ')).toContain('Running shell command: ls');
+    expect(writes.join(' ')).toContain('Running shell command: pwd');
+    expect(writes.join(' ')).toContain('one.txt');
+    expect(writes.join(' ')).toContain('/tmp/work');
   });
 
   test('exits cleanly when readline aborts', async () => {
@@ -204,6 +309,9 @@ describe('agent loop', () => {
     }));
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
+      shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : 'pwd /tmp/work')),
+    }));
 
     const noop = jest.fn(async () => {});
     await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
@@ -252,6 +360,9 @@ describe('agent loop', () => {
     }));
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
+      shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : 'pwd /tmp/work')),
+    }));
 
     const noop = jest.fn(async () => {});
     await jest.unstable_mockModule('../src/agent-session.mjs', () => ({

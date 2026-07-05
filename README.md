@@ -7,8 +7,9 @@
 It is designed to feel shell-like:
 - waits for your first message before calling OpenAI
 - supports internal `cd`, `clear`, `quit`, and `exit`
+- supports direct shell commands with a leading `>`
 - supports tab completion for local files and folders
-- remembers the last response id in `.agentx_responseid`
+- remembers the last response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid`
 - can be launched directly from `agentx.mjs` or through a symlink like `/usr/bin/agentx`
 
 ---
@@ -58,6 +59,7 @@ The prompt will look like this:
 
 - Type a normal message to send it to OpenAI.
 - Type `cd /path/to/dir` to change the local working directory without calling OpenAI.
+- Type `>ls` to run a local shell command directly; its output is buffered and prepended to the next AI request.
 - Type `clear` to clear the terminal display.
 - Type `/clear` to clear the saved session id and start a new conversation on the next message.
 - Type `quit`, `exit`, `/quit`, or `/exit` to leave the app.
@@ -67,9 +69,9 @@ The prompt will look like this:
 
 ### Session State
 
-The app stores the latest response id in `.agentx_responseid` in the current working directory.
+The app stores the latest response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid` in the current working directory.
 
-If that file exists on startup, the app resumes the conversation from the stored response id.
+If that file exists on startup, the app resumes the conversation from the stored response id and prints the last exchanged messages. Pending shell output is preserved until the next AI request.
 
 ### Prompt Assembly
 
