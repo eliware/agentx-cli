@@ -209,7 +209,7 @@ export async function compactSession(openai, template, previousResponseId, agent
 
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage) {
   let current = response;
-  for (;;) {
+  for (; ;) {
     if (onResponseUsage) onResponseUsage(extractUsage(current));
     const calls = (current?.output ?? []).filter(isFunctionCall);
     if (calls.length === 0) return current;
@@ -234,15 +234,15 @@ export async function sendMessage(openai, template, previousResponseId, userMess
   const baseRequest = JSON.parse(JSON.stringify(template));
   const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
-        ...baseRequest,
-        input: [buildInputMessage(userMessage)],
-        store: true,
-        previous_response_id: previousResponseId,
-      }
+      ...baseRequest,
+      input: [buildInputMessage(userMessage)],
+      store: true,
+      previous_response_id: previousResponseId,
+    }
     : {
-        ...applyFirstUserMessage(baseRequest, userMessage, agentsText, cwd),
-        store: true,
-      });
+      ...applyFirstUserMessage(baseRequest, userMessage, agentsText, cwd),
+      store: true,
+    });
 
   let response = await openai.responses.create(request);
   response = await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage);

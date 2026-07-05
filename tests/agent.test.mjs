@@ -105,8 +105,8 @@ describe('agent loop', () => {
       shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : 'pwd /tmp/work')),
     }));
 
-    const persistResponseState = jest.fn(async () => {});
-    const clearSession = jest.fn(async () => {});
+    const persistResponseState = jest.fn(async () => { });
+    const clearSession = jest.fn(async () => { });
     const readSessionState = jest.fn(async () => ({
       response_id: 'resp-saved',
       usage: { inputTokens: 10, cachedTokens: 2, outputTokens: 5, turns: 3 },
@@ -218,8 +218,8 @@ describe('agent loop', () => {
       shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : '/tmp/work')),
     }));
 
-    const persistResponseState = jest.fn(async () => {});
-    const clearSession = jest.fn(async () => {});
+    const persistResponseState = jest.fn(async () => { });
+    const clearSession = jest.fn(async () => { });
     const readSessionState = jest.fn(async () => null);
     const extractTextFromResponse = jest.fn(() => 'assistant reply');
     const sendMessage = jest.fn(async (_openai, _template, previousResponseId, userMessage, _agentsText, _activeCwd, onResponseUsage, requestOverride) => {
@@ -313,7 +313,7 @@ describe('agent loop', () => {
       shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : 'pwd /tmp/work')),
     }));
 
-    const noop = jest.fn(async () => {});
+    const noop = jest.fn(async () => { });
     await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
       clearSession: noop,
       compactSession: noop,
@@ -364,7 +364,7 @@ describe('agent loop', () => {
       shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : 'pwd /tmp/work')),
     }));
 
-    const noop = jest.fn(async () => {});
+    const noop = jest.fn(async () => { });
     await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
       clearSession: noop,
       compactSession: noop,

@@ -21,7 +21,7 @@ export async function readAgentsFromCwdAndParents(cwd) {
   const seenRealPaths = new Set();
   let current = path.resolve(cwd);
 
-  for (;;) {
+  for (; ;) {
     const entry = await readAgentsEntry(current);
     if (entry && !seenRealPaths.has(entry.realPath)) {
       seenRealPaths.add(entry.realPath);

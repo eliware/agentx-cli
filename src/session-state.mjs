@@ -33,6 +33,6 @@ export async function readSessionState(statePath) {
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object') return normalizeSessionState(parsed);
-  } catch {}
+  } catch { }
   return normalizeSessionState({ response_id: raw.trim() || '', usage: {} });
 }

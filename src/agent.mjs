@@ -110,7 +110,7 @@ export async function runAgent({ promptPath, cwd }) {
   }
 
   try {
-    for (;;) {
+    for (; ;) {
       let line;
       try {
         line = await rl.question(formatPromptForCwd(cwd));
@@ -200,16 +200,16 @@ export async function runAgent({ promptPath, cwd }) {
       const turnUsage = createUsageTotals();
       const request = previousResponseId
         ? {
-            ...template,
-            input: [{ role: 'user', content: [{ type: 'input_text', text: requestMessage }] }],
-            store: true,
-            previous_response_id: previousResponseId,
-          }
+          ...template,
+          input: [{ role: 'user', content: [{ type: 'input_text', text: requestMessage }] }],
+          store: true,
+          previous_response_id: previousResponseId,
+        }
         : {
-            ...template,
-            input: template.input?.map?.((item) => ({ ...item, content: item.content?.map?.((part) => ({ ...part })) })),
-            store: true,
-          };
+          ...template,
+          input: template.input?.map?.((item) => ({ ...item, content: item.content?.map?.((part) => ({ ...part })) })),
+          store: true,
+        };
       if (!previousResponseId) {
         const developer = request?.input?.find?.((item) => item?.role === 'developer');
         const developerContent = developer?.content?.[0];
