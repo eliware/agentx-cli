@@ -30,9 +30,7 @@
         "coveragePathIgnorePatterns": [
             "/src/agent\\.mjs$",
             "/src/completion\\.mjs$",
-            "/src/prompt\\.mjs$",
             "/src/shell\\.mjs$",
-            "/src/tool-runtime\\.mjs$",
             "/src/tool-shell\\.mjs$"
         ],
         "testMatch": [

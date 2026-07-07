@@ -1,10 +1,9 @@
-import { extractTextFromResponse, extractUsage, formatUsageSummary, isFunctionCall } from './response.mjs';
+import { extractTextFromResponse, extractUsage } from './response.mjs';
 import { runToolCall, toolCallSummary, toolOutputForCall } from './tool-dispatch.mjs';
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport } from './usage.mjs';
 
-const MAX_RESPONSE_CHAIN = 200;
 const SHELL_OUTPUT_PREVIEW = 120;
 
 function textFromContent(content) {
@@ -85,32 +84,6 @@ export function responseItemToTranscript(item) {
   return `${item.role || item.type || 'item'}: ${compactJson(item)}`;
 }
 
-async function listResponseInputItems(openai, responseId) {
-  const items = [];
-  const list = openai.responses.inputItems?.list;
-  if (!list) return items;
-  for await (const item of list.call(openai.responses.inputItems, responseId, { order: 'asc' })) {
-    items.push(item);
-  }
-  return items;
-}
-
-export async function collectStoredResponseItems(openai, latestResponseId) {
-  const turns = [];
-  const seen = new Set();
-  let responseId = latestResponseId;
-
-  while (responseId && !seen.has(responseId) && seen.size < MAX_RESPONSE_CHAIN) {
-    seen.add(responseId);
-    const response = await openai.responses.retrieve(responseId);
-    const input = await listResponseInputItems(openai, responseId);
-    turns.push({ input, output: response?.output ?? [] });
-    responseId = response?.previous_response_id || '';
-  }
-
-  return turns.reverse().flatMap((turn) => [...turn.input, ...turn.output]);
-}
-
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall) {
   let current = response;
   for (; ;) {
@@ -157,4 +130,5 @@ export async function sendMessage(openai, template, previousResponseId, userMess
   return response;
 }
 
-export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatUsageSummary, formatTurnUsageReport };
+export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport };
+export { formatUsageSummary } from './response.mjs';

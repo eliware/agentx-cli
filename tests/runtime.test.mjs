@@ -1,14 +1,10 @@
 import { describe, expect, test } from '@jest/globals';
-import { deleteOptional, isDirectInvocation, readJson, readOptionalText, requestIdPath, writeText } from '../src/runtime.mjs';
+import { deleteOptional, isDirectInvocation, readJson, readOptionalText, writeText } from '../src/runtime.mjs';
 import { mkdtempSync, symlinkSync, rmSync, writeFileSync, unlinkSync, promises as fsPromises } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 describe('runtime helpers', () => {
-  test('requestIdPath targets the cwd marker file', () => {
-    expect(requestIdPath('/tmp/work')).toBe('/tmp/work/.agentx_responseid');
-  });
-
   test('isDirectInvocation returns a boolean', () => {
     expect(typeof isDirectInvocation()).toBe('boolean');
   });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { applyFirstUserMessage, buildInputMessage } from '../src/prompt.mjs';
+import { applyFirstUserMessage, buildInputMessage } from '../src/prompt-builder.mjs';
 import { buildDeveloperText } from '../src/prompt-text.mjs';
 
 function makeTemplate() {

@@ -4,7 +4,6 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export const promptPath = path(import.meta, '../prompt.json');
-export const requestIdPath = (cwd) => path(cwd, '.agentx_responseid');
 
 export function isDirectInvocation(moduleUrl = import.meta.url) {
   if (!process.argv[1]) return false;

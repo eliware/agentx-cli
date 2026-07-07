@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { MAX_TOOL_OUTPUT, truncateToolOutput } from '../src/tool-output.mjs';
-import { toolCallSummary } from '../src/tool-runtime.mjs';
+import { toolCallSummary } from '../src/tool-dispatch.mjs';
 
 describe('tool runtime', () => {
   test('truncateToolOutput leaves short output unchanged', () => {

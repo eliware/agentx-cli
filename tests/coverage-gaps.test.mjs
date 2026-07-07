@@ -2,13 +2,12 @@ import { afterEach, describe, expect, test } from '@jest/globals';
 import { fs } from '@eliware/common';
 import path from 'node:path';
 import { completePath as completePathFromWrapper } from '../src/completion.mjs';
-import { applyFirstUserMessage, buildInputMessage } from '../src/prompt.mjs';
+import { applyFirstUserMessage } from '../src/prompt-builder.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from '../src/shell.mjs';
 import { buildDeveloperText } from '../src/prompt-text.mjs';
 import { runToolCall as runToolCallDirect, toolCallSummary as toolCallSummaryDirect } from '../src/tool-dispatch.mjs';
-import { runToolCall as runToolCallFromWrapper, toolCallSummary as toolCallSummaryFromWrapper } from '../src/tool-runtime.mjs';
 import { normalizeUsage, calculateUsageCost, formatUsageReport, formatTurnUsage, formatTurnUsageReport } from '../src/usage.mjs';
-import { collectStoredResponseItems, extractTextFromResponse, extractUsage, handleToolCalls, responseItemToTranscript, sendMessage } from '../src/agent-session.mjs';
+import { extractTextFromResponse, extractUsage, handleToolCalls, responseItemToTranscript, sendMessage } from '../src/agent-session.mjs';
 import { clearSession, persistResponseState, readSessionState } from '../src/session-state.mjs';
 import { readJson, readOptionalText, writeText, deleteOptional } from '../src/runtime.mjs';
 import { shellExec } from '../src/tool-shell.mjs';
@@ -23,16 +22,12 @@ describe('coverage gaps', () => {
   });
 
   test('wrapper modules re-export their underlying implementations', async () => {
-    const [completion, prompt, shell, toolRuntime] = await Promise.all([
+    const [completion, shell] = await Promise.all([
       import('../src/completion.mjs'),
-      import('../src/prompt.mjs'),
       import('../src/shell.mjs'),
-      import('../src/tool-runtime.mjs'),
     ]);
 
     expect(completion.completePath).toBe(completePathFromWrapper);
-    expect(prompt.applyFirstUserMessage).toBe(applyFirstUserMessage);
-    expect(prompt.buildInputMessage).toBe(buildInputMessage);
     expect(shell.buildWorkingDirectoryNote).toBe(buildWorkingDirectoryNote);
     expect(shell.clearTerminal).toBe(clearTerminal);
     expect(shell.formatPromptForCwd).toBe(formatPromptForCwd);
@@ -40,10 +35,6 @@ describe('coverage gaps', () => {
     expect(shell.parseInternalCommand).toBe(parseInternalCommand);
     expect(shell.readAgentsFromCwdAndParents).toBe(readAgentsFromCwdAndParents);
     expect(shell.resolveCdTarget).toBe(resolveCdTarget);
-    expect(toolRuntime.runToolCall).toBe(runToolCallFromWrapper);
-    expect(toolRuntime.toolCallSummary).toBe(toolCallSummaryFromWrapper);
-    expect(toolRuntime.runToolCall).toBe(runToolCallDirect);
-    expect(toolRuntime.toolCallSummary).toBe(toolCallSummaryDirect);
   });
 
   test('usage helpers normalize and format token counts', () => {
@@ -135,7 +126,6 @@ describe('coverage gaps', () => {
     expect(responseItemToTranscript({ type: 'file_call_output', output: [null] })).toContain('tool output file_call_output:');
     expect(responseItemToTranscript({ type: 'file_call_output', output: [{ outcome: { type: 'exit', exit_code: 0 } }] })).toContain('tool output file_call_output:');
     expect(extractTextFromResponse({ output: [{ type: 'message', content: [{ type: 'output_text', text: '' }, { type: 'other' }] }] })).toBe('');
-    await expect(collectStoredResponseItems({ responses: { retrieve: async () => undefined } }, 'resp-1')).resolves.toEqual([]);
     await expect(handleToolCalls({}, { id: 'resp-no-output' }, {}, '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
 
     const shellRequests = [];

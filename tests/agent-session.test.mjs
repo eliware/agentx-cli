@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
-import { buildInputMessage } from '../src/prompt.mjs';
-import { collectStoredResponseItems, formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState } from '../src/agent-session.mjs';
+import { buildInputMessage } from '../src/prompt-builder.mjs';
+import { formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState } from '../src/agent-session.mjs';
 import { cleanupTempDir, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('agent session helpers', () => {
@@ -111,40 +111,6 @@ describe('agent session helpers', () => {
       tools: [],
       previous_response_id: 'prev-1',
     });
-  });
-
-  test('collectStoredResponseItems walks the stored chain and reads input items', async () => {
-    const inputCalls = [];
-    const openai = {
-      responses: {
-        retrieve: async (responseId) => {
-          if (responseId === 'resp-2') {
-            return { previous_response_id: 'resp-1', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'second' }] }] };
-          }
-          return { previous_response_id: '', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'first' }] }] };
-        },
-        inputItems: {
-          list: {
-            call: async function* (_target, responseId, options) {
-              inputCalls.push({ responseId, options });
-              yield { type: 'message', role: 'user', content: [{ type: 'input_text', text: responseId === 'resp-2' ? 'user-two' : 'user-one' }] };
-            },
-          },
-        },
-      },
-    };
-
-    await expect(collectStoredResponseItems(openai, 'resp-2')).resolves.toEqual([
-      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'user-one' }] },
-      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'first' }] },
-      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'user-two' }] },
-      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'second' }] },
-    ]);
-
-    expect(inputCalls).toEqual([
-      { responseId: 'resp-2', options: { order: 'asc' } },
-      { responseId: 'resp-1', options: { order: 'asc' } },
-    ]);
   });
 
   test('handleToolCalls reports usage when a callback is provided', async () => {
