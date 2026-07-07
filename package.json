@@ -2,7 +2,7 @@
     "name": "@eliware/agentx",
     "type": "module",
     "version": "1.1.8",
-    "description": "A template for starting new Node.js projects.",
+    "description": "A lightweight terminal chat agent built on the OpenAI Responses API.",
     "main": "agentx.mjs",
     "scripts": {
         "start": "node agentx.mjs",
@@ -14,7 +14,10 @@
     },
     "keywords": [
         "agentx",
-        "nodejs"
+        "openai",
+        "responses-api",
+        "cli",
+        "terminal"
     ],
     "author": "Eli Sterling, eliware.org <eli@eliware.org>",
     "license": "MIT",
