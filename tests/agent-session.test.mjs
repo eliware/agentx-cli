@@ -208,6 +208,44 @@ describe('agent session helpers', () => {
     }
   });
 
+  test('handleToolCalls runs multiple tool calls in parallel and preserves output order', async () => {
+    const createCalls = [];
+    const openai = {
+      responses: {
+        create: async (request) => {
+          createCalls.push(request);
+          return { id: 'resp-next', output: [] };
+        },
+      },
+    };
+    const response = {
+      id: 'resp-1',
+      usage: { input_tokens: 1, input_tokens_details: { cached_tokens: 0 }, output_tokens: 1 },
+      output: [
+        { type: 'function_call', call_id: 'call-1', name: 'shell_call', arguments: JSON.stringify({ command: 'one' }) },
+        { type: 'function_call', call_id: 'call-2', name: 'shell_call', arguments: JSON.stringify({ command: 'two' }) },
+      ],
+    };
+
+    let active = 0;
+    let maxActive = 0;
+    const runToolCallFn = async (call) => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, call.call_id === 'call-1' ? 80 : 20));
+      active -= 1;
+      return `output-${call.call_id}`;
+    };
+
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
+
+    expect(maxActive).toBe(2);
+    expect(stdoutWrites.join('')).toContain('shell_call one... OK!');
+    expect(stdoutWrites.join('')).toContain('shell_call two... OK!');
+    expect(createCalls).toHaveLength(1);
+    expect(createCalls[0].input.map((item) => item.call_id)).toEqual(['call-1', 'call-2']);
+  });
+
   test('extractUsage is re-exported from agent-session', () => {
     expect(extractUsage({ usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } })).toEqual({ inputTokens: 1, cachedTokens: 1, outputTokens: 3 });
   });

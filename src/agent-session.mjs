@@ -83,16 +83,20 @@ export async function collectStoredResponseItems(openai, latestResponseId) {
   return turns.reverse().flatMap((turn) => [...turn.input, ...turn.output]);
 }
 
-export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage) {
+export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall) {
   let current = response;
   for (; ;) {
     if (onResponseUsage) onResponseUsage(extractUsage(current));
     const calls = (current?.output ?? []).filter(isFunctionCall);
     if (calls.length === 0) return current;
 
+    const results = await Promise.all(calls.map(async (call) => ({
+      call,
+      output: await runToolCallFn(call, cwd),
+    })));
+
     const outputs = [];
-    for (const call of calls) {
-      const output = await runToolCall(call, cwd);
+    for (const { call, output } of results) {
       process.stdout.write(`${toolCallSummary(call, output)}\n`);
       outputs.push({ type: 'function_call_output', call_id: call.call_id, output });
     }
