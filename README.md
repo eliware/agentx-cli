@@ -31,7 +31,7 @@ It is designed to feel shell-like:
 - `AGENTS.md` support from the current working directory
 - Current working directory shown in the prompt
 - Internal session persistence with `previous_response_id`
-- Built-in `read_file`, `write_file`, and `shell_exec` tools
+- Built-in `read_file`, `write_file`, and `shell_call` tools
 - Concise terminal output for tool calls
 - Sorted path completion, with quoted suggestions for paths containing spaces
 

@@ -6,7 +6,7 @@
       "content": [
         {
           "type": "input_text",
-          "text": "AGENTS.md"
+          "text": "<insert AGENTS.md chain>"
         }
       ]
     },
@@ -15,7 +15,7 @@
       "content": [
         {
           "type": "input_text",
-          "text": "test all 3 functions (parallel tool calls)"
+          "text": "<insert user message>"
         }
       ]
     }
@@ -82,7 +82,7 @@
     },
     {
       "type": "function",
-      "name": "shell_exec",
+      "name": "shell_call",
       "description": "Execute a shell command in a specific working directory.",
       "parameters": {
         "type": "object",

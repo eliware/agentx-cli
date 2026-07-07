@@ -322,9 +322,9 @@ describe('coverage gaps', () => {
 
     expect(await runToolCallDirect({ name: 'read_file' }, tmp)).toMatch(/^ERROR:/);
     expect(await runToolCallDirect({ name: 'write_file', arguments: '' }, tmp)).toMatch(/^ERROR:/);
-    expect(await runToolCallDirect({ name: 'shell_exec', arguments: JSON.stringify({}) }, tmp)).toBe('');
+    expect(await runToolCallDirect({ name: 'shell_call', arguments: JSON.stringify({}) }, tmp)).toBe('');
     expect(await runToolCallDirect({ name: 'unknown', arguments: '' }, tmp)).toBe('ERROR: unsupported tool unknown');
-    expect(toolCallSummaryDirect({ name: 'shell_exec' }, 'ok')).toBe('shell_exec ... OK!');
+    expect(toolCallSummaryDirect({ name: 'shell_call' }, 'ok')).toBe('shell_call ... OK!');
     expect(toolCallSummaryDirect({ name: 'read_file' }, 'ok')).toBe('read_file ... OK!');
     expect(toolCallSummaryDirect({ name: 'write_file' }, 'ok')).toBe('write_file ... OK!');
   });

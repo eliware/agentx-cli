@@ -51,7 +51,7 @@ export async function runToolCall(call, cwd) {
       return await readFileTool(args.file_path);
     case 'write_file':
       return await writeFileTool(args.file_path, args.content ?? '');
-    case 'shell_exec':
+    case 'shell_call':
       return await shellExec(args.command ?? '', cwd);
     default:
       return `ERROR: unsupported tool ${call.name}`;
@@ -60,7 +60,7 @@ export async function runToolCall(call, cwd) {
 
 export function toolCallSummary(call, output) {
   const args = call.arguments ? JSON.parse(call.arguments) : {};
-  if (call.name === 'shell_exec') return `shell_exec ${args.command || ''}... OK!`;
+  if (call.name === 'shell_call') return `shell_call ${args.command || ''}... OK!`;
   if (call.name === 'read_file') return `read_file ${args.file_path || ''}... OK!`;
   if (call.name === 'write_file') return `write_file ${args.file_path || ''}... OK!`;
   return `${call.name}... OK!`;

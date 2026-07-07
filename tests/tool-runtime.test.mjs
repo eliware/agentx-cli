@@ -16,7 +16,7 @@ describe('tool runtime', () => {
   });
 
   test('toolCallSummary formats supported tools', () => {
-    expect(toolCallSummary({ name: 'shell_exec', arguments: JSON.stringify({ command: 'ls' }) }, 'ok')).toContain('ls');
+    expect(toolCallSummary({ name: 'shell_call', arguments: JSON.stringify({ command: 'ls' }) }, 'ok')).toContain('ls');
     expect(toolCallSummary({ name: 'read_file', arguments: JSON.stringify({ file_path: 'a.txt' }) }, 'ok')).toContain('a.txt');
   });
 });

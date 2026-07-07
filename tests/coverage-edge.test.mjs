@@ -127,9 +127,9 @@ describe('helper coverage', () => {
     expect(await writeFileTool(tmp, 'bad')).toMatch(/^ERROR:/);
     expect(await runToolCall({ name: 'read_file', arguments: JSON.stringify({ file_path: filePath }) }, tmp)).toBe('hello');
     expect(await runToolCall({ name: 'write_file', arguments: JSON.stringify({ file_path: path.join(tmp, 'nested', 'other.txt'), content: 'x' }) }, tmp)).toBe(`WROTE: ${path.join(tmp, 'nested', 'other.txt')}`);
-    expect(await runToolCall({ name: 'shell_exec', arguments: JSON.stringify({ command: 'printf ok' }) }, tmp)).toBe('ok');
+    expect(await runToolCall({ name: 'shell_call', arguments: JSON.stringify({ command: 'printf ok' }) }, tmp)).toBe('ok');
     expect(await runToolCall({ name: 'unknown', arguments: '{}' }, tmp)).toBe('ERROR: unsupported tool unknown');
-    expect(toolCallSummary({ name: 'shell_exec', arguments: JSON.stringify({ command: 'ls' }) }, 'ok')).toBe('shell_exec ls... OK!');
+    expect(toolCallSummary({ name: 'shell_call', arguments: JSON.stringify({ command: 'ls' }) }, 'ok')).toBe('shell_call ls... OK!');
     expect(toolCallSummary({ name: 'read_file', arguments: JSON.stringify({ file_path: 'a.txt' }) }, 'ok')).toBe('read_file a.txt... OK!');
     expect(toolCallSummary({ name: 'write_file', arguments: JSON.stringify({ file_path: 'b.txt' }) }, 'ok')).toBe('write_file b.txt... OK!');
     expect(toolCallSummary({ name: 'other' }, 'ok')).toBe('other... OK!');
