@@ -13,7 +13,7 @@
 
 ## Tooling
 - Use `npm test` to verify changes.
-- Use `npm run coverage` when validating coverage-focused changes.
+- Use `npm test` when validating coverage-focused changes; it runs coverage by default.
 - Keep runtime output concise and purposeful.
 - If you add a new module under `src/`, give it a single responsibility.
 
@@ -23,6 +23,7 @@
 - Run commands that start with `>` locally in the shell and buffer their output into the next AI request.
 - Persist the latest response id, usage totals, last user/assistant messages, and pending CLI transcript in `.agentx_responseid` in the current working directory.
 - Continue using the Responses API with `previous_response_id` and `store: true` for session continuity.
+- Server-side compaction is configured in `prompt.json`; there is no manual `/compact` command.
 
 ## Runtime Notes
 - The executable may be launched through a symlink such as `/usr/bin/agentx`; the entrypoint must resolve the real path before deciding whether to start the REPL.

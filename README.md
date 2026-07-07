@@ -32,6 +32,7 @@ It is designed to feel shell-like:
 - Current working directory shown in the prompt
 - Internal session persistence with `previous_response_id`
 - Built-in `shell_call` tool
+- Server-side Responses API compaction for long-running sessions
 - Concise terminal output for tool calls
 - Sorted path completion, with quoted suggestions for paths containing spaces
 
@@ -71,7 +72,7 @@ The prompt will look like this:
 
 The app stores the latest response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid` in the current working directory.
 
-If that file exists on startup, the app resumes the conversation from the stored response id and prints the last exchanged messages. Pending shell output is preserved until the next AI request.
+If that file exists on startup, the app resumes the conversation from the stored response id and prints the last exchanged messages. Pending shell output is preserved until the next AI request. Long sessions rely on server-side compaction configured in `prompt.json`.
 
 ### Prompt Assembly
 
@@ -100,11 +101,7 @@ Run the test suite with:
 npm test
 ```
 
-Run coverage when you need the full coverage report:
-
-```bash
-npm run coverage
-```
+The test command also collects coverage.
 
 The tests cover:
 - prompt assembly

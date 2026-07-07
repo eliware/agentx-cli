@@ -1,5 +1,15 @@
 # AgentX Release Notes
 
+## 1.1.9 - Server-side compaction and shell tool cleanup
+
+Deltas from 1.1.8:
+
+- Enabled server-side Responses API compaction via `context_management` in `prompt.json`.
+- Removed the old manual `/compact` flow and the local transcript-summarization fallback.
+- Simplified the tool set to `shell_call` only; file tools were removed from the prompt/runtime.
+- Allowed parallel tool-call execution while preserving tool output order.
+- Updated tests and coverage handling so `npm test` now runs coverage by default.
+
 ## 1.1.8 - Session transcript persistence and local shell passthrough
 
 Deltas from 1.1.7:
