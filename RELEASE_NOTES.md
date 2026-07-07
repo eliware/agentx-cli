@@ -7,8 +7,11 @@ Deltas from 1.1.8:
 - Enabled server-side Responses API compaction via `context_management` in `prompt.json`.
 - Removed the old manual `/compact` flow and the local transcript-summarization fallback.
 - Simplified the tool set to `shell_call` only; file tools were removed from the prompt/runtime.
+- Reworked shell handling around structured `shell_call` / `shell_call_output` responses, including multiple commands per call, timeouts, and output limits.
+- Added the terminal “Thinking...” indicator while waiting on OpenAI responses and tool execution.
 - Allowed parallel tool-call execution while preserving tool output order.
-- Updated tests and coverage handling so `npm test` now runs coverage by default.
+- Updated docs (`README.md`, `AGENTS.md`) to reflect server-side compaction, `shell_call` only, and the lack of a manual `/compact` command.
+- Cleaned up package metadata and test scripts: refreshed the description/keywords, and made `npm test` run coverage by default.
 
 ## 1.1.8 - Session transcript persistence and local shell passthrough
 
