@@ -48,6 +48,7 @@ describe('agent loop', () => {
         { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
         { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
       ],
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     }));
     writeFileSync(path.join(cwd, '.agentx_responseid'), JSON.stringify({
@@ -168,6 +169,7 @@ describe('agent loop', () => {
         { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
         { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
       ],
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     }));
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
@@ -260,6 +262,7 @@ describe('agent loop', () => {
           { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
           { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
         ],
+        context_management: [{ type: 'compaction', compact_threshold: 300000 }],
         tools: [],
       }),
     }));

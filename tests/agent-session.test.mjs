@@ -27,6 +27,7 @@ describe('agent session helpers', () => {
         { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
         { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
       ],
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
 
@@ -44,10 +45,11 @@ describe('agent session helpers', () => {
 
     expect(calls[0].input[1].content[0].text).toBe('hello');
     expect(calls[0].input[0].content[0].text).toContain('/tmp/work');
+    expect(calls[0].context_management).toEqual([{ type: 'compaction', compact_threshold: 300000 }]);
   });
 
   test('sendMessage resumes with previous_response_id for subsequent turns', async () => {
-    const template = { model: 'test-model', input: [], tools: [] };
+    const template = { model: 'test-model', input: [], context_management: [{ type: 'compaction', compact_threshold: 300000 }], tools: [] };
     const calls = [];
     const openai = {
       responses: {
@@ -64,6 +66,7 @@ describe('agent session helpers', () => {
       model: 'test-model',
       input: [buildInputMessage('next')],
       store: true,
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
       previous_response_id: 'prev-1',
     });
@@ -78,6 +81,7 @@ describe('agent session helpers', () => {
       ],
       text: { format: { type: 'text' }, verbosity: 'low' },
       reasoning: { effort: 'medium', summary: null },
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
     const calls = [];
@@ -104,6 +108,7 @@ describe('agent session helpers', () => {
       reasoning: { effort: 'medium', summary: null },
       input: [buildInputMessage('next')],
       store: true,
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
       previous_response_id: 'prev-1',
     });
@@ -115,6 +120,7 @@ describe('agent session helpers', () => {
       input: [],
       text: { format: { type: 'text' }, verbosity: 'low' },
       reasoning: { effort: 'medium', summary: null },
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
     const calls = [];
@@ -182,6 +188,7 @@ describe('agent session helpers', () => {
         { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
         { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
       ],
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
     const calls = [];
@@ -198,7 +205,10 @@ describe('agent session helpers', () => {
           : { id: 'resp-1', previous_response_id: null, output: [{ role: 'assistant', type: 'message', content: [{ type: 'output_text', text: 'old answer' }] }] },
         create: async (request) => {
           calls.push(request);
-          if (request.store === false) return { id: 'summary', output: [{ type: 'message', content: [{ type: 'output_text', text: 'summary text' }] }], usage: { input_tokens: 3, output_tokens: 4 } };
+          if (request.store === false) {
+            expect(request.context_management).toEqual([{ type: 'compaction', compact_threshold: 300000 }]);
+            return { id: 'summary', output: [{ type: 'message', content: [{ type: 'output_text', text: 'summary text' }] }], usage: { input_tokens: 3, output_tokens: 4 } };
+          }
           return { id: 'resp-new', model: request.model, output: [{ type: 'message', content: [{ type: 'output_text', text: 'done' }] }], usage: { input_tokens: 5, output_tokens: 6 } };
         },
       },
@@ -209,7 +219,9 @@ describe('agent session helpers', () => {
 
     expect(compacted.response.id).toBe('resp-new');
     expect(calls[0].store).toBe(false);
+    expect(calls[0].context_management).toEqual([{ type: 'compaction', compact_threshold: 300000 }]);
     expect(calls[1].previous_response_id).toBeUndefined();
+    expect(calls[1].context_management).toEqual([{ type: 'compaction', compact_threshold: 300000 }]);
     expect(calls[1].input[0].content[0].text).toContain('AGENTS body');
     expect(calls[1].input.at(-1).content[0].text).toBe('retry this');
     expect(calls[1].input.map((item) => item.content?.[0]?.text).join('\n')).toContain('summary text');
@@ -223,6 +235,7 @@ describe('agent session helpers', () => {
         { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
         { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
       ],
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
     const longText = 'x'.repeat(120_000);

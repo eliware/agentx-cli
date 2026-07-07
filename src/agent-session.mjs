@@ -124,9 +124,9 @@ function splitTextByChars(text, maxChars) {
   return chunks;
 }
 
-async function summarizeTranscriptChunk(openai, model, transcript, onResponseUsage) {
+async function summarizeTranscriptChunk(openai, baseRequest, transcript, onResponseUsage) {
   const response = await openai.responses.create({
-    model,
+    ...baseRequest,
     store: false,
     input: [
       {
@@ -143,7 +143,7 @@ async function summarizeTranscriptChunk(openai, model, transcript, onResponseUsa
   return extractTextFromResponse(response).trim();
 }
 
-async function summarizeTranscript(openai, model, transcript, onResponseUsage, maxChars = SUMMARY_CHUNK_CHARS) {
+async function summarizeTranscript(openai, model, transcript, onResponseUsage, baseRequest, maxChars = SUMMARY_CHUNK_CHARS) {
   const trimmed = transcript.trim();
   if (!trimmed) return '';
 
@@ -151,16 +151,16 @@ async function summarizeTranscript(openai, model, transcript, onResponseUsage, m
   const summaries = [];
   for (const chunk of chunks) {
     try {
-      summaries.push(await summarizeTranscriptChunk(openai, model, chunk, onResponseUsage));
+      summaries.push(await summarizeTranscriptChunk(openai, baseRequest, chunk, onResponseUsage));
     } catch (error) {
       if (!isContextWindowExceeded(error) || chunk.length <= MIN_SUMMARY_CHUNK_CHARS) throw error;
-      summaries.push(await summarizeTranscript(openai, model, chunk, onResponseUsage, Math.max(MIN_SUMMARY_CHUNK_CHARS, Math.floor(maxChars / 2))));
+      summaries.push(await summarizeTranscript(openai, model, chunk, onResponseUsage, baseRequest, Math.max(MIN_SUMMARY_CHUNK_CHARS, Math.floor(maxChars / 2))));
     }
   }
 
   const combined = summaries.filter(Boolean).join('\n\n');
   if (summaries.length <= 1 || combined.length <= SUMMARY_CHUNK_CHARS) return combined;
-  return summarizeTranscript(openai, model, combined, onResponseUsage);
+  return summarizeTranscript(openai, model, combined, onResponseUsage, baseRequest);
 }
 
 export async function compactSession(openai, template, previousResponseId, agentsText, cwd, pendingMessage = '', onResponseUsage) {
@@ -169,8 +169,9 @@ export async function compactSession(openai, template, previousResponseId, agent
   const { summaryEntries, recentEntries } = splitTranscriptForSummary(entries);
   const oldTranscript = summaryEntries.join('\n\n');
   const recentTranscript = recentEntries.join('\n\n');
-  const summary = await summarizeTranscript(openai, template.model, oldTranscript, onResponseUsage);
   const baseRequest = clone(template);
+  const summary = await summarizeTranscript(openai, template.model, oldTranscript, onResponseUsage, baseRequest);
+
 
   const input = [
     {

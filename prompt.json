@@ -30,6 +30,12 @@
     "effort": "medium",
     "summary": null
   },
+  "context_management": [
+    {
+      "type": "compaction",
+      "compact_threshold": 300000
+    }
+  ],
   "tools": [
     {
       "type": "function",
