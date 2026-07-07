@@ -4,7 +4,7 @@ import { log, registerHandlers, path } from '@eliware/common';
 import { createOpenAI } from '@eliware/openai';
 import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
-import { compactSession, extractTextFromResponse, isContextWindowExceeded, persistResponseState, clearSession, sendMessage, readSessionState } from './agent-session.mjs';
+import { extractTextFromResponse, persistResponseState, clearSession, sendMessage, readSessionState } from './agent-session.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
 import { readJson } from './runtime.mjs';
 import { createUsageTotals, addUsageTotals, addTurn, formatUsageReport, formatTurnUsageReport } from './response.mjs';
@@ -164,26 +164,6 @@ export async function runAgent({ promptPath, cwd }) {
         continue;
       }
 
-      if (internal?.type === 'compact') {
-        if (!previousResponseId) {
-          process.stdout.write(`${formatSystemMessage('No active session to compact')}\n`);
-          continue;
-        }
-        const turnUsage = createUsageTotals();
-        process.stdout.write(`${formatSystemMessage('Compacting session context...')}\n`);
-        const compacted = await compactSession(openai, template, previousResponseId, agentsText, cwd, '', (usage) => addUsageTotals(turnUsage, usage));
-        previousResponseId = compacted.response?.id || previousResponseId;
-        addUsageTotals(sessionUsage, turnUsage);
-        addTurn(sessionUsage);
-        lastAssistantMessage = extractTextFromResponse(compacted.response);
-        await saveState();
-        const text = lastAssistantMessage;
-        if (text) printAgentText(text);
-        printTurnUsage(turnUsage);
-        printCumulativeUsage(sessionUsage);
-        continue;
-      }
-
       if (internal?.type === 'cd') {
         try {
           cwd = await resolveCdTarget(internal.target, cwd);
@@ -229,15 +209,7 @@ export async function runAgent({ promptPath, cwd }) {
       if (debugEnabled) {
         debugLog('OpenAI request:', JSON.stringify(request, null, 2));
       }
-      let response;
-      try {
-        response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => addUsageTotals(turnUsage, usage), request);
-      } catch (error) {
-        if (!previousResponseId || !isContextWindowExceeded(error)) throw error;
-        process.stdout.write(`${formatSystemMessage('Context window exceeded; compacting session context and retrying...')}\n`);
-        const compacted = await compactSession(openai, template, previousResponseId, agentsText, cwd, requestMessage, (usage) => addUsageTotals(turnUsage, usage));
-        response = compacted.response;
-      }
+      const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => addUsageTotals(turnUsage, usage), request);
       if (debugEnabled) {
         debugLog('OpenAI response:', JSON.stringify(response, null, 2));
       }

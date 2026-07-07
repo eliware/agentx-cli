@@ -14,7 +14,6 @@ Deltas from 1.1.7:
 Deltas from 1.1.6:
 
 - Preserved top-level Responses API request fields across session resumes and tool-call continuations.
-- Hardened session compaction to recursively resummarize oversized transcript chunks.
 - Improved direct-invocation detection so the REPL only starts when launched as the main entrypoint.
 - Added fallback handling for prompt building, CLI defaults, and path-completion edge cases.
 - Expanded coverage-focused tests and added a dedicated `coverage` npm script.
@@ -55,7 +54,7 @@ Deltas from 1.1.3:
 - Updated shell test coverage in `tests/shell.test.mjs`.
 - Package metadata and lockfile version updates.
 
-## 1.1.5 - Session compaction and shell command expansion
+## 1.1.5 - Session state and shell command expansion
 
 Deltas from 1.1.4:
 
@@ -63,7 +62,6 @@ Deltas from 1.1.4:
 - Expanded `src/agent.mjs` to support persisted session usage tracking and resume behavior.
 - Added support for shell commands in `src/shell-commands.mjs`.
 - Added and expanded tests for session management and shell behavior.
-- Introduced context-compaction behavior for long-running conversations.
 - Added usage aggregation and per-turn reporting.
 
 ## 1.1.6 - File tools

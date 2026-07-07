@@ -8,7 +8,7 @@ import { buildDeveloperText } from '../src/prompt-text.mjs';
 import { runToolCall as runToolCallDirect, toolCallSummary as toolCallSummaryDirect } from '../src/tool-dispatch.mjs';
 import { runToolCall as runToolCallFromWrapper, toolCallSummary as toolCallSummaryFromWrapper } from '../src/tool-runtime.mjs';
 import { normalizeUsage, calculateUsageCost, formatUsageReport, formatTurnUsage, formatTurnUsageReport } from '../src/usage.mjs';
-import { collectStoredResponseItems, compactSession, extractTextFromResponse, extractUsage, handleToolCalls, isContextWindowExceeded, responseItemToTranscript, sendMessage } from '../src/agent-session.mjs';
+import { collectStoredResponseItems, extractTextFromResponse, extractUsage, handleToolCalls, responseItemToTranscript, sendMessage } from '../src/agent-session.mjs';
 import { clearSession, persistResponseState, readSessionState } from '../src/session-state.mjs';
 import { readJson, readOptionalText, writeText, deleteOptional } from '../src/runtime.mjs';
 import { readFileTool, writeFileTool } from '../src/tool-files.mjs';
@@ -110,15 +110,6 @@ describe('coverage gaps', () => {
   });
 
   test('agent-session helpers cover empty history, fallback text, and no-tool responses', async () => {
-    expect(isContextWindowExceeded({ code: 'context_length_exceeded' })).toBe(true);
-    expect(isContextWindowExceeded({ error: { code: 'context_length_exceeded' } })).toBe(true);
-    expect(isContextWindowExceeded({ error: { error: { code: 'context_length_exceeded' } } })).toBe(true);
-    expect(isContextWindowExceeded({ error: { status: 400 }, message: 'context window exceeded' })).toBe(true);
-    expect(isContextWindowExceeded({ status: 400 })).toBe(false);
-    expect(isContextWindowExceeded({})).toBe(false);
-    expect(isContextWindowExceeded({ status: 400, message: 'context window exceeded' })).toBe(true);
-    expect(isContextWindowExceeded({ status: 500, message: 'nope' })).toBe(false);
-
     expect(extractTextFromResponse()).toBe('');
     expect(extractTextFromResponse({ output: [{ type: 'message' }] })).toBe('');
     expect(extractTextFromResponse({ output: [{ type: 'message', content: [{ type: 'output_text' }, { type: 'output_text', text: 'a' }] }, { type: 'reasoning' }, { type: 'other' }] })).toBe('a');
@@ -142,16 +133,6 @@ describe('coverage gaps', () => {
     await expect(collectStoredResponseItems({ responses: { retrieve: async () => undefined } }, 'resp-1')).resolves.toEqual([]);
     await expect(handleToolCalls({}, { id: 'resp-no-output' }, {}, '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
 
-    const emptyOpenai = {
-      responses: {
-        create: async () => ({ id: 'resp-1', output: [{ type: 'message', content: [{ type: 'output_text', text: 'done' }] }] }),
-      },
-    };
-    const result = await compactSession(emptyOpenai, { model: 'test-model', input: [{ role: 'developer', content: [{ type: 'input_text', text: 'base' }] }], tools: [] }, '', '', '/tmp/work');
-    expect(result.summary).toBe('');
-    expect(result.recentCount).toBe(0);
-    expect(result.summarizedCount).toBe(0);
-
     const requestCalls = [];
     const sendOpenai = {
       responses: {
@@ -170,29 +151,6 @@ describe('coverage gaps', () => {
       },
     };
     await expect(sendMessage(noOutputOpenai, { model: 'test-model', input: [] }, 'previous', 'hello', '', '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
-  });
-
-  test('compact session rethrows non-context summary failures', async () => {
-    async function* listInputItems() {
-      yield { role: 'user', type: 'message', content: [{ type: 'input_text', text: 'old user message' }] };
-    }
-
-    const openai = {
-      responses: {
-        retrieve: async () => ({
-          previous_response_id: '',
-          output: [{ role: 'assistant', type: 'message', content: [{ type: 'output_text', text: 'old assistant message' }] }],
-        }),
-        inputItems: {
-          list: () => listInputItems(),
-        },
-        create: async () => {
-          throw new Error('summary failed');
-        },
-      },
-    };
-
-    await expect(compactSession(openai, { model: 'test-model', input: [] }, 'resp-1', '', '/tmp/work')).rejects.toThrow('summary failed');
   });
 
   test('shell path helpers handle home, tilde and invalid targets', async () => {
