@@ -39,49 +39,6 @@
   "tools": [
     {
       "type": "function",
-      "name": "write_file",
-      "description": "Write content to a file at the specified file path",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "file_path": {
-            "type": "string",
-            "description": "The path where the file will be written"
-          },
-          "content": {
-            "type": "string",
-            "description": "The content to write into the file"
-          }
-        },
-        "required": [
-          "file_path",
-          "content"
-        ],
-        "additionalProperties": false
-      },
-      "strict": true
-    },
-    {
-      "type": "function",
-      "name": "read_file",
-      "description": "Read the contents of a file at the specified file path",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "file_path": {
-            "type": "string",
-            "description": "Path to the file to be read"
-          }
-        },
-        "required": [
-          "file_path"
-        ],
-        "additionalProperties": false
-      },
-      "strict": true
-    },
-    {
-      "type": "function",
       "name": "shell_call",
       "description": "Execute a shell command in a specific working directory.",
       "parameters": {

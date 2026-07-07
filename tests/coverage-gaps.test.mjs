@@ -11,7 +11,6 @@ import { normalizeUsage, calculateUsageCost, formatUsageReport, formatTurnUsage,
 import { collectStoredResponseItems, extractTextFromResponse, extractUsage, handleToolCalls, responseItemToTranscript, sendMessage } from '../src/agent-session.mjs';
 import { clearSession, persistResponseState, readSessionState } from '../src/session-state.mjs';
 import { readJson, readOptionalText, writeText, deleteOptional } from '../src/runtime.mjs';
-import { readFileTool, writeFileTool } from '../src/tool-files.mjs';
 import { shellExec } from '../src/tool-shell.mjs';
 import { addTurn, addUsageTotals, createUsageTotals, isFunctionCall } from '../src/response-parts.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
@@ -305,28 +304,9 @@ describe('coverage gaps', () => {
   test('tool helpers cover fallback parsing and plain-string errors', async () => {
     const tmp = makeTempDir('agentx-tool-gaps-');
     tempDirs.push(tmp);
-    const filePath = path.join(tmp, 'note.txt');
-    await writeText(filePath, 'hello');
-
-    const originalReadFile = fs.promises.readFile;
-    const originalWriteFile = fs.promises.writeFile;
-    try {
-      fs.promises.readFile = async () => { throw 'read failed'; };
-      expect(await readFileTool(filePath)).toBe('ERROR: read failed');
-      fs.promises.writeFile = async () => { throw 'write failed'; };
-      expect(await writeFileTool(filePath, 'x')).toBe('ERROR: write failed');
-    } finally {
-      fs.promises.readFile = originalReadFile;
-      fs.promises.writeFile = originalWriteFile;
-    }
-
-    expect(await runToolCallDirect({ name: 'read_file' }, tmp)).toMatch(/^ERROR:/);
-    expect(await runToolCallDirect({ name: 'write_file', arguments: '' }, tmp)).toMatch(/^ERROR:/);
     expect(await runToolCallDirect({ name: 'shell_call', arguments: JSON.stringify({}) }, tmp)).toBe('');
     expect(await runToolCallDirect({ name: 'unknown', arguments: '' }, tmp)).toBe('ERROR: unsupported tool unknown');
     expect(toolCallSummaryDirect({ name: 'shell_call' }, 'ok')).toBe('shell_call ... OK!');
-    expect(toolCallSummaryDirect({ name: 'read_file' }, 'ok')).toBe('read_file ... OK!');
-    expect(toolCallSummaryDirect({ name: 'write_file' }, 'ok')).toBe('write_file ... OK!');
   });
 
   test('parseInternalCommand and display helpers cover remaining branches', () => {

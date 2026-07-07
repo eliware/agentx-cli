@@ -179,13 +179,12 @@ describe('agent session helpers', () => {
     const calls = [];
     const tmp = makeTempDir('agentx-handle-tool-');
     try {
-      const file = makeFile(tmp, 'input.txt', 'tool output');
       const openai = {
         responses: {
           create: async (request) => {
             calls.push(request);
             if (calls.length === 1) {
-              return { id: 'resp-1', model: 'test-model', output: [{ type: 'function_call', call_id: 'call-1', name: 'read_file', arguments: JSON.stringify({ file_path: file }) }] };
+              return { id: 'resp-1', model: 'test-model', output: [{ type: 'function_call', call_id: 'call-1', name: 'shell_call', arguments: JSON.stringify({ command: 'printf tool output' }) }] };
             }
             return { id: 'resp-2', model: 'test-model', output: [] };
           },
@@ -194,7 +193,7 @@ describe('agent session helpers', () => {
 
       await sendMessage(openai, template, 'prev-1', 'next', '', '/tmp/work');
 
-      expect(stdoutWrites.join('')).toContain(`read_file ${file}... OK!`);
+      expect(stdoutWrites.join('')).toContain('shell_call printf tool output... OK!');
       expect(calls[1]).toMatchObject({
         model: 'test-model',
         text: { format: { type: 'text' }, verbosity: 'low' },

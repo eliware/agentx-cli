@@ -6,7 +6,6 @@ import { formatPromptForCwd, formatSystemMessage, clearTerminal } from '../src/s
 import { parseInternalCommand } from '../src/shell-commands.mjs';
 import { buildWorkingDirectoryNote, resolveCdTarget } from '../src/shell-paths.mjs';
 import { getTerminalWidth, wrapText } from '../src/text-wrap.mjs';
-import { readFileTool, writeFileTool } from '../src/tool-files.mjs';
 import { runToolCall, toolCallSummary } from '../src/tool-dispatch.mjs';
 import { shellExec } from '../src/tool-shell.mjs';
 import { readOptionalText, writeText, deleteOptional } from '../src/runtime.mjs';
@@ -119,19 +118,9 @@ describe('helper coverage', () => {
   test('tool helpers cover supported, unsupported and error cases', async () => {
     const tmp = makeTempDir('agentx-tools-');
     tempDirs.push(tmp);
-    const filePath = path.join(tmp, 'note.txt');
-    await writeFileTool(filePath, 'hello');
-    expect(readFileSync(filePath, 'utf8')).toBe('hello');
-    expect(await readFileTool(filePath)).toBe('hello');
-    expect(await readFileTool(path.join(tmp, 'missing.txt'))).toMatch(/^ERROR:/);
-    expect(await writeFileTool(tmp, 'bad')).toMatch(/^ERROR:/);
-    expect(await runToolCall({ name: 'read_file', arguments: JSON.stringify({ file_path: filePath }) }, tmp)).toBe('hello');
-    expect(await runToolCall({ name: 'write_file', arguments: JSON.stringify({ file_path: path.join(tmp, 'nested', 'other.txt'), content: 'x' }) }, tmp)).toBe(`WROTE: ${path.join(tmp, 'nested', 'other.txt')}`);
     expect(await runToolCall({ name: 'shell_call', arguments: JSON.stringify({ command: 'printf ok' }) }, tmp)).toBe('ok');
     expect(await runToolCall({ name: 'unknown', arguments: '{}' }, tmp)).toBe('ERROR: unsupported tool unknown');
     expect(toolCallSummary({ name: 'shell_call', arguments: JSON.stringify({ command: 'ls' }) }, 'ok')).toBe('shell_call ls... OK!');
-    expect(toolCallSummary({ name: 'read_file', arguments: JSON.stringify({ file_path: 'a.txt' }) }, 'ok')).toBe('read_file a.txt... OK!');
-    expect(toolCallSummary({ name: 'write_file', arguments: JSON.stringify({ file_path: 'b.txt' }) }, 'ok')).toBe('write_file b.txt... OK!');
     expect(toolCallSummary({ name: 'other' }, 'ok')).toBe('other... OK!');
   });
 
