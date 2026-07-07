@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.1.10 - Usage accounting fixes for tool retriggers
+
+Deltas from 1.1.9:
+
+- Fixed per-turn usage accounting so shell tool retriggers are counted in the persisted session totals.
+- Restored usage status output during tool continuations so tool-heavy turns report accurate token totals.
+- Added regression coverage for usage accumulation and tool-retrigger reporting.
+
 ## 1.1.9 - Server-side compaction and shell tool cleanup
 
 Deltas from 1.1.8:
