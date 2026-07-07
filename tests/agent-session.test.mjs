@@ -133,6 +133,23 @@ describe('agent session helpers', () => {
     expect(usageCalls).toEqual([{ inputTokens: 3, cachedTokens: 1, outputTokens: 2 }]);
   });
 
+  test('handleToolCalls prints usage stats on tool retriggers', async () => {
+    const openai = {
+      responses: {
+        create: async () => ({ id: 'resp-next', output: [] }),
+      },
+    };
+    const response = {
+      id: 'resp-usage',
+      output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf \"tool output\"'] } }],
+      usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 4 }, output_tokens: 6 },
+    };
+
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }));
+
+    expect(stdoutWrites.join('')).toContain('in=6 ($0.000), cache=4 ($0.000), out=6 ($0.000), sum=$0.000');
+  });
+
   test('handleToolCalls preserves request fields on tool continuations', async () => {
     const template = {
       model: 'test-model',

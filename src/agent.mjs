@@ -7,7 +7,7 @@ import { completePath } from './completion.mjs';
 import { extractTextFromResponse, persistResponseState, clearSession, sendMessage, readSessionState } from './agent-session.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
 import { readJson } from './runtime.mjs';
-import { createUsageTotals, addUsageTotals, addTurn, formatUsageReport, formatTurnUsageReport } from './response.mjs';
+import { createUsageTotals, addUsageTotals, formatUsageReport, formatTurnUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 
 registerHandlers({ log });
@@ -209,13 +209,15 @@ export async function runAgent({ promptPath, cwd }) {
       if (debugEnabled) {
         debugLog('OpenAI request:', JSON.stringify(request, null, 2));
       }
-      const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => addUsageTotals(turnUsage, usage), request);
+      const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {
+        addUsageTotals(turnUsage, usage);
+        sessionUsage.turns += 1;
+      }, request);
       previousResponseId = response?.id || previousResponseId;
       lastUserMessage = message;
       lastAssistantMessage = extractTextFromResponse(response);
       pendingCliTranscript = '';
       addUsageTotals(sessionUsage, turnUsage);
-      addTurn(sessionUsage);
       await saveState();
       const text = lastAssistantMessage;
       if (text) printAgentText(text);

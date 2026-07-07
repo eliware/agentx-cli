@@ -3,6 +3,7 @@ import { runToolCall, toolCallSummary, toolOutputForCall } from './tool-dispatch
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport } from './usage.mjs';
+import { formatSystemMessage } from './shell-display.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
 const THINKING_FRAMES = ['|', '/', '-', '\\'];
@@ -118,9 +119,12 @@ export function responseItemToTranscript(item) {
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall) {
   let current = response;
   for (; ;) {
-    if (onResponseUsage) onResponseUsage(extractUsage(current));
+    const usage = extractUsage(current);
+    if (onResponseUsage) onResponseUsage(usage);
     const calls = (current?.output ?? []).filter((item) => item?.type === 'shell_call');
     if (calls.length === 0) return current;
+
+    process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
 
     for (const call of calls) {
       process.stdout.write(`${toolCallSummary(call)}\n`);

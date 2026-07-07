@@ -261,6 +261,81 @@ describe('agent loop', () => {
     expect(writes.join(' ')).toContain('/tmp/work');
   });
 
+
+  test('sums usage across tool retriggers in the persisted session totals', async () => {
+    const questionQueue = ['hello', '/exit'];
+
+    await jest.unstable_mockModule('node:readline/promises', () => ({
+      createInterface: () => ({
+        question: async () => questionQueue.shift() ?? '/exit',
+        close: jest.fn(),
+      }),
+    }));
+
+    await jest.unstable_mockModule('@eliware/openai', () => ({
+      createOpenAI: jest.fn(async () => ({ responses: {} })),
+    }));
+
+    await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
+      shellExec: jest.fn(),
+    }));
+
+    const persistResponseState = jest.fn(async () => { });
+    const clearSession = jest.fn(async () => { });
+    const readSessionState = jest.fn(async () => null);
+    const extractTextFromResponse = jest.fn(() => 'assistant reply');
+    const sendMessage = jest.fn(async (_openai, _template, previousResponseId, _userMessage, _agentsText, _activeCwd, onResponseUsage) => {
+      expect(previousResponseId).toBe('');
+      onResponseUsage({ inputTokens: 10, cachedTokens: 1, outputTokens: 2 });
+      onResponseUsage({ inputTokens: 20, cachedTokens: 2, outputTokens: 4 });
+      onResponseUsage({ inputTokens: 30, cachedTokens: 3, outputTokens: 6 });
+      onResponseUsage({ inputTokens: 40, cachedTokens: 4, outputTokens: 8 });
+      onResponseUsage({ inputTokens: 50, cachedTokens: 5, outputTokens: 10 });
+      return {
+        id: 'resp-5',
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }],
+        usage: { input_tokens: 50, input_tokens_details: { cached_tokens: 5 }, output_tokens: 10 },
+      };
+    });
+
+    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+      clearSession,
+      extractTextFromResponse,
+      extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
+      persistResponseState,
+      readSessionState,
+      sendMessage,
+    }));
+
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({
+      readJson: async () => ({
+        model: 'test-model',
+        input: [
+          { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
+          { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
+        ],
+        tools: [],
+      }),
+    }));
+
+    await jest.unstable_mockModule('../src/text-wrap.mjs', () => ({
+      getTerminalWidth: () => 80,
+      wrapText: (text) => text,
+    }));
+
+    const { runAgent } = await import('../src/agent.mjs');
+    await runAgent({ promptPath, cwd });
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(persistResponseState).toHaveBeenCalled();
+    expect(persistResponseState.mock.calls.at(-1)[1]).toMatchObject({
+      response_id: 'resp-5',
+      usage: { inputTokens: 150, cachedTokens: 15, outputTokens: 30, turns: 5 },
+    });
+    expect(writes.join(' ')).toContain('msgs=5');
+  });
+
   test('exits cleanly when readline aborts', async () => {
     await jest.unstable_mockModule('node:readline/promises', () => ({
       createInterface: () => ({
