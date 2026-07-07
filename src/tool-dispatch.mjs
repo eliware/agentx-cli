@@ -11,18 +11,6 @@ function getShellLimits(call) {
   };
 }
 
-function summarizeShellOutcome(output) {
-  const chunks = Array.isArray(output?.output) ? output.output : [];
-  if (chunks.length === 0) return 'OK!';
-  for (const chunk of chunks) {
-    if (chunk?.outcome?.type === 'timeout') return 'TIMEOUT';
-    if (chunk?.outcome?.type === 'exit' && Number(chunk.outcome.exit_code) !== 0) {
-      return `exit ${chunk.outcome.exit_code}`;
-    }
-  }
-  return 'OK!';
-}
-
 function formatShellCommandSummary(call) {
   const commands = getShellCommands(call);
   return commands.length > 0 ? commands.join(' && ') : '';
@@ -47,8 +35,7 @@ export async function runToolCall(call, cwd) {
 
 export function toolCallSummary(call, output) {
   if (call?.type === 'shell_call') {
-    const command = formatShellCommandSummary(call);
-    return `shell_call ${command}... ${summarizeShellOutcome(output)}`.trim();
+    return formatShellCommandSummary(call);
   }
   return `${call?.name || call?.type || 'tool'}... OK!`;
 }

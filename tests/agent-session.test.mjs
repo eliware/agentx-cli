@@ -1,6 +1,6 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, jest, test } from '@jest/globals';
 import { buildInputMessage } from '../src/prompt-builder.mjs';
-import { formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState } from '../src/agent-session.mjs';
+import { formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState, startThinkingIndicator } from '../src/agent-session.mjs';
 import { cleanupTempDir, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('agent session helpers', () => {
@@ -159,7 +159,7 @@ describe('agent session helpers', () => {
 
       await sendMessage(openai, template, 'prev-1', 'next', '', '/tmp/work');
 
-      expect(stdoutWrites.join('')).toContain('shell_call printf "tool output"...');
+      expect(stdoutWrites.join('')).toContain('printf "tool output"');
       expect(calls[1]).toMatchObject({
         model: 'test-model',
         text: { format: { type: 'text' }, verbosity: 'low' },
@@ -172,6 +172,138 @@ describe('agent session helpers', () => {
     } finally {
       cleanupTempDir(tmp);
     }
+  });
+
+  test('handleToolCalls logs debug request and response around tool continuations', async () => {
+    const originalArgv = [...process.argv];
+    const originalConsoleLog = console.log;
+    const logs = [];
+    process.argv = [...process.argv, '--debug'];
+    console.log = (...args) => {
+      logs.push(args.map(String).join(' '));
+    };
+
+    try {
+      const openai = {
+        responses: {
+          create: async () => ({ id: 'resp-next', output: [] }),
+        },
+      };
+      const response = {
+        id: 'resp-1',
+        output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf "tool output"'] } }],
+      };
+
+      await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }));
+
+      expect(logs.some((line) => line.includes('OpenAI request:'))).toBe(true);
+      expect(logs.some((line) => line.includes('previous_response_id'))).toBe(true);
+      expect(logs.some((line) => line.includes('OpenAI response:'))).toBe(true);
+      expect(logs.some((line) => line.includes('resp-next'))).toBe(true);
+    } finally {
+      process.argv = originalArgv;
+      console.log = originalConsoleLog;
+    }
+  });
+
+  test('startThinkingIndicator handles late ticks and repeated cleanup', () => {
+    const originalSetInterval = global.setInterval;
+    const originalClearInterval = global.clearInterval;
+    const originalWrite = process.stdout.write;
+    const writes = [];
+    let tick;
+    const clearCalls = [];
+
+    process.stdout.write = (chunk) => {
+      writes.push(String(chunk));
+      return true;
+    };
+    global.setInterval = (cb) => {
+      tick = cb;
+      return 'timer-id';
+    };
+    global.clearInterval = (timer) => {
+      clearCalls.push(timer);
+    };
+
+    try {
+      const stopThinking = startThinkingIndicator();
+      expect(writes.join('')).toContain('| Thinking...');
+
+      tick();
+      expect(writes.join('')).toContain('/ Thinking...');
+
+      stopThinking();
+      stopThinking();
+      tick();
+
+      expect(clearCalls).toEqual(['timer-id']);
+      expect(writes.join('')).toContain('\r             \r');
+      expect(writes.filter((entry) => entry.includes('Thinking...')).length).toBe(2);
+    } finally {
+      process.stdout.write = originalWrite;
+      global.setInterval = originalSetInterval;
+      global.clearInterval = originalClearInterval;
+    }
+  });
+
+  test('sendMessage shows and clears the thinking spinner while the request is in flight', async () => {
+    jest.useFakeTimers();
+    try {
+      let resolveRequest;
+      const openai = {
+        responses: {
+          create: jest.fn(() => new Promise((resolve) => {
+            resolveRequest = resolve;
+          })),
+        },
+      };
+
+      const promise = sendMessage(openai, { model: 'test-model', input: [], tools: [] }, '', 'hello', '', '/tmp/work');
+
+      expect(stdoutWrites.join('')).toContain('| Thinking...');
+      await jest.advanceTimersByTimeAsync(500);
+      expect(stdoutWrites.join('')).toContain('/ Thinking...');
+
+      resolveRequest({ id: 'resp-1', output: [] });
+      await promise;
+
+      expect(stdoutWrites.join('')).toContain('\r             \r');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('handleToolCalls shows and clears the thinking spinner on tool retriggers', async () => {
+    const openai = {
+      responses: {
+        create: jest.fn(() => new Promise((resolve) => {
+          setTimeout(() => resolve({ id: 'resp-next', output: [] }), 520);
+        })),
+      },
+    };
+    const response = {
+      id: 'resp-1',
+      output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf "tool output"'] } }],
+    };
+
+    const promise = handleToolCalls(
+      openai,
+      response,
+      { model: 'test-model', tools: [] },
+      '/tmp/work',
+      null,
+      async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }),
+    );
+
+    expect(stdoutWrites.join('')).toContain('printf "tool output"');
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(stdoutWrites.join('')).toContain('| Thinking...');
+    await new Promise((resolve) => setTimeout(resolve, 550));
+    expect(stdoutWrites.join('')).toContain('/ Thinking...');
+
+    await promise;
+    expect(stdoutWrites.join('')).toContain('\r             \r');
   });
 
   test('handleToolCalls runs multiple tool calls in parallel and preserves output order', async () => {
@@ -196,6 +328,7 @@ describe('agent session helpers', () => {
     let active = 0;
     let maxActive = 0;
     const runToolCallFn = async (call) => {
+      expect(stdoutWrites.join('')).toContain('one\ntwo\n');
       active += 1;
       maxActive = Math.max(maxActive, active);
       await new Promise((resolve) => setTimeout(resolve, call.call_id === 'call-1' ? 80 : 20));
@@ -206,8 +339,8 @@ describe('agent session helpers', () => {
     await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
 
     expect(maxActive).toBe(2);
-    expect(stdoutWrites.join('')).toContain('shell_call one... OK!');
-    expect(stdoutWrites.join('')).toContain('shell_call two... OK!');
+    expect(stdoutWrites.join('')).toContain('one\n');
+    expect(stdoutWrites.join('')).toContain('two\n');
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0].input.map((item) => item.call_id)).toEqual(['call-1', 'call-2']);
   });

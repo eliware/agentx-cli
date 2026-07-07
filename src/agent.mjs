@@ -210,9 +210,6 @@ export async function runAgent({ promptPath, cwd }) {
         debugLog('OpenAI request:', JSON.stringify(request, null, 2));
       }
       const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => addUsageTotals(turnUsage, usage), request);
-      if (debugEnabled) {
-        debugLog('OpenAI response:', JSON.stringify(response, null, 2));
-      }
       previousResponseId = response?.id || previousResponseId;
       lastUserMessage = message;
       lastAssistantMessage = extractTextFromResponse(response);

@@ -143,13 +143,13 @@ describe('helper coverage', () => {
       status: 'completed',
     });
     expect(await runToolCall({ name: 'unknown', arguments: '{}' }, tmp)).toBe('ERROR: unsupported tool unknown');
-    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-1', action: { commands: ['ls'] } }, structured)).toBe('shell_call ls... OK!');
-    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-empty', action: {} }, { type: 'shell_call_output', call_id: 'call-empty', output: [] })).toBe('shell_call ... OK!');
-    expect(toolCallSummary({ type: 'shell_call', action: null }, null)).toBe('shell_call ... OK!');
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-1', action: { commands: ['ls'] } }, structured)).toBe('ls');
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-empty', action: {} }, { type: 'shell_call_output', call_id: 'call-empty', output: [] })).toBe('');
+    expect(toolCallSummary({ type: 'shell_call', action: null }, null)).toBe('');
     expect(await runToolCall({ type: 'shell_call', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: '', status: 'completed' });
-    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-timeout', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [{ stdout: '', stderr: '', outcome: { type: 'timeout' } }] })).toBe('shell_call ls... TIMEOUT');
-    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-exit', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [{ stdout: '', stderr: '', outcome: { type: 'exit', exit_code: 2 } }] })).toBe('shell_call ls... exit 2');
-    expect(toolCallSummary({ type: 'shell_call', action: { commands: ['ls'] } }, null)).toBe('shell_call ls... OK!');
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-timeout', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [{ stdout: '', stderr: '', outcome: { type: 'timeout' } }] })).toBe('ls');
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-exit', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [{ stdout: '', stderr: '', outcome: { type: 'exit', exit_code: 2 } }] })).toBe('ls');
+    expect(toolCallSummary({ type: 'shell_call', action: { commands: ['ls'] } }, null)).toBe('ls');
     expect(toolOutputForCall({ type: 'function_call', call_id: 'call-fn' }, 'done')).toEqual({ type: 'function_call_output', call_id: 'call-fn', output: 'done' });
     expect(() => toolOutputForCall({ type: 'shell_call', call_id: 'call-bad', action: { commands: ['ls'] } }, 'done')).toThrow('shell_call must return shell_call_output');
     expect(toolCallSummary({ type: 'other' }, 'ok')).toBe('other... OK!');

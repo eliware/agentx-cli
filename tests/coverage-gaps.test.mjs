@@ -325,7 +325,7 @@ describe('coverage gaps', () => {
       status: 'completed',
     });
     expect(await runToolCallDirect({ name: 'unknown', arguments: '' }, tmp)).toBe('ERROR: unsupported tool unknown');
-    expect(toolCallSummaryDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, { type: 'shell_call_output', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] })).toBe('shell_call printf ok... OK!');
+    expect(toolCallSummaryDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, { type: 'shell_call_output', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] })).toBe('printf ok');
   });
 
   test('parseInternalCommand and display helpers cover remaining branches', () => {

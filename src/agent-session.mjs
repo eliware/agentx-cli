@@ -5,6 +5,27 @@ import { clearSession, persistResponseState, readSessionState } from './session-
 import { formatTurnUsageReport } from './usage.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
+const THINKING_FRAMES = ['|', '/', '-', '\\'];
+
+export function startThinkingIndicator() {
+  let active = true;
+  let frameIndex = 0;
+
+  process.stdout.write('\r| Thinking...');
+
+  const timer = setInterval(() => {
+    if (!active) return;
+    frameIndex = (frameIndex + 1) % THINKING_FRAMES.length;
+    process.stdout.write(`\r${THINKING_FRAMES[frameIndex]} Thinking...`);
+  }, 500);
+
+  return () => {
+    if (!active) return;
+    active = false;
+    clearInterval(timer);
+    process.stdout.write('\r             \r');
+  };
+}
 
 function textFromContent(content) {
   const parts = [];
@@ -41,6 +62,16 @@ function shellOutputPreview(item) {
     stderr: String(chunk?.stderr ?? '').slice(0, SHELL_OUTPUT_PREVIEW),
     outcome: chunk?.outcome ?? null,
   }));
+}
+
+function debugLogOpenAIRequest(request) {
+  if (!process.argv.includes('--debug')) return;
+  console.log('OpenAI request:', JSON.stringify(request, null, 2));
+}
+
+function debugLogOpenAIResponse(response) {
+  if (!process.argv.includes('--debug')) return;
+  console.log('OpenAI response:', JSON.stringify(response, null, 2));
 }
 
 export function responseItemToTranscript(item) {
@@ -91,6 +122,10 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     const calls = (current?.output ?? []).filter((item) => item?.type === 'shell_call');
     if (calls.length === 0) return current;
 
+    for (const call of calls) {
+      process.stdout.write(`${toolCallSummary(call)}\n`);
+    }
+
     const results = await Promise.all(calls.map(async (call) => ({
       call,
       output: await runToolCallFn(call, cwd),
@@ -98,16 +133,23 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 
     const outputs = [];
     for (const { call, output } of results) {
-      process.stdout.write(`${toolCallSummary(call, output)}\n`);
       outputs.push(toolOutputForCall(call, output));
     }
 
-    current = await openai.responses.create({
+    const request = {
       ...baseRequest,
       input: outputs,
       previous_response_id: current.id,
       store: true,
-    });
+    };
+    debugLogOpenAIRequest(request);
+    const stopThinking = startThinkingIndicator();
+    try {
+      current = await openai.responses.create(request);
+      debugLogOpenAIResponse(current);
+    } finally {
+      stopThinking();
+    }
   }
 }
 
@@ -125,7 +167,14 @@ export async function sendMessage(openai, template, previousResponseId, userMess
       store: true,
     });
 
-  let response = await openai.responses.create(request);
+  const stopThinking = startThinkingIndicator();
+  let response;
+  try {
+    response = await openai.responses.create(request);
+    debugLogOpenAIResponse(response);
+  } finally {
+    stopThinking();
+  }
   response = await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage);
   return response;
 }
