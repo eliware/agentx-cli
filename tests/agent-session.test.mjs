@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { buildInputMessage } from '../src/prompt.mjs';
-import { formatUsageSummary, responseItemToTranscript, sendMessage, extractUsage, readSessionState } from '../src/agent-session.mjs';
+import { collectStoredResponseItems, formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState } from '../src/agent-session.mjs';
 import { cleanupTempDir, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('agent session helpers', () => {
@@ -27,6 +27,7 @@ describe('agent session helpers', () => {
         { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
         { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
       ],
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
 
@@ -44,6 +45,7 @@ describe('agent session helpers', () => {
 
     expect(calls[0].input[1].content[0].text).toBe('hello');
     expect(calls[0].input[0].content[0].text).toContain('/tmp/work');
+    expect(calls[0].context_management).toEqual([{ type: 'compaction', compact_threshold: 300000 }]);
   });
 
   test('sendMessage resumes with previous_response_id for subsequent turns', async () => {
@@ -78,6 +80,7 @@ describe('agent session helpers', () => {
       ],
       text: { format: { type: 'text' }, verbosity: 'low' },
       reasoning: { effort: 'medium', summary: null },
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
     const calls = [];
@@ -102,11 +105,66 @@ describe('agent session helpers', () => {
       model: 'test-model',
       text: { format: { type: 'text' }, verbosity: 'low' },
       reasoning: { effort: 'medium', summary: null },
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       input: [buildInputMessage('next')],
       store: true,
       tools: [],
       previous_response_id: 'prev-1',
     });
+  });
+
+  test('collectStoredResponseItems walks the stored chain and reads input items', async () => {
+    const inputCalls = [];
+    const openai = {
+      responses: {
+        retrieve: async (responseId) => {
+          if (responseId === 'resp-2') {
+            return { previous_response_id: 'resp-1', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'second' }] }] };
+          }
+          return { previous_response_id: '', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'first' }] }] };
+        },
+        inputItems: {
+          list: {
+            call: async function* (_target, responseId, options) {
+              inputCalls.push({ responseId, options });
+              yield { type: 'message', role: 'user', content: [{ type: 'input_text', text: responseId === 'resp-2' ? 'user-two' : 'user-one' }] };
+            },
+          },
+        },
+      },
+    };
+
+    await expect(collectStoredResponseItems(openai, 'resp-2')).resolves.toEqual([
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'user-one' }] },
+      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'first' }] },
+      { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'user-two' }] },
+      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'second' }] },
+    ]);
+
+    expect(inputCalls).toEqual([
+      { responseId: 'resp-2', options: { order: 'asc' } },
+      { responseId: 'resp-1', options: { order: 'asc' } },
+    ]);
+  });
+
+  test('handleToolCalls reports usage when a callback is provided', async () => {
+    const usageCalls = [];
+    const openai = {
+      responses: {
+        create: async () => {
+          throw new Error('unexpected tool retry');
+        },
+      },
+    };
+    const response = {
+      id: 'resp-usage',
+      output: [],
+      usage: { input_tokens: 4, input_tokens_details: { cached_tokens: 1 }, output_tokens: 2 },
+    };
+
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', (usage) => usageCalls.push(usage))).resolves.toBe(response);
+
+    expect(usageCalls).toEqual([{ inputTokens: 3, cachedTokens: 1, outputTokens: 2 }]);
   });
 
   test('handleToolCalls preserves request fields on tool continuations', async () => {
@@ -115,6 +173,7 @@ describe('agent session helpers', () => {
       input: [],
       text: { format: { type: 'text' }, verbosity: 'low' },
       reasoning: { effort: 'medium', summary: null },
+      context_management: [{ type: 'compaction', compact_threshold: 300000 }],
       tools: [],
     };
     const calls = [];
@@ -140,6 +199,7 @@ describe('agent session helpers', () => {
         model: 'test-model',
         text: { format: { type: 'text' }, verbosity: 'low' },
         reasoning: { effort: 'medium', summary: null },
+        context_management: [{ type: 'compaction', compact_threshold: 300000 }],
         previous_response_id: 'resp-1',
         store: true,
         tools: [],
