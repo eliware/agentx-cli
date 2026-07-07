@@ -38,28 +38,10 @@
   ],
   "tools": [
     {
-      "type": "function",
-      "name": "shell_call",
-      "description": "Execute a shell command in a specific working directory.",
-      "parameters": {
-        "type": "object",
-        "required": [
-          "command",
-          "cwd"
-        ],
-        "properties": {
-          "command": {
-            "type": "string",
-            "description": "Shell command to execute."
-          },
-          "cwd": {
-            "type": "string",
-            "description": "Working directory where the command will be executed."
-          }
-        },
-        "additionalProperties": false
-      },
-      "strict": true
+      "type": "shell",
+      "environment": {
+        "type": "local"
+      }
     },
     {
       "type": "web_search",
@@ -70,5 +52,8 @@
     }
   ],
   "store": true,
-  "include": []
+  "include": [
+    "reasoning.encrypted_content",
+    "web_search_call.action.sources"
+  ]
 }

@@ -1,10 +1,11 @@
 import { extractTextFromResponse, extractUsage, formatUsageSummary, isFunctionCall } from './response.mjs';
-import { runToolCall, toolCallSummary } from './tool-dispatch.mjs';
+import { runToolCall, toolCallSummary, toolOutputForCall } from './tool-dispatch.mjs';
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport } from './usage.mjs';
 
 const MAX_RESPONSE_CHAIN = 200;
+const SHELL_OUTPUT_PREVIEW = 120;
 
 function textFromContent(content) {
   const parts = [];
@@ -20,8 +21,27 @@ function compactJson(value) {
   return JSON.stringify(value, (key, nested) => {
     if (key === 'encrypted_content') return '[encrypted reasoning omitted]';
     if (key === 'result' && typeof nested === 'string' && nested.length > 500) return `[large result omitted: ${nested.length} chars]`;
+    if (key === 'output' && Array.isArray(nested)) {
+      return nested.map((chunk) => {
+        if (!chunk || typeof chunk !== 'object') return chunk;
+        return {
+          stdout: String(chunk.stdout ?? '').slice(0, SHELL_OUTPUT_PREVIEW),
+          stderr: String(chunk.stderr ?? '').slice(0, SHELL_OUTPUT_PREVIEW),
+          outcome: chunk.outcome,
+        };
+      });
+    }
     return nested;
   });
+}
+
+function shellOutputPreview(item) {
+  const chunks = Array.isArray(item?.output) ? item.output : [];
+  return chunks.map((chunk) => ({
+    stdout: String(chunk?.stdout ?? '').slice(0, SHELL_OUTPUT_PREVIEW),
+    stderr: String(chunk?.stderr ?? '').slice(0, SHELL_OUTPUT_PREVIEW),
+    outcome: chunk?.outcome ?? null,
+  }));
 }
 
 export function responseItemToTranscript(item) {
@@ -37,8 +57,16 @@ export function responseItemToTranscript(item) {
     return `assistant tool call: ${item.name || 'function'}(${item.arguments || ''})`;
   }
 
+  if (item.type === 'shell_call') {
+    return `assistant shell call: ${compactJson({ call_id: item.call_id, action: item.action, status: item.status })}`;
+  }
+
   if (item.type === 'function_call_output') {
     return `tool output: ${item.output ?? ''}`;
+  }
+
+  if (item.type === 'shell_call_output') {
+    return `tool output shell_call_output: ${compactJson({ call_id: item.call_id, max_output_length: item.max_output_length, status: item.status, output: shellOutputPreview(item) })}`;
   }
 
   if (item.type === 'reasoning') {
@@ -87,7 +115,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   let current = response;
   for (; ;) {
     if (onResponseUsage) onResponseUsage(extractUsage(current));
-    const calls = (current?.output ?? []).filter(isFunctionCall);
+    const calls = (current?.output ?? []).filter((item) => item?.type === 'shell_call');
     if (calls.length === 0) return current;
 
     const results = await Promise.all(calls.map(async (call) => ({
@@ -98,7 +126,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     const outputs = [];
     for (const { call, output } of results) {
       process.stdout.write(`${toolCallSummary(call, output)}\n`);
-      outputs.push({ type: 'function_call_output', call_id: call.call_id, output });
+      outputs.push(toolOutputForCall(call, output));
     }
 
     current = await openai.responses.create({

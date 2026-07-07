@@ -128,9 +128,27 @@ describe('coverage gaps', () => {
     expect(responseItemToTranscript({ type: 'reasoning', summary: [] })).toBe('');
     expect(responseItemToTranscript({ type: 'file_call', result: 'ok' })).toContain('assistant file_call:');
     expect(responseItemToTranscript({ type: 'file_call_output', result: 'ok' })).toContain('tool output file_call_output:');
+    expect(responseItemToTranscript({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] }, status: 'completed' })).toContain('assistant shell call:');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', status: 'completed' })).toContain('tool output shell_call_output:');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', status: 'completed', output: [{ outcome: { type: 'exit', exit_code: 0 } }] })).toContain('tool output shell_call_output:');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', status: 'completed', output: [{ stdout: 'ok', stderr: 'err' }] })).toContain('tool output shell_call_output:');
+    expect(responseItemToTranscript({ type: 'file_call_output', output: [null] })).toContain('tool output file_call_output:');
+    expect(responseItemToTranscript({ type: 'file_call_output', output: [{ outcome: { type: 'exit', exit_code: 0 } }] })).toContain('tool output file_call_output:');
     expect(extractTextFromResponse({ output: [{ type: 'message', content: [{ type: 'output_text', text: '' }, { type: 'other' }] }] })).toBe('');
     await expect(collectStoredResponseItems({ responses: { retrieve: async () => undefined } }, 'resp-1')).resolves.toEqual([]);
     await expect(handleToolCalls({}, { id: 'resp-no-output' }, {}, '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
+
+    const shellRequests = [];
+    const shellOpenai = {
+      responses: {
+        create: async (request) => {
+          shellRequests.push(request);
+          return { id: 'resp-shell-next', output: [] };
+        },
+      },
+    };
+    await handleToolCalls(shellOpenai, { id: 'resp-shell', output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }] }, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }));
+    expect(shellRequests[0].input).toEqual([{ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }]);
 
     const requestCalls = [];
     const sendOpenai = {
@@ -223,7 +241,14 @@ describe('coverage gaps', () => {
     expect(responseItemToTranscript({ role: 'assistant', type: 'message', content: [{ type: 'refusal', refusal: 'nope' }] })).toContain('[refusal] nope');
     expect(responseItemToTranscript({})).toBe('item: {}');
     expect(responseItemToTranscript({ type: 'function_call', name: 'search', arguments: '{"q":"hi"}' })).toBe('assistant tool call: search({"q":"hi"})');
+    expect(responseItemToTranscript({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] }, status: 'completed' })).toContain('assistant shell call:');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', status: 'completed' })).toContain('tool output shell_call_output:');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', status: 'completed', output: [{ outcome: { type: 'exit', exit_code: 0 } }] })).toContain('tool output shell_call_output:');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', status: 'completed', output: [{ stdout: 'ok', stderr: 'err' }] })).toContain('tool output shell_call_output:');
     expect(responseItemToTranscript({ type: 'function_call_output', output: 'done' })).toBe('tool output: done');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', status: 'completed', max_output_length: null, output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] })).toContain('tool output shell_call_output:');
+    expect(responseItemToTranscript({ type: 'file_call_output', output: [null] })).toContain('tool output file_call_output:');
+    expect(responseItemToTranscript({ type: 'file_call_output', output: [{ outcome: { type: 'exit', exit_code: 0 } }] })).toContain('tool output file_call_output:');
     expect(responseItemToTranscript({ type: 'reasoning', summary: [{ type: 'output_text', text: 'plan' }] })).toBe('assistant reasoning summary: plan');
     expect(responseItemToTranscript({ role: 'assistant', type: 'file_call', encrypted_content: 'secret', result: 'x'.repeat(501) })).toContain('[encrypted reasoning omitted]');
     expect(responseItemToTranscript({ role: 'assistant', type: 'file_call', encrypted_content: 'secret', result: 'x'.repeat(501) })).toContain('[large result omitted: 501 chars]');
@@ -301,12 +326,16 @@ describe('coverage gaps', () => {
     expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 0, outputTokens: 0 })).toContain('sum=$');
   });
 
-  test('tool helpers cover fallback parsing and plain-string errors', async () => {
+  test('tool helpers cover structured shell calls and unsupported tools', async () => {
     const tmp = makeTempDir('agentx-tool-gaps-');
     tempDirs.push(tmp);
-    expect(await runToolCallDirect({ name: 'shell_call', arguments: JSON.stringify({}) }, tmp)).toBe('');
+    expect(await runToolCallDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({
+      type: 'shell_call_output',
+      call_id: 'call-1',
+      status: 'completed',
+    });
     expect(await runToolCallDirect({ name: 'unknown', arguments: '' }, tmp)).toBe('ERROR: unsupported tool unknown');
-    expect(toolCallSummaryDirect({ name: 'shell_call' }, 'ok')).toBe('shell_call ... OK!');
+    expect(toolCallSummaryDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, { type: 'shell_call_output', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] })).toBe('shell_call printf ok... OK!');
   });
 
   test('parseInternalCommand and display helpers cover remaining branches', () => {

@@ -6,7 +6,7 @@ import { formatPromptForCwd, formatSystemMessage, clearTerminal } from '../src/s
 import { parseInternalCommand } from '../src/shell-commands.mjs';
 import { buildWorkingDirectoryNote, resolveCdTarget } from '../src/shell-paths.mjs';
 import { getTerminalWidth, wrapText } from '../src/text-wrap.mjs';
-import { runToolCall, toolCallSummary } from '../src/tool-dispatch.mjs';
+import { runToolCall, toolCallSummary, toolOutputForCall } from '../src/tool-dispatch.mjs';
 import { shellExec } from '../src/tool-shell.mjs';
 import { readOptionalText, writeText, deleteOptional } from '../src/runtime.mjs';
 import { persistResponseState, clearSession, readSessionState } from '../src/session-state.mjs';
@@ -118,10 +118,47 @@ describe('helper coverage', () => {
   test('tool helpers cover supported, unsupported and error cases', async () => {
     const tmp = makeTempDir('agentx-tools-');
     tempDirs.push(tmp);
-    expect(await runToolCall({ name: 'shell_call', arguments: JSON.stringify({ command: 'printf ok' }) }, tmp)).toBe('ok');
+    expect(await runToolCall({ type: 'shell_call', call_id: 'call-0', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({
+      type: 'shell_call_output',
+      call_id: 'call-0',
+      status: 'completed',
+      output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }],
+    });
+    const structured = await runToolCall({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'], timeout_ms: 30000, max_output_length: 12000 } }, tmp);
+    expect(structured).toMatchObject({
+      type: 'shell_call_output',
+      call_id: 'call-1',
+      status: 'completed',
+      output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }],
+    });
+    expect(await runToolCall({ type: 'shell_call', call_id: 'call-empty', action: {} }, tmp)).toMatchObject({
+      type: 'shell_call_output',
+      call_id: 'call-empty',
+      status: 'completed',
+      output: [],
+    });
+    expect(await runToolCall({ type: 'shell_call', action: { commands: [null] } }, tmp)).toMatchObject({
+      type: 'shell_call_output',
+      call_id: '',
+      status: 'completed',
+    });
     expect(await runToolCall({ name: 'unknown', arguments: '{}' }, tmp)).toBe('ERROR: unsupported tool unknown');
-    expect(toolCallSummary({ name: 'shell_call', arguments: JSON.stringify({ command: 'ls' }) }, 'ok')).toBe('shell_call ls... OK!');
-    expect(toolCallSummary({ name: 'other' }, 'ok')).toBe('other... OK!');
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-1', action: { commands: ['ls'] } }, structured)).toBe('shell_call ls... OK!');
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-empty', action: {} }, { type: 'shell_call_output', call_id: 'call-empty', output: [] })).toBe('shell_call ... OK!');
+    expect(toolCallSummary({ type: 'shell_call', action: null }, null)).toBe('shell_call ... OK!');
+    expect(await runToolCall({ type: 'shell_call', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: '', status: 'completed' });
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-timeout', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [{ stdout: '', stderr: '', outcome: { type: 'timeout' } }] })).toBe('shell_call ls... TIMEOUT');
+    expect(toolCallSummary({ type: 'shell_call', call_id: 'call-exit', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [{ stdout: '', stderr: '', outcome: { type: 'exit', exit_code: 2 } }] })).toBe('shell_call ls... exit 2');
+    expect(toolCallSummary({ type: 'shell_call', action: { commands: ['ls'] } }, null)).toBe('shell_call ls... OK!');
+    expect(toolOutputForCall({ type: 'function_call', call_id: 'call-fn' }, 'done')).toEqual({ type: 'function_call_output', call_id: 'call-fn', output: 'done' });
+    expect(() => toolOutputForCall({ type: 'shell_call', call_id: 'call-bad', action: { commands: ['ls'] } }, 'done')).toThrow('shell_call must return shell_call_output');
+    expect(toolCallSummary({ type: 'other' }, 'ok')).toBe('other... OK!');
+    expect(toolCallSummary({}, 'ok')).toBe('tool... OK!');
+    expect(await runToolCall({ type: 'bogus' }, tmp)).toBe('ERROR: unsupported tool bogus');
+    expect(await runToolCall({ type: 'shell_call', id: 'call-shell-id', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: 'call-shell-id' });
+    expect(toolOutputForCall({ type: 'function_call', id: 'call-fn-id' }, 'done')).toEqual({ type: 'function_call_output', call_id: '', output: 'done' });
+    expect(toolOutputForCall({ type: 'function_call' }, undefined)).toEqual({ type: 'function_call_output', call_id: '', output: '' });
+    expect(toolOutputForCall({ type: 'shell_call', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [] })).toEqual({ type: 'shell_call_output', call_id: '', output: [] });
   });
 
   test('shell execution returns command output and error output', async () => {

@@ -184,7 +184,7 @@ describe('agent session helpers', () => {
           create: async (request) => {
             calls.push(request);
             if (calls.length === 1) {
-              return { id: 'resp-1', model: 'test-model', output: [{ type: 'function_call', call_id: 'call-1', name: 'shell_call', arguments: JSON.stringify({ command: 'printf tool output' }) }] };
+              return { id: 'resp-1', model: 'test-model', output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf "tool output"'] } }] };
             }
             return { id: 'resp-2', model: 'test-model', output: [] };
           },
@@ -193,7 +193,7 @@ describe('agent session helpers', () => {
 
       await sendMessage(openai, template, 'prev-1', 'next', '', '/tmp/work');
 
-      expect(stdoutWrites.join('')).toContain('shell_call printf tool output... OK!');
+      expect(stdoutWrites.join('')).toContain('shell_call printf "tool output"...');
       expect(calls[1]).toMatchObject({
         model: 'test-model',
         text: { format: { type: 'text' }, verbosity: 'low' },
@@ -222,8 +222,8 @@ describe('agent session helpers', () => {
       id: 'resp-1',
       usage: { input_tokens: 1, input_tokens_details: { cached_tokens: 0 }, output_tokens: 1 },
       output: [
-        { type: 'function_call', call_id: 'call-1', name: 'shell_call', arguments: JSON.stringify({ command: 'one' }) },
-        { type: 'function_call', call_id: 'call-2', name: 'shell_call', arguments: JSON.stringify({ command: 'two' }) },
+        { type: 'shell_call', call_id: 'call-1', action: { commands: ['one'] } },
+        { type: 'shell_call', call_id: 'call-2', action: { commands: ['two'] } },
       ],
     };
 
@@ -234,7 +234,7 @@ describe('agent session helpers', () => {
       maxActive = Math.max(maxActive, active);
       await new Promise((resolve) => setTimeout(resolve, call.call_id === 'call-1' ? 80 : 20));
       active -= 1;
-      return `output-${call.call_id}`;
+      return { type: 'shell_call_output', call_id: call.call_id, output: [{ stdout: `output-${call.call_id}`, stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null };
     };
 
     await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
