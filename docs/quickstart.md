@@ -45,4 +45,4 @@ AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
 - The prompt shows your current working directory.
 - AgentX waits for your first message before contacting OpenAI.
 - Tool calls may stream command arguments and shell summaries live.
-- If `.agentx_responseid` exists, the session resumes automatically.
+- If `.agentx_responseid` exists, the session resumes automatically. If it contains pending tool calls, AgentX asks how you want to continue.

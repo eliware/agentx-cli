@@ -9,7 +9,8 @@ It is designed to feel shell-like:
 - supports internal `cd`, `clear`, `quit`, and `exit`
 - supports direct shell commands with a leading `>`
 - supports tab completion for local files and folders
-- remembers the last response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid`
+- remembers the last response id, usage counters, last user/assistant messages, pending shell transcript, and pending tool calls in `.agentx_responseid`
+- can prompt to resume interrupted tool execution on startup
 - can be launched directly from `agentx.mjs` or through a symlink like `/usr/bin/agentx`
 - includes quick CLI flags for help, version, and debug logging
 - prints friendly startup errors for missing config or API keys
@@ -79,9 +80,9 @@ The prompt will look like this:
 
 ### Session State
 
-The app stores the latest response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid` in the current working directory.
+The app stores the latest response id, usage counters, last user/assistant messages, pending shell transcript, and any pending tool calls in `.agentx_responseid` in the current working directory.
 
-If that file exists on startup, the app resumes the conversation from the stored response id and prints the last exchanged messages. Pending shell output is preserved until the next AI request. Long sessions rely on server-side compaction configured in `prompt.json`. If `prompt.json` cannot be read or the API key is missing, startup stops with a clear error message.
+If that file exists on startup, the app resumes the conversation from the stored response id and prints the last exchanged messages. If there are pending tool calls, AgentX prompts you to choose how to continue before returning to the REPL. Pending shell output is preserved until the next AI request. Long sessions rely on server-side compaction configured in `prompt.json`. If `prompt.json` cannot be read or the API key is missing, startup stops with a clear error message.
 
 ### Prompt Assembly
 

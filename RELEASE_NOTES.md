@@ -1,5 +1,15 @@
 # AgentX Release Notes
 
+## 1.1.14 - Interrupted-session resume and shell execution upgrades
+
+Deltas from 1.1.13:
+
+- Added a startup resume menu for sessions with pending tool calls, including auto-resume, retry-hint, interruption notice, and new-session paths.
+- Persisted pending tool calls in session state so interrupted turns can be resumed safely after restart.
+- Reworked shell-call execution to support sequential commands inside parallel groups, with per-group cwd, timeout, and output-limit controls.
+- Improved live status output, completion reporting, and usage formatting during streamed turns.
+- Expanded docs and regression coverage for resume flows, session-state persistence, shell dispatch, and path completion.
+
 ## 1.1.13 - Live status updates and session/runtime polish
 
 Deltas from 1.1.12:

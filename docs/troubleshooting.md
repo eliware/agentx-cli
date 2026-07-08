@@ -28,4 +28,4 @@ Remember that lines starting with `>` run locally and are buffered for the next 
 
 Remove `.agentx_responseid` or use `/clear`.
 
-If the saved response id is no longer valid, AgentX may automatically start a new chain and tell you.
+If the saved response id is no longer valid, AgentX may automatically start a new chain and tell you. If pending tool calls are saved, you may also be prompted to resume them, retry them, or start a new session.
