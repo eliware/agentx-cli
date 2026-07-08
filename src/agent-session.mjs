@@ -6,6 +6,86 @@ import { formatTurnUsageReport, formatUsageReport } from './usage.mjs';
 import { formatCommandMessage, formatSystemMessage } from './shell-display.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
+const STATUS_UPDATE_INTERVAL_MS = 250;
+const STATUS_SPINNER_FRAMES = ['|', '/', '-', '\\'];
+
+function formatElapsedStatus(elapsedMs) {
+  const totalSeconds = Math.max(0, Math.floor(Number(elapsedMs ?? 0) / 1000));
+  if (totalSeconds >= 60) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${totalSeconds}s`;
+}
+
+function formatSpinnerFrame(elapsedMs) {
+  const frame = Math.floor(Math.max(0, Number(elapsedMs ?? 0)) / STATUS_UPDATE_INTERVAL_MS) % STATUS_SPINNER_FRAMES.length;
+  return STATUS_SPINNER_FRAMES[frame];
+}
+
+function createStatusLineController() {
+  let timer = null;
+  let startedAt = 0;
+  let lastRendered = '';
+  let state = null;
+
+  function clearRenderedLine() {
+    if (!lastRendered) return;
+    process.stdout.write(`\r${' '.repeat(lastRendered.length)}\r`);
+    lastRendered = '';
+  }
+
+  function stopTimer() {
+    if (timer) clearInterval(timer);
+    timer = null;
+  }
+
+  function render() {
+    if (!state) return;
+    const elapsedMs = Date.now() - startedAt;
+    const spinner = formatSpinnerFrame(elapsedMs);
+    const elapsed = formatElapsedStatus(elapsedMs);
+    const text = state.type === 'executing'
+      ? `${spinner} Executing ${state.done} of ${state.total}... ${elapsed}`
+      : `${spinner} Reasoning... ${elapsed}`;
+
+    if (text === lastRendered) return;
+    clearRenderedLine();
+    process.stdout.write(text);
+    lastRendered = text;
+  }
+
+  function start(nextState) {
+    stopTimer();
+    state = nextState;
+    startedAt = Date.now();
+    render();
+    timer = setInterval(render, STATUS_UPDATE_INTERVAL_MS);
+  }
+
+  return {
+    showReasoning() {
+      start({ type: 'reasoning' });
+    },
+    showExecuting(done, total) {
+      start({ type: 'executing', done, total });
+    },
+    updateExecuting(done, total) {
+      if (!state || state.type !== 'executing') return;
+      state = { type: 'executing', done, total };
+      render();
+    },
+    refresh() {
+      render();
+    },
+    clear() {
+      stopTimer();
+      clearRenderedLine();
+      state = null;
+    },
+  };
+}
 
 function textFromContent(content) {
   const parts = [];
@@ -107,13 +187,14 @@ function isFunctionCallArgumentsDeltaEvent(event) {
   return event?.type === 'response.function_call_arguments.delta';
 }
 
-function createLiveResponseHandlers({ liveStreaming }) {
+function createLiveResponseHandlers({ liveStreaming, statusController }) {
   let sawOutput = false;
   let streamedText = '';
 
   const markOutput = () => {
     if (sawOutput) return;
     sawOutput = true;
+    statusController?.clear();
   };
 
   return {
@@ -122,7 +203,10 @@ function createLiveResponseHandlers({ liveStreaming }) {
     handlers: liveStreaming ? {
       /* c8 ignore next 12 */
       onEvent(event, message) {
-        if (isResponseCompletedEvent(event, message?.raw)) return;
+        if (isResponseCompletedEvent(event, message?.raw)) {
+          statusController?.clear();
+          return;
+        }
         if (!isFunctionCallArgumentsDeltaEvent(event)) return;
         markOutput();
         const delta = String(event?.delta ?? '');
@@ -152,18 +236,21 @@ function createLiveResponseHandlers({ liveStreaming }) {
   };
 }
 
-async function createStreamedResponse(openai, request, { liveStreaming = false } = {}) {
-  const live = createLiveResponseHandlers({ liveStreaming });
+async function createStreamedResponse(openai, request, { liveStreaming = false, statusController = null } = {}) {
+  if (liveStreaming) statusController?.showReasoning();
+  const live = createLiveResponseHandlers({ liveStreaming, statusController });
   const response = await openai.responses.create(request, live.handlers || undefined);
   if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
     process.stdout.write('\n');
   }
+  statusController?.clear();
   return response;
 }
 
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
   let current = response;
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
+  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController() : null);
 
   for (; ;) {
     const usage = extractUsage(current);
@@ -173,13 +260,27 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     if (cumulativeUsage) {
       process.stdout.write(`${formatSystemMessage(formatUsageReport(cumulativeUsage))}\n`);
     }
-    if (calls.length === 0) return current;
+    if (calls.length === 0) {
+      statusController?.clear();
+      return current;
+    }
 
-
-    const results = await Promise.all(calls.map(async (call) => ({
-      call,
-      output: await runToolCallFn(call, cwd),
-    })));
+    statusController?.showExecuting(0, calls.length);
+    let completed = 0;
+    let results;
+    try {
+      results = await Promise.all(calls.map(async (call) => {
+        try {
+          const output = await runToolCallFn(call, cwd);
+          return { call, output };
+        } finally {
+          completed += 1;
+          statusController?.updateExecuting(completed, calls.length);
+        }
+      }));
+    } finally {
+      statusController?.clear();
+    }
 
     const outputs = [];
     for (const { call, output } of results) {
@@ -192,12 +293,13 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       previous_response_id: current.id,
       store: true,
     };
-    current = await createStreamedResponse(openai, request, liveStreaming ? { liveStreaming } : undefined);
+    current = await createStreamedResponse(openai, request, liveStreaming ? { liveStreaming, statusController } : { statusController });
   }
 }
 
 export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null, streamOptions = {}) {
   const baseRequest = JSON.parse(JSON.stringify(template));
+  const statusController = streamOptions?.statusController || createStatusLineController();
   const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
       ...baseRequest,
@@ -210,9 +312,9 @@ export async function sendMessage(openai, template, previousResponseId, userMess
       store: true,
     });
 
-  const response = await createStreamedResponse(openai, request, streamOptions?.liveStreaming ? { liveStreaming: true } : undefined);
-  return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, streamOptions);
+  const response = await createStreamedResponse(openai, request, streamOptions?.liveStreaming ? { liveStreaming: true, statusController } : { statusController });
+  return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, { ...streamOptions, statusController });
 }
 
-export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport };
+export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport, formatElapsedStatus, formatSpinnerFrame, createStatusLineController, createStreamedResponse };
 export { formatUsageSummary } from './response.mjs';

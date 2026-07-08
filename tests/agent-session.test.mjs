@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { buildInputMessage } from '../src/prompt-builder.mjs';
-import { formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState } from '../src/agent-session.mjs';
+import { formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState, formatElapsedStatus, formatSpinnerFrame, createStatusLineController, createStreamedResponse } from '../src/agent-session.mjs';
 import { cleanupTempDir, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('agent session helpers', () => {
@@ -18,6 +18,51 @@ describe('agent session helpers', () => {
 
   afterEach(() => {
     process.stdout.write = originalStdoutWrite;
+  });
+
+  test('status helpers fall back cleanly for undefined timing values', () => {
+    expect(formatElapsedStatus(undefined)).toBe('0s');
+    expect(formatElapsedStatus(61000)).toBe('1m 1s');
+    expect(formatSpinnerFrame(undefined)).toBe('|');
+    expect(formatSpinnerFrame(250)).toBe('/');
+  });
+
+  test('status line controller handles idle, executing, and unchanged refreshes', () => {
+    jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
+    try {
+      const controller = createStatusLineController();
+      controller.refresh();
+      expect(stdoutWrites.join('')).toBe('');
+
+      controller.updateExecuting(1, 2);
+      expect(stdoutWrites.join('')).toBe('');
+
+      controller.showReasoning();
+      const before = stdoutWrites.length;
+      controller.refresh();
+      expect(stdoutWrites.length).toBe(before);
+
+      controller.showExecuting(1, 2);
+      expect(stdoutWrites.join('')).toContain('Executing 1 of 2... 0s');
+      controller.refresh();
+      expect(stdoutWrites.join('')).toContain('Executing 1 of 2... 0s');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('createStreamedResponse uses default stream options when omitted', async () => {
+    const openai = {
+      responses: {
+        create: async (request, handlers) => {
+          expect(handlers).toBeUndefined();
+          expect(request).toEqual({ model: 'test-model' });
+          return { id: 'resp-default', output: [] };
+        },
+      },
+    };
+
+    await expect(createStreamedResponse(openai, { model: 'test-model' })).resolves.toEqual({ id: 'resp-default', output: [] });
   });
 
   test('sendMessage uses first-message templating on a fresh session', async () => {
@@ -335,6 +380,89 @@ describe('agent session helpers', () => {
     expect(stdoutWrites.join('')).not.toContain('done\n\n');
   });
 
+  test('sendMessage shows a reasoning spinner until the first streamed delta and formats long waits as minutes', async () => {
+    jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
+    try {
+      const template = { model: 'test-model', input: [], tools: [] };
+      let handlers;
+      let resolveResponse;
+      const openai = {
+        responses: {
+          create: async (_request, nextHandlers) => {
+            handlers = nextHandlers;
+            return await new Promise((resolve) => {
+              resolveResponse = resolve;
+            });
+          },
+        },
+      };
+
+      const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+      expect(stdoutWrites.join('')).toContain('| Reasoning... 0s');
+
+      await jest.advanceTimersByTimeAsync(250);
+      expect(stdoutWrites.join('')).toContain('/ Reasoning... 0s');
+
+      jest.setSystemTime(Date.parse('2026-07-08T00:01:00Z'));
+      await jest.advanceTimersByTimeAsync(250);
+      expect(stdoutWrites.join('')).toContain('1m 0s');
+
+      handlers.onTextDelta('Hi');
+      resolveResponse({ id: 'resp-live', output: [] });
+      await pending;
+
+      expect(stdoutWrites.join('')).toContain('Hi');
+      expect(stdoutWrites.join('')).toContain('\r');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('handleToolCalls shows executing progress and resumes reasoning for the follow-up response', async () => {
+    const openai = {
+      responses: {
+        create: jest.fn()
+          .mockResolvedValueOnce({
+            id: 'resp-1',
+            output: [
+              { type: 'shell_call', call_id: 'call-1', action: { commands: ['one'] } },
+              { type: 'shell_call', call_id: 'call-2', action: { commands: ['two'] } },
+            ],
+            usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 1 }, output_tokens: 2 },
+          })
+          .mockResolvedValueOnce({
+            id: 'resp-2',
+            output: [],
+            usage: { input_tokens: 4, input_tokens_details: { cached_tokens: 0 }, output_tokens: 1 },
+          }),
+      },
+    };
+    const response = {
+      id: 'resp-1',
+      output: [
+        { type: 'shell_call', call_id: 'call-1', action: { commands: ['one'] } },
+        { type: 'shell_call', call_id: 'call-2', action: { commands: ['two'] } },
+      ],
+      usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 1 }, output_tokens: 2 },
+    };
+
+    const runToolCallFn = async (call) => await new Promise((resolve) => {
+      setTimeout(() => resolve({ type: 'shell_call_output', call_id: call.call_id, output: [], status: 'completed', max_output_length: null }), call.call_id === 'call-1' ? 50 : 100);
+    });
+
+    const pending = handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { liveStreaming: true });
+
+    expect(stdoutWrites.join('')).toContain('| Executing 0 of 2... 0s');
+
+    await new Promise((resolve) => setTimeout(resolve, 70));
+    expect(stdoutWrites.join('')).toContain('| Executing 1 of 2... 0s');
+
+    await pending;
+    expect(stdoutWrites.join('')).toContain('| Executing 2 of 2... 0s');
+    expect(stdoutWrites.join('')).toContain('| Reasoning... 0s');
+  });
+
   test('handleToolCalls processes shell_call function calls', async () => {
     const createCalls = [];
     const openai = {
@@ -432,8 +560,32 @@ describe('agent session helpers', () => {
     expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', arguments: '{not valid json' })).toBe('assistant shell call: {not valid json');
   });
 
-  test('responseItemToTranscript falls back to raw shell_call input when JSON parsing fails', () => {
-    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', input: '{not valid json' })).toBe('assistant shell call: {not valid json');
+  test('responseItemToTranscript formats message content, tool calls, and outputs', () => {
+    expect(responseItemToTranscript({
+      role: 'assistant',
+      type: 'message',
+      content: [
+        { type: 'input_text', text: 'line one' },
+        { type: 'output_text', text: 'line two' },
+        { type: 'refusal', refusal: 'nope' },
+      ],
+    })).toBe(`assistant: line one
+line two
+[refusal] nope`);
+
+    expect(responseItemToTranscript({ type: 'function_call', name: 'custom_tool', arguments: '{"x":1}' })).toBe('assistant tool call: custom_tool({"x":1})');
+    expect(responseItemToTranscript({ type: 'function_call', input: 'payload' })).toBe('assistant tool call: function(payload)');
+    expect(responseItemToTranscript({ type: 'shell_call', call_id: 'call-99', action: { commands: ['echo hi'] }, status: 'completed' })).toBe('assistant shell call: {"call_id":"call-99","action":{"commands":["echo hi"]},"status":"completed"}');
+    expect(responseItemToTranscript({ type: 'function_call_output', output: 'ok' })).toBe('tool output: ok');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', max_output_length: 12, status: 'completed', output: [{ stdout: 'abc', stderr: 'def', outcome: { type: 'exit', exit_code: 0 } }] })).toBe('tool output shell_call_output: {"call_id":"call-1","max_output_length":12,"status":"completed","output":[{"stdout":"abc","stderr":"def","outcome":{"type":"exit","exit_code":0}}]}');
+    expect(responseItemToTranscript({ type: 'custom_call', call_id: 'call-2', input: '{"a":1}' })).toBe(`assistant custom_call: ${JSON.stringify({ type: 'custom_call', call_id: 'call-2', input: '{"a":1}' })}`);
+    expect(responseItemToTranscript({ type: 'custom_call_output', call_id: 'call-3', output: [1, { stdout: 'ok', stderr: '', outcome: null }] })).toBe('tool output custom_call_output: {"type":"custom_call_output","call_id":"call-3","output":[1,{"stdout":"ok","stderr":"","outcome":null}]}');
+    expect(responseItemToTranscript({ type: 'custom_call_output', call_id: 'call-4', output: [{}], encrypted_content: 'secret', result: 'x'.repeat(501) })).toContain('[encrypted reasoning omitted]');
+    expect(responseItemToTranscript({ type: 'custom_call_output', call_id: 'call-4', output: [{}], encrypted_content: 'secret', result: 'x'.repeat(501) })).toContain('[large result omitted: 501 chars]');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-5' })).toBe('tool output shell_call_output: {"call_id":"call-5","output":[]}');
+    expect(responseItemToTranscript({ type: 'message', content: [{ type: 'input_text' }, { type: 'output_text' }, { type: 'refusal', refusal: 'nope' }] })).toBe('message: [refusal] nope');
+    expect(responseItemToTranscript({ type: 'message', content: [] })).toBe('');
+    expect(responseItemToTranscript({ type: 'note', message: 'fallback' })).toBe('note: {"type":"note","message":"fallback"}');
   });
 
   test('responseItemToTranscript omits developer text and serializes user text', () => {

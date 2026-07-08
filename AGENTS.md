@@ -12,8 +12,8 @@
 - When editing files, keep the behavior aligned with the current tests and update tests when behavior changes.
 
 ## Tooling
-- Use `npm test` to verify changes.
-- Use `npm test` when validating coverage-focused changes; it runs coverage by default.
+- Use `npm test` to verify changes; it runs coverage by default.
+- When working on coverage gaps, inspect `coverage/coverage-final.json` (or the generated coverage report) first so you are debugging real misses instead of guessing.
 - Keep runtime output concise and purposeful.
 - If you add a new module under `src/`, give it a single responsibility.
 
