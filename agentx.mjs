@@ -8,6 +8,10 @@ function printAndExit(text, code = 0) {
   process.exit(code);
 }
 
+function printStartupError(error) {
+  process.stderr.write(`${error?.message || String(error)}\n`);
+}
+
 if (isDirectInvocation(import.meta.url)) {
   const argv = process.argv.slice(2);
   if (hasFlag(argv, ['--help', '-h', '-?'])) {
@@ -15,6 +19,11 @@ if (isDirectInvocation(import.meta.url)) {
   } else if (hasFlag(argv, ['--version', '-v'])) {
     printAndExit(getPackageVersion());
   } else {
-    await runAgent({ promptPath, cwd: process.cwd() });
+    try {
+      await runAgent({ promptPath, cwd: process.cwd() });
+    } catch (error) {
+      printStartupError(error);
+      process.exit(1);
+    }
   }
 }

@@ -28,9 +28,10 @@ Set your API key in the shell environment:
 
 ```bash
 export agentx_api_key="your-key-here"
+# or: export AGENTX_API_KEY="your-key-here"
 ```
 
-AgentX reads that value directly.
+AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
 
 ## First run
 

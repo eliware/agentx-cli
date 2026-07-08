@@ -2,9 +2,17 @@
 
 ## AgentX does not start
 
-Check that you are running the entrypoint directly and that `agentx_api_key` is set in your shell environment.
+Check that you are running the entrypoint directly and that `agentx_api_key` or `AGENTX_API_KEY` is set in your shell environment.
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
+
+## Missing API key
+
+AgentX stops at startup if neither environment variable is set. Export one before launching the CLI.
+
+## prompt.json cannot be read
+
+If the prompt template is missing or invalid, AgentX prints the file path and the parse/read error. Fix the file and launch again.
 
 ## It says AGENTS.md was not found
 

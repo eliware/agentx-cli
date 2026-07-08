@@ -34,6 +34,8 @@ describe('agent loop', () => {
   let originalExit;
   let originalStdoutWrite;
   let originalConsoleLog;
+  let originalLowerApiKey;
+  let originalUpperApiKey;
   let writes;
   let logs;
 
@@ -64,6 +66,10 @@ describe('agent loop', () => {
     process.exit = jest.fn();
 
     originalStdoutWrite = process.stdout.write;
+    originalLowerApiKey = process.env.agentx_api_key;
+    originalUpperApiKey = process.env.AGENTX_API_KEY;
+    process.env.agentx_api_key = 'test-key';
+    delete process.env.AGENTX_API_KEY;
     writes = [];
     process.stdout.write = (chunk) => {
       writes.push(String(chunk));
@@ -82,6 +88,8 @@ describe('agent loop', () => {
     process.exit = originalExit;
     process.stdout.write = originalStdoutWrite;
     console.log = originalConsoleLog;
+    if (originalLowerApiKey === undefined) delete process.env.agentx_api_key; else process.env.agentx_api_key = originalLowerApiKey;
+    if (originalUpperApiKey === undefined) delete process.env.AGENTX_API_KEY; else process.env.AGENTX_API_KEY = originalUpperApiKey;
     rmSync(cwd, { recursive: true, force: true });
   });
 

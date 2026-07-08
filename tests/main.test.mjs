@@ -79,6 +79,63 @@ describe('entrypoint', () => {
     }
   });
 
+  test('agentx.mjs prints startup errors and exits non-zero', async () => {
+    const writes = [];
+    const originalErrWrite = process.stderr.write;
+    const originalExit = process.exit;
+    const originalArgv = [...process.argv];
+    process.stderr.write = (chunk) => { writes.push(String(chunk)); return true; };
+    process.exit = jest.fn();
+    process.argv = [...process.argv];
+
+    try {
+      await jest.unstable_mockModule('../src/runtime.mjs', () => ({
+        isDirectInvocation: () => true,
+        promptPath: '/tmp/prompt.json',
+      }));
+      const runAgent = jest.fn().mockRejectedValue(new Error('missing API key'));
+      await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+
+      await import('../agentx.mjs');
+
+      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd() });
+      expect(writes.join('')).toContain('missing API key');
+      expect(process.exit).toHaveBeenCalledWith(1);
+    } finally {
+      process.stderr.write = originalErrWrite;
+      process.exit = originalExit;
+      process.argv = originalArgv;
+    }
+  });
+
+  test('agentx.mjs prints string startup errors using fallback coercion', async () => {
+    const writes = [];
+    const originalErrWrite = process.stderr.write;
+    const originalExit = process.exit;
+    const originalArgv = [...process.argv];
+    process.stderr.write = (chunk) => { writes.push(String(chunk)); return true; };
+    process.exit = jest.fn();
+    process.argv = [...process.argv];
+
+    try {
+      await jest.unstable_mockModule('../src/runtime.mjs', () => ({
+        isDirectInvocation: () => true,
+        promptPath: '/tmp/prompt.json',
+      }));
+      const runAgent = jest.fn().mockRejectedValue('boom');
+      await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+
+      await import('../agentx.mjs');
+
+      expect(writes.join('')).toContain('boom');
+      expect(process.exit).toHaveBeenCalledWith(1);
+    } finally {
+      process.stderr.write = originalErrWrite;
+      process.exit = originalExit;
+      process.argv = originalArgv;
+    }
+  });
+
   test('agentx.mjs starts the REPL when invoked directly', async () => {
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       isDirectInvocation: () => true,

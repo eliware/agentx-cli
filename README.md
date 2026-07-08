@@ -12,6 +12,7 @@ It is designed to feel shell-like:
 - remembers the last response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid`
 - can be launched directly from `agentx.mjs` or through a symlink like `/usr/bin/agentx`
 - includes quick CLI flags for help, version, and debug logging
+- prints friendly startup errors for missing config or API keys
 
 ---
 
@@ -80,7 +81,7 @@ The prompt will look like this:
 
 The app stores the latest response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid` in the current working directory.
 
-If that file exists on startup, the app resumes the conversation from the stored response id and prints the last exchanged messages. Pending shell output is preserved until the next AI request. Long sessions rely on server-side compaction configured in `prompt.json`.
+If that file exists on startup, the app resumes the conversation from the stored response id and prints the last exchanged messages. Pending shell output is preserved until the next AI request. Long sessions rely on server-side compaction configured in `prompt.json`. If `prompt.json` cannot be read or the API key is missing, startup stops with a clear error message.
 
 ### Prompt Assembly
 
@@ -134,9 +135,10 @@ Set your OpenAI key in the shell environment:
 
 ```bash
 export agentx_api_key="your-key-here"
+# or: export AGENTX_API_KEY="your-key-here"
 ```
 
-The agent reads that value directly. It does not require dotenv or a `.env` file.
+AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`. It does not require dotenv or a `.env` file.
 
 ## License
 

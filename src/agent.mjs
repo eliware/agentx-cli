@@ -4,11 +4,11 @@ import { log, registerHandlers, path } from '@eliware/common';
 import { createOpenAI } from '@eliware/openai';
 import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
-import { extractTextFromResponse, persistResponseState, clearSession, sendMessage, readSessionState } from './agent-session.mjs';
+import { clearSession, extractTextFromResponse, persistResponseState, readSessionState, sendMessage } from './agent-session.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
-import { readJson } from './runtime.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport, formatTurnUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
+import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
 
 registerHandlers({ log });
 
@@ -46,32 +46,16 @@ function printRestoredSession(savedState) {
   }
 }
 
-function appendCliTranscript(existingTranscript, command, outputText) {
-  const entry = [`> ${command}`];
-  const trimmedOutput = String(outputText ?? '').trimEnd();
-  if (trimmedOutput) entry.push(trimmedOutput);
-  return [existingTranscript, entry.join('\n')].filter(Boolean).join('\n\n');
-}
-
-function buildRequestMessage({ pendingCliTranscript, cwdNote, message }) {
-  const contextParts = [];
-  if (pendingCliTranscript) {
-    contextParts.push(`Local shell commands and output since the last assistant message:\n\n${pendingCliTranscript}`);
-  }
-  if (cwdNote) {
-    contextParts.push(cwdNote);
-  }
-  contextParts.push(message);
-  return contextParts.join('\n\n');
-}
-
 export async function runAgent({ promptPath, cwd }) {
   const launchCwd = cwd;
   const statePath = path(launchCwd, '.agentx_responseid');
-  const template = await readJson(promptPath);
-  const agentsText = await readAgentsFromCwdAndParents(cwd);
+  const template = await loadPromptTemplate(promptPath);
+  const agentsText = await readAgentsFromCwdAndParents(cwd).catch((error) => {
+    throw new Error(`Unable to read AGENTS.md files under ${cwd}: ${error?.message || String(error)}`);
+  });
   const savedState = await readSessionState(statePath);
   const savedResponseId = savedState?.response_id || '';
+  const apiKey = resolveAgentApiKey();
 
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found')}\n`);
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
@@ -82,7 +66,7 @@ export async function runAgent({ promptPath, cwd }) {
     if (debugEnabled) console.log(...args);
   };
 
-  const openai = await createOpenAI(process.env.agentx_api_key || process.env.AGENTX_API_KEY);
+  const openai = await createOpenAI(apiKey);
   const rl = createReplInterface(cwd);
   let previousResponseId = savedResponseId;
   let cwdNote = '';
@@ -178,41 +162,14 @@ export async function runAgent({ promptPath, cwd }) {
       const requestMessage = buildRequestMessage({ pendingCliTranscript, cwdNote, message });
       cwdNote = '';
       const turnUsage = createUsageTotals();
-      const request = previousResponseId
-        ? {
-          ...template,
-          input: [{ role: 'user', content: [{ type: 'input_text', text: requestMessage }] }],
-          store: true,
-          previous_response_id: previousResponseId,
-        }
-        : {
-          ...template,
-          input: template.input?.map?.((item) => ({ ...item, content: item.content?.map?.((part) => ({ ...part })) })),
-          store: true,
-        };
-      if (!previousResponseId) {
-        const developer = request?.input?.find?.((item) => item?.role === 'developer');
-        const developerContent = developer?.content?.[0];
-        if (developerContent?.type === 'input_text') {
-          const { buildDeveloperText } = await import('./prompt-text.mjs');
-          developerContent.text = buildDeveloperText(request, agentsText, cwd);
-        }
-        const firstUser = request?.input?.find?.((item) => item?.role === 'user');
-        const firstContent = firstUser?.content?.[0];
-        if (firstContent?.type === 'input_text') {
-          const original = String(firstContent.text ?? '');
-          firstContent.text = original.includes('first user message')
-            ? original.replaceAll('first user message', requestMessage)
-            : requestMessage;
-        }
-      }
+      const requestOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
       if (debugEnabled) {
-        debugLog('OpenAI request:', JSON.stringify(request, null, 2));
+        debugLog('OpenAI request:', JSON.stringify(requestOverride, null, 2));
       }
       const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {
         addUsageTotals(turnUsage, usage);
         sessionUsage.turns += 1;
-      }, request);
+      }, requestOverride);
       previousResponseId = response?.id || previousResponseId;
       lastUserMessage = message;
       lastAssistantMessage = extractTextFromResponse(response);
