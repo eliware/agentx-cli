@@ -1,5 +1,16 @@
 # AgentX Release Notes
 
+## 1.1.13 - Live status updates and session/runtime polish
+
+Deltas from 1.1.12:
+
+- Added live terminal status lines for reasoning and tool execution, with elapsed time and spinner updates.
+- Improved streamed Responses handling so status output clears cleanly when assistant text or tool output starts.
+- Tightened shell-call parsing and output normalization across function-call and structured shell-call paths.
+- Expanded websocket debug logging and frame formatting for OpenAI transport diagnostics.
+- Refined session persistence and usage reporting during tool-heavy turns.
+- Updated tests to cover the new status, websocket, and session behaviors.
+
 ## 1.1.12 - WebSocket Responses transport and parallel shell calls
 
 Deltas from 1.1.11:

@@ -27,6 +27,17 @@ describe('agent session helpers', () => {
     expect(formatSpinnerFrame(250)).toBe('/');
   });
 
+  test('status line controller uses the default session start time when omitted', () => {
+    jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
+    try {
+      const controller = createStatusLineController();
+      controller.showReasoning();
+      expect(stdoutWrites.join('')).toContain('[0s]');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('status line controller handles idle, executing, and unchanged refreshes', () => {
     jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
     try {
