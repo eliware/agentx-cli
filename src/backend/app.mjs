@@ -39,7 +39,7 @@ async function parseJsonBody(req) {
   }
 }
 
-function getTokenFromRequest(req) {
+export function getTokenFromRequest(req) {
   try {
     const requestUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     return requestUrl.searchParams.get('token') || parseBearerToken(req.headers.authorization);

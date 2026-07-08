@@ -1,67 +1,9 @@
-const STORAGE_KEY = 'agentx.gui.credentials';
+import { appendLine, queryFrontendElements } from './dom.mjs';
+import { clearCredentials, loadStoredCredentials, saveCredentials } from './credentials.mjs';
+import { makeStatusText } from './status.mjs';
+import { buildWebSocketUrl } from './websocket.mjs';
 
-function getStorage(storage) {
-  try {
-    return storage ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export function loadStoredCredentials(storage = globalThis.localStorage) {
-  const store = getStorage(storage);
-  if (!store) return null;
-  try {
-    const raw = store.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.username || !parsed?.password) return null;
-    return {
-      username: String(parsed.username),
-      password: String(parsed.password),
-      remember: parsed.remember !== false,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function saveCredentials(storage = globalThis.localStorage, credentials) {
-  const store = getStorage(storage);
-  if (!store || !credentials?.remember) return;
-  store.setItem(STORAGE_KEY, JSON.stringify({
-    username: credentials.username,
-    password: credentials.password,
-    remember: true,
-  }));
-}
-
-export function clearCredentials(storage = globalThis.localStorage) {
-  const store = getStorage(storage);
-  if (!store) return;
-  store.removeItem(STORAGE_KEY);
-}
-
-function makeStatusText(state) {
-  if (state.loggedOut) return 'logged out';
-  if (state.authenticated && state.socketState === 'connected') return `connected as ${state.username}`;
-  if (state.authenticated && state.socketState === 'connecting') return 'connecting websocket';
-  if (state.authenticated && state.socketState === 'reconnecting') return 'reconnecting';
-  if (state.authenticated) return 'authenticated';
-  return 'signed out';
-}
-
-function appendLine(listEl, text) {
-  if (!listEl) return;
-  const item = listEl.ownerDocument.createElement('li');
-  item.textContent = text;
-  listEl.appendChild(item);
-}
-
-function buildWebSocketUrl(windowObj, token) {
-  const protocol = windowObj.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${windowObj.location.host}/ws?token=${encodeURIComponent(token)}`;
-}
+export { clearCredentials, loadStoredCredentials, saveCredentials } from './credentials.mjs';
 
 export function createFrontendApp({
   document = globalThis.document,
@@ -74,16 +16,18 @@ export function createFrontendApp({
     return null;
   }
 
-  const form = document.querySelector('[data-login-form]');
-  const usernameInput = document.querySelector('[data-login-username]');
-  const passwordInput = document.querySelector('[data-login-password]');
-  const rememberInput = document.querySelector('[data-login-remember]');
-  const loginButton = document.querySelector('[data-login-button]');
-  const logoutButton = document.querySelector('[data-logout-button]');
-  const statusEl = document.querySelector('[data-status]');
-  const detailEl = document.querySelector('[data-detail]');
-  const messagesEl = document.querySelector('[data-messages]');
-  const wsStateEl = document.querySelector('[data-ws-state]');
+  const {
+    form,
+    usernameInput,
+    passwordInput,
+    rememberInput,
+    loginButton,
+    logoutButton,
+    statusEl,
+    detailEl,
+    messagesEl,
+    wsStateEl,
+  } = queryFrontendElements(document);
 
   const state = {
     auth: null,
@@ -108,11 +52,19 @@ export function createFrontendApp({
     if (wsStateEl) wsStateEl.textContent = text;
   }
 
+  function getSocketState() {
+    if (!state.socket) {
+      return state.auth ? 'disconnected' : 'idle';
+    }
+    const openState = typeof WebSocketImpl.OPEN === 'number' ? WebSocketImpl.OPEN : 1;
+    return state.socket.readyState === openState ? 'connected' : 'connecting';
+  }
+
   function refreshUi() {
     setStatus(makeStatusText({
       loggedOut: state.loggedOut,
       authenticated: Boolean(state.auth),
-      socketState: state.socket ? state.socket.readyState === (typeof WebSocketImpl.OPEN === 'number' ? WebSocketImpl.OPEN : 1) ? 'connected' : 'connecting' : (state.auth ? 'disconnected' : 'idle'),
+      socketState: getSocketState(),
       username: state.auth?.username,
     }));
     if (logoutButton) logoutButton.disabled = !state.auth;
@@ -129,7 +81,6 @@ export function createFrontendApp({
         socket.close(1000, 'client disconnect');
       } catch {
         state.replacingSocket = false;
-        // ignore
       }
     }
   }

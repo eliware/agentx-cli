@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import { isDirectInvocation, promptPath } from './src/runtime.mjs';
 import { runAgent } from './src/agent.mjs';
 import { formatQuickHelp, getPackageVersion, hasFlag } from './src/cli.mjs';

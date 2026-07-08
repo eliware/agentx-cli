@@ -1,0 +1,37 @@
+.shell {
+  width: min(920px, calc(100vw - 2rem));
+}
+
+.panel {
+  padding: 2rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.45);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.meta {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.meta > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(30, 41, 59, 0.8);
+}
+
+.messages {
+  margin-top: 1.5rem;
+}

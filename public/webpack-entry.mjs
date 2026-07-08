@@ -1,2 +1,2 @@
 import '../src/frontend/app.mjs';
-import './styles.css';
+import '../src/frontend/styles.css';
