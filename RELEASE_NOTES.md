@@ -1,5 +1,16 @@
 # AgentX Release Notes
 
+## 1.1.12 - WebSocket Responses transport and parallel shell calls
+
+Deltas from 1.1.11:
+
+- Switched the agent runtime to the direct `openai` package and added a WebSocket-based Responses transport.
+- Added reconnect and retry handling for websocket transport errors and response continuation.
+- Reworked live streaming output to show streamed function-call arguments and command summaries.
+- Replaced the old shell tool schema with `shell_call`, supporting parallel command groups, per-group working directories, and output limits.
+- Removed the terminal thinking spinner and cleaned up redundant shell-command echoing.
+- Updated prompt metadata, docs, and regression coverage for the new transport and shell flow.
+
 ## 1.1.11 - CLI flags, startup hardening, and docs refresh
 
 Deltas from 1.1.10:

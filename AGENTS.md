@@ -23,6 +23,8 @@
 - Run commands that start with `>` locally in the shell and buffer their output into the next AI request.
 - Persist the latest response id, usage totals, last user/assistant messages, and pending CLI transcript in `.agentx_responseid` in the current working directory.
 - Continue using the Responses API with `previous_response_id` and `store: true` for session continuity.
+- The runtime now uses the direct `openai` package and a WebSocket transport for Responses API calls.
+- Shell tool calls may arrive as `shell_call` function calls with parallel command groups and per-group working directories.
 - Server-side compaction is configured in `prompt.json`; there is no manual `/compact` command.
 
 ## Runtime Notes

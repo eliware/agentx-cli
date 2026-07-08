@@ -1,6 +1,6 @@
 # Quickstart
 
-AgentX is a terminal chat agent built on the OpenAI Responses API over WebSocket mode.
+AgentX is a terminal chat agent built on the OpenAI Responses API over WebSocket transport.
 
 ## Start it
 
@@ -44,4 +44,5 @@ AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
 
 - The prompt shows your current working directory.
 - AgentX waits for your first message before contacting OpenAI.
+- Tool calls may stream command arguments and shell summaries live.
 - If `.agentx_responseid` exists, the session resumes automatically.

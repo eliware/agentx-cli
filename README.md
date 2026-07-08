@@ -2,7 +2,7 @@
 
 ## @eliware/agentx [![npm version](https://img.shields.io/npm/v/@eliware/agentx.svg)](https://www.npmjs.com/package/@eliware/agentx)[![license](https://img.shields.io/github/license/eliware/agentx.svg)](LICENSE)[![build status](https://github.com/eliware/agentx/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx/actions)
 
-`agentx` is a lightweight terminal chat agent built on the OpenAI Responses API.
+`agentx` is a lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.
 
 It is designed to feel shell-like:
 - waits for your first message before calling OpenAI
@@ -34,7 +34,7 @@ It is designed to feel shell-like:
 - `AGENTS.md` support from the current working directory
 - Current working directory shown in the prompt
 - Internal session persistence with `previous_response_id`
-- Built-in `shell_call` tool
+- Built-in `shell_call` tool with parallel command groups
 - Server-side Responses API compaction for long-running sessions
 - Concise terminal output for tool calls
 - Sorted path completion, with quoted suggestions for paths containing spaces

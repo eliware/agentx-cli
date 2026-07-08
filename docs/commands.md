@@ -22,6 +22,8 @@ Example:
 
 The output is stored and prepended to the next AI request.
 
+This is separate from AgentX's internal `shell_call` tool, which the model uses for its own shell work and may group commands internally.
+
 ## Chat messages
 
 Any other input is sent to OpenAI as a user message.
