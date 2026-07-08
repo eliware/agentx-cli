@@ -116,8 +116,63 @@ export function responseItemToTranscript(item) {
   return `${item.role || item.type || 'item'}: ${compactJson(item)}`;
 }
 
-export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall) {
+function createLiveResponseHandlers({ liveStreaming }) {
+  let sawOutput = false;
+  let streamedText = '';
+
+  const markOutput = () => {
+    if (sawOutput) return;
+    sawOutput = true;
+  };
+
+  return {
+    sawOutput: () => sawOutput,
+    streamedText: () => streamedText,
+    handlers: liveStreaming ? {
+      onTextDelta(delta) {
+        markOutput();
+        const text = String(delta ?? '');
+        streamedText += text;
+        process.stdout.write(text);
+      },
+      onItemAdded(item) {
+        if (item?.type) markOutput();
+        if (item?.type === 'shell_call') {
+          const summary = toolCallSummary(item);
+          if (summary) process.stdout.write(`${formatSystemMessage(summary)}\n`);
+        }
+      },
+      onItemDone(item) {
+        if (item?.type) markOutput();
+        if (item?.type === 'reasoning') {
+          const transcript = responseItemToTranscript(item);
+          if (transcript) process.stdout.write(`${formatSystemMessage(transcript)}\n`);
+        }
+      },
+    } : null,
+  };
+}
+
+async function createStreamedResponse(openai, request, { liveStreaming = false } = {}) {
+  const stopThinking = startThinkingIndicator();
+  const live = createLiveResponseHandlers({ liveStreaming });
+
+  try {
+    const response = await openai.responses.create(request, live.handlers || undefined);
+    if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
+      process.stdout.write('\n');
+    }
+    debugLogOpenAIResponse(response);
+    return response;
+  } finally {
+    stopThinking();
+  }
+}
+
+export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
   let current = response;
+  const liveStreaming = Boolean(streamOptions?.liveStreaming);
+
   for (; ;) {
     const usage = extractUsage(current);
     if (onResponseUsage) onResponseUsage(usage);
@@ -126,8 +181,10 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 
     process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
 
-    for (const call of calls) {
-      process.stdout.write(`${toolCallSummary(call)}\n`);
+    if (!liveStreaming) {
+      for (const call of calls) {
+        process.stdout.write(`${toolCallSummary(call)}\n`);
+      }
     }
 
     const results = await Promise.all(calls.map(async (call) => ({
@@ -147,17 +204,11 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       store: true,
     };
     debugLogOpenAIRequest(request);
-    const stopThinking = startThinkingIndicator();
-    try {
-      current = await openai.responses.create(request);
-      debugLogOpenAIResponse(current);
-    } finally {
-      stopThinking();
-    }
+    current = await createStreamedResponse(openai, request, { liveStreaming });
   }
 }
 
-export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null) {
+export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null, streamOptions = {}) {
   const baseRequest = JSON.parse(JSON.stringify(template));
   const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
@@ -171,16 +222,8 @@ export async function sendMessage(openai, template, previousResponseId, userMess
       store: true,
     });
 
-  const stopThinking = startThinkingIndicator();
-  let response;
-  try {
-    response = await openai.responses.create(request);
-    debugLogOpenAIResponse(response);
-  } finally {
-    stopThinking();
-  }
-  response = await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage);
-  return response;
+  const response = await createStreamedResponse(openai, request, { liveStreaming: Boolean(streamOptions?.liveStreaming) });
+  return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, streamOptions);
 }
 
 export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport };

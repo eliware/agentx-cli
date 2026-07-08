@@ -9,5 +9,3 @@ This folder contains user-facing documentation for the AgentX terminal chat agen
 - [Session state](session-state.md)
 - [Examples](examples.md)
 - [Troubleshooting](troubleshooting.md)
-- [WebSocket implementation plan](websocket-implementation-plan.md)
-- [WebSocket task breakdown](websocket-tasks.md)

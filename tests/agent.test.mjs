@@ -27,15 +27,6 @@ function makeShellMock() {
   };
 }
 
-function makeOpenAIMock() {
-  return {
-    default: class OpenAI {
-      constructor() {
-        return { responses: {} };
-      }
-    },
-  };
-}
 
 describe('agent loop', () => {
   let cwd;
@@ -103,6 +94,73 @@ describe('agent loop', () => {
     rmSync(cwd, { recursive: true, force: true });
   });
 
+  test('retries a turn without previous_response_id when the prior response is missing', async () => {
+    const questionQueue = ['hello', '/exit'];
+
+    await jest.unstable_mockModule('node:readline/promises', () => ({
+      createInterface: () => ({
+        question: async () => questionQueue.shift() ?? '/exit',
+        close: jest.fn(),
+      }),
+    }));
+
+    await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
+      shellExec: jest.fn(),
+    }));
+
+    const persistResponseState = jest.fn(async () => { });
+    const clearSession = jest.fn(async () => { });
+    const readSessionState = jest.fn(async () => ({
+      response_id: 'resp-saved',
+      usage: { inputTokens: 1, cachedTokens: 0, outputTokens: 1, turns: 1 },
+      last_user_message: 'hello',
+      last_assistant_message: 'hi',
+      pending_cli_transcript: '',
+    }));
+    const extractTextFromResponse = jest.fn(() => 'assistant reply');
+    const sendMessage = jest.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('Previous response missing'), { code: 'previous_response_not_found' }))
+      .mockResolvedValueOnce({
+        id: 'resp-new',
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'recovered' }] }],
+        usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 0 }, output_tokens: 2 },
+      });
+
+    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+      clearSession,
+      extractTextFromResponse,
+      extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
+      persistResponseState,
+      readSessionState,
+      sendMessage,
+    }));
+
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({
+      readJson: async () => ({
+        model: 'test-model',
+        input: [
+          { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
+          { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
+        ],
+        tools: [],
+      }),
+    }));
+
+    await jest.unstable_mockModule('../src/text-wrap.mjs', () => ({
+      getTerminalWidth: () => 80,
+      wrapText: (text) => text,
+    }));
+
+    const { runAgent } = await import('../src/agent.mjs');
+    await runAgent({ promptPath, cwd });
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage.mock.calls[0][2]).toBe('resp-saved');
+    expect(sendMessage.mock.calls[1][2]).toBe('');
+    expect(writes.join(' ')).toContain('Previous response not found; starting a new chain');
+  });
+
   test('processes commands, handles session resets and runs fresh requests', async () => {
     const questionQueue = ['', 'clear', '/usage', 'cd missing', 'cd nested', 'hello', '/clear', 'fresh', '/exit'];
 
@@ -113,7 +171,6 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -199,7 +256,6 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -286,7 +342,6 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -360,7 +415,6 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -407,7 +461,6 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({

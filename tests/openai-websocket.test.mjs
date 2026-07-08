@@ -1,0 +1,78 @@
+import { describe, expect, test, jest } from '@jest/globals';
+import { createOpenAIWebSocketClient, parseOpenAIWebSocketMessage, sendOpenAIWebSocketEvent } from '../src/openai-websocket.mjs';
+
+describe('openai websocket helpers', () => {
+  test('parses text and binary websocket messages', () => {
+    expect(parseOpenAIWebSocketMessage('{"type":"response.completed"}')).toEqual({
+      raw: '{"type":"response.completed"}',
+      json: { type: 'response.completed' },
+    });
+
+    expect(parseOpenAIWebSocketMessage(Buffer.from('{"type":"response.created"}'), true)).toEqual({
+      raw: '{"type":"response.created"}',
+      json: { type: 'response.created' },
+    });
+
+    expect(parseOpenAIWebSocketMessage('not json')).toEqual({ raw: 'not json', json: null });
+  });
+
+  test('creates a websocket client with bearer auth and response.create sending', () => {
+    const handlers = new Map();
+    const sent = [];
+
+    class FakeWebSocket {
+      constructor(url, options) {
+        this.url = url;
+        this.options = options;
+      }
+      on(event, handler) {
+        handlers.set(event, handler);
+      }
+      send(payload) {
+        sent.push(payload);
+      }
+      close(code, reason) {
+        this.closed = { code, reason };
+      }
+    }
+
+    const client = createOpenAIWebSocketClient({
+      apiKey: 'test-key',
+      url: 'wss://example.test',
+      WebSocketImpl: FakeWebSocket,
+      onOpen: jest.fn(),
+      onMessage: jest.fn(),
+      onError: jest.fn(),
+      onClose: jest.fn(),
+      onUpgrade: jest.fn(),
+      onPing: jest.fn(),
+      onPong: jest.fn(),
+      onUnexpectedResponse: jest.fn(),
+    });
+
+    expect(client.socket.url).toBe('wss://example.test');
+    expect(client.socket.options.headers.Authorization).toBe('Bearer test-key');
+
+    client.sendResponseCreate({ model: 'gpt-5.4-mini', input: [] });
+    expect(JSON.parse(sent[0])).toEqual({ type: 'response.create', model: 'gpt-5.4-mini', input: [] });
+
+    sendOpenAIWebSocketEvent(client.socket, { type: 'response.create', model: 'gpt-5.4-mini' });
+    expect(JSON.parse(sent[1])).toEqual({ type: 'response.create', model: 'gpt-5.4-mini' });
+
+    handlers.get('open')();
+    handlers.get('message')('{"type":"response.completed"}', false);
+    handlers.get('close')(1000, Buffer.from('bye'));
+    handlers.get('error')(new Error('boom'));
+    handlers.get('ping')(Buffer.from('pong'));
+    handlers.get('pong')(Buffer.from('ping'));
+    handlers.get('upgrade')({ statusCode: 101 });
+    handlers.get('unexpected-response')({}, { statusCode: 400 });
+
+    client.close(1000, Buffer.from('bye'));
+    expect(client.socket.closed).toEqual({ code: 1000, reason: Buffer.from('bye') });
+  });
+
+  test('rejects missing api keys', () => {
+    expect(() => createOpenAIWebSocketClient({})).toThrow('OpenAI API key is required');
+  });
+});

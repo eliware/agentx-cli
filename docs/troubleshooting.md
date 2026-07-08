@@ -6,6 +6,8 @@ Check that you are running the entrypoint directly and that `agentx_api_key` or 
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
 
+If the WebSocket connection closes or hits the service limit, AgentX will reconnect automatically when it can.
+
 ## Missing API key
 
 AgentX stops at startup if neither environment variable is set. Export one before launching the CLI.
@@ -25,3 +27,5 @@ Remember that lines starting with `>` run locally and are buffered for the next 
 ## Session seems stale
 
 Remove `.agentx_responseid` or use `/clear`.
+
+If the saved response id is no longer valid, AgentX may automatically start a new chain and tell you.

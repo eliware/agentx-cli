@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { log, registerHandlers, path } from '@eliware/common';
-import OpenAI from 'openai';
+import { createOpenAIResponsesTransport } from './openai-transport.mjs';
 import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
 import { clearSession, extractTextFromResponse, persistResponseState, readSessionState, sendMessage } from './agent-session.mjs';
@@ -61,12 +61,12 @@ export async function runAgent({ promptPath, cwd }) {
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
   printRestoredSession(savedState);
 
+  const openai = createOpenAIResponsesTransport({ apiKey });
   const debugEnabled = process.argv.includes('--debug');
   const debugLog = (...args) => {
     if (debugEnabled) console.log(...args);
   };
 
-  const openai = new OpenAI({ apiKey });
   const rl = createReplInterface(cwd);
   let previousResponseId = savedResponseId;
   let cwdNote = '';
@@ -166,18 +166,31 @@ export async function runAgent({ promptPath, cwd }) {
       if (debugEnabled) {
         debugLog('OpenAI request:', JSON.stringify(requestOverride, null, 2));
       }
-      const response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {
-        addUsageTotals(turnUsage, usage);
-        sessionUsage.turns += 1;
-      }, requestOverride);
+      let response;
+      try {
+        response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {
+          addUsageTotals(turnUsage, usage);
+          sessionUsage.turns += 1;
+        }, requestOverride, { liveStreaming: true });
+      } catch (error) {
+        if (error?.code === 'previous_response_not_found' && previousResponseId) {
+          process.stdout.write(`${formatSystemMessage('Previous response not found; starting a new chain')}\n`);
+          previousResponseId = '';
+          const retryOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
+          response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {
+            addUsageTotals(turnUsage, usage);
+            sessionUsage.turns += 1;
+          }, retryOverride, { liveStreaming: true });
+        } else {
+          throw error;
+        }
+      }
       previousResponseId = response?.id || previousResponseId;
       lastUserMessage = message;
       lastAssistantMessage = extractTextFromResponse(response);
       pendingCliTranscript = '';
       addUsageTotals(sessionUsage, turnUsage);
       await saveState();
-      const text = lastAssistantMessage;
-      if (text) printAgentText(text);
       printTurnUsage(turnUsage);
       printCumulativeUsage(sessionUsage);
     }

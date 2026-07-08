@@ -14,7 +14,7 @@ The file keeps:
 
 ## Resume behavior
 
-If the file exists on startup, AgentX resumes the previous conversation using `previous_response_id` and `store: true`.
+If the file exists on startup, AgentX resumes the previous conversation using `previous_response_id` and `store: true`. If that response id is no longer usable, AgentX can start a new chain and continue from the saved local context.
 
 ## Reset behavior
 
