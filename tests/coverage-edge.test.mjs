@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from '@jest/globals';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { completePath } from '../src/completion.mjs';
-import { formatPromptForCwd, formatSystemMessage, clearTerminal } from '../src/shell-display.mjs';
+import { formatPromptForCwd, formatSystemMessage, formatCommandMessage, clearTerminal } from '../src/shell-display.mjs';
 import { parseInternalCommand } from '../src/shell-commands.mjs';
 import { buildWorkingDirectoryNote, resolveCdTarget } from '../src/shell-paths.mjs';
 import { getTerminalWidth, wrapText } from '../src/text-wrap.mjs';
@@ -65,6 +65,7 @@ describe('helper coverage', () => {
 
       expect(formatPromptForCwd('/tmp/work')).toContain('root@dev:/tmp/work');
       expect(formatSystemMessage('hello')).toBe('\u001b[33mhello\u001b[0m');
+    expect(formatCommandMessage('hello')).toBe('\u001b[32mhello\u001b[0m');
       clearTerminal();
       expect(writes).toContain('\x1Bc');
     } finally {

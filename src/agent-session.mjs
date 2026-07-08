@@ -3,30 +3,9 @@ import { runToolCall, toolCallSummary, toolOutputForCall } from './tool-dispatch
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport } from './usage.mjs';
-import { formatSystemMessage } from './shell-display.mjs';
+import { formatCommandMessage, formatSystemMessage } from './shell-display.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
-const THINKING_FRAMES = ['|', '/', '-', '\\'];
-
-export function startThinkingIndicator() {
-  let active = true;
-  let frameIndex = 0;
-
-  process.stdout.write('\r| Thinking...');
-
-  const timer = setInterval(() => {
-    if (!active) return;
-    frameIndex = (frameIndex + 1) % THINKING_FRAMES.length;
-    process.stdout.write(`\r${THINKING_FRAMES[frameIndex]} Thinking...`);
-  }, 500);
-
-  return () => {
-    if (!active) return;
-    active = false;
-    clearInterval(timer);
-    process.stdout.write('\r             \r');
-  };
-}
 
 function textFromContent(content) {
   const parts = [];
@@ -139,7 +118,7 @@ function createLiveResponseHandlers({ liveStreaming }) {
         if (item?.type) markOutput();
         if (item?.type === 'shell_call') {
           const summary = toolCallSummary(item);
-          if (summary) process.stdout.write(`${formatSystemMessage(summary)}\n`);
+          if (summary) process.stdout.write(`${formatCommandMessage(summary)}\n`);
         }
       },
       onItemDone(item) {
@@ -154,19 +133,13 @@ function createLiveResponseHandlers({ liveStreaming }) {
 }
 
 async function createStreamedResponse(openai, request, { liveStreaming = false } = {}) {
-  const stopThinking = startThinkingIndicator();
   const live = createLiveResponseHandlers({ liveStreaming });
-
-  try {
-    const response = await openai.responses.create(request, live.handlers || undefined);
-    if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
-      process.stdout.write('\n');
-    }
-    debugLogOpenAIResponse(response);
-    return response;
-  } finally {
-    stopThinking();
+  const response = await openai.responses.create(request, live.handlers || undefined);
+  if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
+    process.stdout.write('\n');
   }
+  debugLogOpenAIResponse(response);
+  return response;
 }
 
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
@@ -181,10 +154,8 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 
     process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
 
-    if (!liveStreaming) {
-      for (const call of calls) {
-        process.stdout.write(`${toolCallSummary(call)}\n`);
-      }
+    for (const call of calls) {
+      process.stdout.write(`${toolCallSummary(call)}\n`);
     }
 
     const results = await Promise.all(calls.map(async (call) => ({
