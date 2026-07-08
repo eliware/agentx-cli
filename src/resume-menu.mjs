@@ -65,8 +65,8 @@ function attachKeypressListener(input, onKeypress) {
   callIfFunction(input.on?.bind(input), 'keypress', onKeypress);
 }
 
-export async function promptResumeMenu(savedState, { input = defaultInput, output = defaultOutput } = {}) {
-  const isInteractive = Boolean(input && output && typeof input.setRawMode === 'function' && input.isTTY !== false);
+export async function promptResumeMenu(savedState, { input = defaultInput, output = defaultOutput, forceInteractive = false } = {}) {
+  const isInteractive = forceInteractive || (!process.env.JEST_WORKER_ID && !process.env.CI && Boolean(input && output && typeof input.setRawMode === 'function' && input.isTTY !== false));
   let selectedIndex = 0;
 
   if (!isInteractive) {
@@ -74,9 +74,9 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
   }
 
   emitKeypressEvents(input);
-  callIfFunction(input.resume);
-  callIfFunction(input.setRawMode, true);
-  callIfFunction(output.write, '\x1b[?25l');
+  callIfFunction(input.resume?.bind(input));
+  callIfFunction(input.setRawMode?.bind(input), true);
+  callIfFunction(output.write?.bind(output), '\x1b[?25l');
 
   const frame = createFrameRenderer(output);
 
@@ -88,8 +88,8 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
       if (finished) return;
       finished = true;
       frame.clear();
-      callIfFunction(input.setRawMode, false);
-      callIfFunction(output.write, '\x1b[?25h');
+      callIfFunction(input.setRawMode?.bind(input), false);
+      callIfFunction(output.write?.bind(output), '\x1b[?25h');
       callIfFunction(input.removeListener?.bind(input), 'keypress', onKeypress);
     };
 

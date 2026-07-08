@@ -15,7 +15,7 @@ describe('resume menu', () => {
 
   test('ignores out-of-range numeric shortcuts before resolving', async () => {
     const { input, output } = makeIO();
-    const prompt = promptResumeMenu({ response_id: 'resp-7' }, { input, output });
+    const prompt = promptResumeMenu({ response_id: 'resp-7' }, { input, output, forceInteractive: true });
     process.nextTick(() => {
       input.emit('keypress', '5', { name: '5' });
       input.emit('keypress', '1', { name: '1' });
@@ -25,7 +25,7 @@ describe('resume menu', () => {
 
   test('ignores empty keypresses before accepting a numeric shortcut', async () => {
     const { input, output } = makeIO();
-    const prompt = promptResumeMenu({ response_id: 'resp-6' }, { input, output });
+    const prompt = promptResumeMenu({ response_id: 'resp-6' }, { input, output, forceInteractive: true });
     process.nextTick(() => {
       input.emit('keypress');
       input.emit('keypress', '2', { name: '2' });
@@ -34,7 +34,49 @@ describe('resume menu', () => {
   });
 
   test('uses default input and output arguments when options are omitted', async () => {
-    await expect(promptResumeMenu({ response_id: 'resp-0' })).resolves.toBe('interrupt-retry');
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+
+    try {
+      process.stdin.isTTY = false;
+      process.stdout.isTTY = false;
+      await expect(promptResumeMenu({ response_id: 'resp-0' })).resolves.toBe('interrupt-retry');
+    } finally {
+      process.stdin.isTTY = originalStdinIsTTY;
+      process.stdout.isTTY = originalStdoutIsTTY;
+    }
+  });
+
+  test('binds interactive stream methods before invoking them', async () => {
+    const input = new EventEmitter();
+    input.isTTY = true;
+    input.resumed = false;
+    input.rawModes = [];
+    input.listenersRemoved = [];
+    input.resume = function resume() {
+      this.resumed = true;
+    };
+    input.setRawMode = function setRawMode(value) {
+      this.rawModes.push(value);
+    };
+    input.removeListener = function removeListener(eventName, handler) {
+      this.listenersRemoved.push([eventName, handler]);
+      EventEmitter.prototype.removeListener.call(this, eventName, handler);
+    };
+    const output = {
+      writes: [],
+      write(chunk) {
+        this.writes.push(String(chunk));
+        return true;
+      },
+    };
+
+    const prompt = promptResumeMenu({ response_id: 'resp-bind' }, { input, output, forceInteractive: true });
+    process.nextTick(() => input.emit('keypress', '', { name: 'enter' }));
+    await expect(prompt).resolves.toBe('interrupt-retry');
+    expect(input.resumed).toBe(true);
+    expect(input.rawModes).toEqual([true, false]);
+    expect(output.writes.join('')).toContain('Session resp-bind has pending tool calls.');
   });
 
   test('frame renderer clears both when populated and when already empty', () => {
@@ -77,7 +119,7 @@ describe('resume menu', () => {
 
   test('selects options with number keys', async () => {
     const { input, output } = makeIO();
-    const prompt = promptResumeMenu({ response_id: 'resp-1' }, { input, output });
+    const prompt = promptResumeMenu({ response_id: 'resp-1' }, { input, output, forceInteractive: true });
     process.nextTick(() => input.emit('keypress', '3', { name: '3' }));
     await expect(prompt).resolves.toBe('auto-resume');
     expect(input.setRawMode).toHaveBeenCalledWith(true);
@@ -87,7 +129,7 @@ describe('resume menu', () => {
 
   test('moves with arrow keys and confirms with enter', async () => {
     const { input, output } = makeIO();
-    const prompt = promptResumeMenu({ response_id: 'resp-2' }, { input, output });
+    const prompt = promptResumeMenu({ response_id: 'resp-2' }, { input, output, forceInteractive: true });
     process.nextTick(() => {
       input.emit('keypress', '', { name: 'down' });
       input.emit('keypress', '', { name: 'down' });
@@ -100,7 +142,7 @@ describe('resume menu', () => {
 
   test('moves up with arrow keys and wraps to the last option', async () => {
     const { input, output } = makeIO();
-    const prompt = promptResumeMenu({ response_id: 'resp-3' }, { input, output });
+    const prompt = promptResumeMenu({ response_id: 'resp-3' }, { input, output, forceInteractive: true });
     process.nextTick(() => {
       input.emit('keypress', '', { name: 'up' });
       input.emit('keypress', '', { name: 'enter' });
@@ -111,7 +153,7 @@ describe('resume menu', () => {
 
   test('rejects with AbortError on ctrl-c and restores terminal state', async () => {
     const { input, output } = makeIO();
-    const prompt = promptResumeMenu({ response_id: 'resp-4' }, { input, output });
+    const prompt = promptResumeMenu({ response_id: 'resp-4' }, { input, output, forceInteractive: true });
     process.nextTick(() => input.emit('keypress', '', { name: 'c', ctrl: true }));
     await expect(prompt).rejects.toMatchObject({ name: 'AbortError', message: 'Interrupted' });
     expect(input.setRawMode).toHaveBeenLastCalledWith(false);
