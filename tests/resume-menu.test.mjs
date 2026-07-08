@@ -38,12 +38,12 @@ describe('resume menu', () => {
     const originalStdoutIsTTY = process.stdout.isTTY;
 
     try {
-      process.stdin.isTTY = false;
-      process.stdout.isTTY = false;
+      Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+      Object.defineProperty(process.stdout, 'isTTY', { value: false, configurable: true });
       await expect(promptResumeMenu({ response_id: 'resp-0' })).resolves.toBe('interrupt-retry');
     } finally {
-      process.stdin.isTTY = originalStdinIsTTY;
-      process.stdout.isTTY = originalStdoutIsTTY;
+      Object.defineProperty(process.stdin, 'isTTY', { value: originalStdinIsTTY, configurable: true });
+      Object.defineProperty(process.stdout, 'isTTY', { value: originalStdoutIsTTY, configurable: true });
     }
   });
 

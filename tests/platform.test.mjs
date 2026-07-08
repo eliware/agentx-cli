@@ -30,10 +30,11 @@ describe('platform helpers', () => {
   });
 
   test('uses default platform and identity fallbacks when omitted', () => {
-    expect(isWindowsPlatform()).toBe(false);
-    expect(getPathModule()).toBe(path.posix);
+    const expectedWindows = process.platform === 'win32';
+    expect(isWindowsPlatform()).toBe(expectedWindows);
+    expect(getPathModule()).toBe(expectedWindows ? path.win32 : path.posix);
     expect(getPromptIdentity()).toEqual({ user: 'root', host: String(process.env.HOSTNAME || process.env.COMPUTERNAME || 'dev') });
-    expect(normalizeDisplayPath()).toBe('.');
+    expect(normalizeDisplayPath()).toBe(expectedWindows ? '.' : '.');
   });
 
   test('builds prompt identity with fallbacks', () => {
@@ -43,7 +44,15 @@ describe('platform helpers', () => {
   });
 
   test('returns the expected shell launchers', () => {
-    expect(getShellLaunchers()).toEqual([{ file: '/bin/sh', args: ['-lc'] }]);
+    const expectedLaunchers = process.platform === 'win32'
+      ? [
+          { file: 'pwsh', args: ['-NoLogo', '-NoProfile', '-Command'] },
+          { file: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-Command'] },
+          { file: 'cmd.exe', args: ['/d', '/s', '/c'] },
+        ]
+      : [{ file: '/bin/sh', args: ['-lc'] }];
+
+    expect(getShellLaunchers()).toEqual(expectedLaunchers);
     expect(getShellLaunchers('linux')).toEqual([{ file: '/bin/sh', args: ['-lc'] }]);
     expect(getShellLaunchers('win32')).toEqual([
       { file: 'pwsh', args: ['-NoLogo', '-NoProfile', '-Command'] },
@@ -60,8 +69,10 @@ describe('platform helpers', () => {
 
   test('resolves user paths with home, cwd and tilde expansion', () => {
     expect(resolveUserPath('', '/work')).toBe(String(process.env.HOME || process.env.USERPROFILE || '/work'));
-    expect(resolveUserPath('', '', { env: {}, platform: 'linux' })).toBe(process.cwd());
-    expect(resolveUserPath('~', '', { env: {}, platform: 'linux' })).toBe(process.cwd());
+    expect(resolveUserPath('', '/work', { env: {}, platform: 'linux' })).toBe('/work');
+    expect(resolveUserPath('', '', { env: {}, platform: 'linux' })).toBe(path.posix.resolve(''));
+    expect(resolveUserPath('~', '', { env: {}, platform: 'linux' })).toBe(path.posix.resolve(''));
+    expect(resolveUserPath('~', '/work', { env: {}, platform: 'linux' })).toBe('/work');
     expect(resolveUserPath('notes', '/work')).toBe('/work/notes');
     expect(resolveUserPath('', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/home/alice');
     expect(resolveUserPath('~/notes', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/home/alice/notes');
