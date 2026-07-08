@@ -30,6 +30,11 @@ function createWebSocketDebugLogger(debug) {
   return (line) => console.log(line);
 }
 
+function shouldLogWebSocketFrame(raw) {
+  const text = String(raw ?? '');
+  return !text.includes('response.output_text.delta') && !text.includes('response.function_call_arguments.delta');
+}
+
 export function sendOpenAIWebSocketEvent(socket, payload, debug = null) {
   const raw = JSON.stringify(payload);
   if (debug) debug(formatOpenAIWebSocketFrame(raw, false, 'ws send'));
@@ -65,8 +70,9 @@ export function createOpenAIWebSocketClient(options) {
 
   if (onOpen) socket.on('open', () => onOpen(socket));
   if (onMessage) socket.on('message', (data, isBinary) => {
-    if (logDebug) logDebug(formatOpenAIWebSocketFrame(data, isBinary, 'ws recv'));
-    onMessage(parseOpenAIWebSocketMessage(data, isBinary), socket);
+    const message = parseOpenAIWebSocketMessage(data, isBinary);
+    if (logDebug && shouldLogWebSocketFrame(message.raw)) logDebug(formatOpenAIWebSocketFrame(message.raw, false, 'ws recv'));
+    onMessage(message, socket);
   });
   if (onError) socket.on('error', (error) => {
     if (logDebug) logDebug(`ws error: ${error?.stack || error?.message || String(error)}`);

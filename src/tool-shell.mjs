@@ -96,16 +96,16 @@ function normalizeGroups(groups, defaultCwd) {
 export async function runShellCommandGroups(groups, cwd, { timeoutMs, maxOutputLength, callId, defaultCwd } = {}) {
   const resolvedDefaultCwd = String(defaultCwd ?? cwd ?? '');
   const normalizedGroups = normalizeGroups(groups, resolvedDefaultCwd);
-  const results = await Promise.all(normalizedGroups.map(async (group) => ({
-    ...group,
-    ...(await runShellCommands(group.commands, group.cwd || resolvedDefaultCwd, { timeoutMs, maxOutputLength })),
-  })));
+  const results = await Promise.all(normalizedGroups.map(async (group) => runShellCommands(group.commands, group.cwd || resolvedDefaultCwd, { timeoutMs, maxOutputLength })));
+  const output = results.flatMap((result) => Array.isArray(result?.output) ? result.output : []);
 
   return {
+    type: 'shell_call_output',
     call_id: callId || '',
     cwd: resolvedDefaultCwd,
     status: results.some((group) => group.status === 'incomplete') ? 'incomplete' : 'completed',
-    groups: results,
+    output,
+    max_output_length: Number.isFinite(Number(maxOutputLength)) ? Number(maxOutputLength) : null,
   };
 }
 

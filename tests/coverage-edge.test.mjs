@@ -167,13 +167,11 @@ describe('helper coverage', () => {
     expect(toolOutputForCall({ type: 'function_call', id: 'call-fn-id' }, 'done')).toEqual({ type: 'function_call_output', call_id: 'call-fn-id', output: 'done' });
     expect(toolOutputForCall({ type: 'function_call' }, undefined)).toEqual({ type: 'function_call_output', call_id: '', output: '' });
     expect(toolOutputForCall({ type: 'shell_call', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [] })).toEqual({ type: 'shell_call_output', call_id: '', output: [] });
-    const functionCall = await runToolCall({ type: 'function_call', call_id: 'call-fn', name: 'shell_call', input: JSON.stringify({ c: tmp, p: [{ s: ['printf one'] }, { s: ['printf two'] }] }) }, tmp);
-    expect(functionCall).toContain(`cwd: ${tmp}`);
-    expect(functionCall).toContain('status: completed');
-    expect(functionCall).toContain('group 1:');
-    expect(functionCall).toContain('group 2:');
-    expect(functionCall).toContain('commands: printf one');
-    expect(functionCall).toContain('commands: printf two');
+    const functionCall = JSON.parse(await runToolCall({ type: 'function_call', call_id: 'call-fn', name: 'shell_call', input: JSON.stringify({ c: tmp, p: [{ s: ['printf one'] }, { s: ['printf two'] }] }) }, tmp));
+    expect(functionCall).toMatchObject({ type: 'shell_call_output', call_id: 'call-fn', cwd: tmp, status: 'completed' });
+    expect(functionCall.output).toHaveLength(2);
+    expect(functionCall.output[0].stdout).toBe('one');
+    expect(functionCall.output[1].stdout).toBe('two');
     const started = Date.now();
     await runToolCall({ type: 'function_call', call_id: 'call-parallel', name: 'shell_call', input: JSON.stringify({ c: tmp, p: [{ s: ["node -e \"setTimeout(() => console.log('a'), 120)\""] }, { s: ["node -e \"setTimeout(() => console.log('b'), 120)\""] }] }) }, tmp);
     expect(Date.now() - started).toBeLessThan(350);

@@ -110,12 +110,16 @@ describe('openai websocket helpers', () => {
 
       client.sendResponseCreate({ model: 'gpt-5.4-mini', input: [] });
       handlers.get('message')('{"type":"response.completed"}', false);
+      handlers.get('message')('{"type":"response.output_text.delta","delta":"hidden"}', false);
+      handlers.get('message')('{"type":"response.function_call_arguments.delta","delta":"{\"p\":[{\"s\":[\"echo hi\"]}]}"}', false);
       handlers.get('error')(new Error('boom'));
       handlers.get('close')(1000, Buffer.from('bye'));
 
       expect(sent).toHaveLength(1);
       expect(logs).toContain('ws send: {"type":"response.create","model":"gpt-5.4-mini","input":[]}');
       expect(logs).toContain('ws recv: {"type":"response.completed"}');
+      expect(logs.some((line) => line.includes('response.output_text.delta'))).toBe(false);
+      expect(logs.some((line) => line.includes('response.function_call_arguments.delta'))).toBe(false);
       expect(logs.some((line) => line.startsWith('ws error: '))).toBe(true);
       expect(logs).toContain('ws close code=1000: bye');
     } finally {
