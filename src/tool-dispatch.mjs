@@ -22,6 +22,71 @@ function formatShellCommandSummary(call) {
   return commands.length > 0 ? commands.join(' && ') : '';
 }
 
+function formatShellChunk(chunk) {
+  const lines = [];
+  const stdout = String(chunk?.stdout ?? '');
+  const stderr = String(chunk?.stderr ?? '');
+  const outcome = chunk?.outcome ?? null;
+
+  lines.push('stdout:');
+  lines.push(stdout);
+  lines.push('stderr:');
+  lines.push(stderr);
+
+  if (outcome?.type === 'timeout') {
+    lines.push('outcome: timeout');
+  } else if (outcome?.type === 'exit') {
+    lines.push(`outcome: exit ${String(outcome.exit_code ?? '')}`.trim());
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+function formatShellGroupResult(group, index) {
+  const lines = [];
+  const cwd = String(group?.cwd ?? '');
+  const commands = Array.isArray(group?.commands) ? group.commands.filter((command) => String(command ?? '').trim()) : [];
+
+  lines.push(`group ${index + 1}:`);
+  if (cwd) lines.push(`cwd: ${cwd}`);
+  if (commands.length > 0) lines.push(`commands: ${commands.join(' && ')}`);
+
+  const output = Array.isArray(group?.output) ? group.output : [];
+  if (output.length === 0) {
+    lines.push('output:');
+    lines.push('');
+    return lines.join('\n').trimEnd();
+  }
+
+  for (const [chunkIndex, chunk] of output.entries()) {
+    lines.push(`chunk ${chunkIndex + 1}:`);
+    lines.push(formatShellChunk(chunk));
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+function formatShellFunctionResult(result) {
+  const lines = [];
+  const cwd = String(result?.cwd ?? '');
+  const status = String(result?.status ?? '');
+  const groups = Array.isArray(result?.groups) ? result.groups : [];
+
+  if (cwd) lines.push(`cwd: ${cwd}`);
+  if (status) lines.push(`status: ${status}`);
+
+  if (groups.length === 0) {
+    lines.push('output:');
+    return lines.join('\n').trimEnd();
+  }
+
+  for (const [index, group] of groups.entries()) {
+    lines.push(formatShellGroupResult(group, index));
+  }
+
+  return lines.join('\n\n').trimEnd();
+}
+
 function summarizeGroup(group, defaultCwd) {
   const cwd = group?.c == null ? defaultCwd : String(group.c);
   const commands = [];
@@ -93,7 +158,7 @@ export async function runToolCall(call, cwd) {
       maxOutputLength: input?.l,
     };
     const result = await runShellCommandGroups(groups, cwd, { ...limits, callId: call?.call_id || call?.id || '', defaultCwd });
-    return JSON.stringify(result);
+    return formatShellFunctionResult(result);
   }
 
   if (call?.type === 'shell_call') {

@@ -185,21 +185,25 @@ describe('coverage gaps', () => {
     expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ p: [{ s: ['echo arg'] }] }) })).toBe('echo arg');
     expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ p: [{ c: '/tmp', s: 'nope' }] }) })).toBe('cd /tmp:');
 
-    const shellFunctionResult = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-0', input: JSON.stringify({ c: '/opt/agentx-cli', p: [{ s: ['printf ok'] }], t: 1000, l: 123 }) }, '/opt/agentx-cli'));
-    expect(shellFunctionResult).toMatchObject({ call_id: 'call-0', cwd: '/opt/agentx-cli', status: 'completed' });
-    expect(shellFunctionResult.groups[0].commands).toEqual(['printf ok']);
+    const shellFunctionResult = await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-0', input: JSON.stringify({ c: '/opt/agentx-cli', p: [{ s: ['printf ok'] }], t: 1000, l: 123 }) }, '/opt/agentx-cli');
+    expect(shellFunctionResult).toContain('cwd: /opt/agentx-cli');
+    expect(shellFunctionResult).toContain('status: completed');
+    expect(shellFunctionResult).toContain('commands: printf ok');
+    expect(shellFunctionResult).toContain('stdout:');
+    expect(shellFunctionResult).toContain('ok');
 
-    const shellFunctionResultNoCwd = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-00', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, '/opt/agentx-cli'));
-    expect(shellFunctionResultNoCwd.cwd).toBe('/opt/agentx-cli');
-    const shellFunctionResultEmpty = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-01', input: JSON.stringify({}) }, ''));
-    expect(shellFunctionResultEmpty.cwd).toBe('');
+    const shellFunctionResultNoCwd = await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-00', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, '/opt/agentx-cli');
+    expect(shellFunctionResultNoCwd).toContain('cwd: /opt/agentx-cli');
+    const shellFunctionResultEmpty = await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-01', input: JSON.stringify({}) }, '');
+    expect(shellFunctionResultEmpty).toContain('status: completed');
 
-    const shellFunctionResultId = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', id: 'call-id', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, '/opt/agentx-cli'));
-    expect(shellFunctionResultId.call_id).toBe('call-id');
-    const shellFunctionResultDefault = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, undefined));
-    expect(shellFunctionResultDefault.cwd).toBe('');
-    const shellFunctionResultEmptyInput = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call' }, '/opt/agentx-cli'));
-    expect(shellFunctionResultEmptyInput).toMatchObject({ call_id: '', cwd: '/opt/agentx-cli', status: 'completed' });
+    const shellFunctionResultId = await runToolCallDirect({ type: 'function_call', name: 'shell_call', id: 'call-id', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, '/opt/agentx-cli');
+    expect(shellFunctionResultId).toContain('status: completed');
+    const shellFunctionResultDefault = await runToolCallDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, undefined);
+    expect(shellFunctionResultDefault).toContain('status: completed');
+    const shellFunctionResultEmptyInput = await runToolCallDirect({ type: 'function_call', name: 'shell_call' }, '/opt/agentx-cli');
+    expect(shellFunctionResultEmptyInput).toContain('cwd: /opt/agentx-cli');
+    expect(shellFunctionResultEmptyInput).toContain('status: completed');
 
     const originalJsonParse = JSON.parse;
     try {
