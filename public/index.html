@@ -9,13 +9,50 @@
   </head>
   <body>
     <main class="shell">
-      <h1>Hello world</h1>
-      <p>AgentX GUI is up.</p>
-      <button data-ws-connect type="button">Reconnect WebSocket</button>
-      <dl>
-        <div><dt>Status</dt><dd data-ws-status>idle</dd></div>
-        <div><dt>Reply</dt><dd data-ws-reply>none</dd></div>
-      </dl>
+      <section class="panel">
+        <div class="header">
+          <h1>AgentX GUI</h1>
+          <p data-status>signed out</p>
+        </div>
+
+        <form class="login-form" data-login-form>
+          <label>
+            <span>Linux username</span>
+            <input data-login-username name="username" autocomplete="username" required>
+          </label>
+
+          <label>
+            <span>Linux password</span>
+            <input data-login-password name="password" type="password" autocomplete="current-password" required>
+          </label>
+
+          <label class="checkbox">
+            <input data-login-remember type="checkbox">
+            <span>Remember credentials and auto-login</span>
+          </label>
+
+          <div class="actions">
+            <button data-login-button type="submit">Login</button>
+            <button data-logout-button type="button">Logout</button>
+          </div>
+        </form>
+
+        <div class="meta">
+          <div>
+            <span class="label">WebSocket</span>
+            <span data-ws-state>idle</span>
+          </div>
+          <div>
+            <span class="label">Details</span>
+            <span data-detail>none</span>
+          </div>
+        </div>
+
+        <section class="messages">
+          <h2>Messages</h2>
+          <ul data-messages></ul>
+        </section>
+      </section>
     </main>
   </body>
 </html>
