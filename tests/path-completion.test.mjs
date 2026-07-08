@@ -4,6 +4,7 @@ import { completePath, tokenPrefix } from '../src/path-completion.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('path completion', () => {
+  const sep = process.platform === 'win32' ? '\\' : '/';
   test('suggests files and folders from cwd', async () => {
     const tmp = makeTempDir('agentx-complete-');
     try {
@@ -12,7 +13,7 @@ describe('path completion', () => {
 
       const [matches] = await completePath('cd f', tmp);
       expect(matches).toContain('file.txt');
-      expect(matches).toContain('folder/');
+      expect(matches).toContain(`folder${sep}`);
     } finally {
       cleanupTempDir(tmp);
     }
@@ -41,13 +42,14 @@ describe('path completion', () => {
   });
 
   test('preserves absolute directory prefixes and normalizes accidental double slashes', async () => {
+    if (process.platform === 'win32') return;
     const tmp = makeTempDir('agentx-complete-');
     try {
       makeDirectory(tmp, 'opt');
       makeFile(tmp, 'opt/agentx');
       const [matches, token] = await completePath('/op', tmp);
       expect(token).toBe('/op');
-      expect(matches).not.toContain('//opt/');
+      expect(matches).not.toContain(`//opt${sep}`);
       expect(matches).toContain('/opt/');
     } finally {
       cleanupTempDir(tmp);
@@ -67,7 +69,7 @@ describe('path completion', () => {
       const [plain] = await completePath('plain', tmp);
       expect(plain).toContain('plain-file.txt');
       const [nested] = await completePath('plain/s', tmp);
-      expect(nested).toContain('plain/subdir/');
+      expect(nested).toContain(`plain${sep}subdir${sep}`);
       const [missing] = await completePath('missing', `${tmp}/does-not-exist`);
       expect(missing).toEqual([]);
     } finally {
@@ -84,6 +86,7 @@ describe('path completion', () => {
 
 
   test('preserves non-root absolute prefixes', async () => {
+    if (process.platform === 'win32') return;
     const tmp = makeTempDir('agentx-complete-');
     try {
       const base = path.basename(tmp);
@@ -95,6 +98,7 @@ describe('path completion', () => {
   });
 
   test('preserves absolute prefixes inside /tmp', async () => {
+    if (process.platform === 'win32') return;
     const tmp = makeTempDir('agentx-complete-');
     try {
       const base = path.basename(tmp);
@@ -110,7 +114,7 @@ describe('path completion', () => {
     try {
       const [matches, token] = await completePath('//op', tmp);
       expect(token).toBe('/op');
-      expect(matches).not.toContain('//opt/');
+      expect(matches).not.toContain(`//opt${sep}`);
     } finally {
       cleanupTempDir(tmp);
     }

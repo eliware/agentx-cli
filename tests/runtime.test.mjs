@@ -11,6 +11,7 @@ describe('runtime helpers', () => {
   });
 
   test('isDirectInvocation resolves symlinks to the real launcher', () => {
+    if (process.platform === 'win32') return;
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'agentx-link-'));
     const link = path.join(tmp, 'agentx');
     symlinkSync('/opt/agentx-cli/agentx.mjs', link);

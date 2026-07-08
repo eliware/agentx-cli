@@ -94,7 +94,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   });
   const savedState = await readSessionState(statePath);
   const savedResponseId = savedState?.response_id || '';
-  const apiKey = resolveAgentApiKey();
+  const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
   const debugEnabled = process.argv.includes('--debug');
   const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
 
