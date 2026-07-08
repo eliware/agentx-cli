@@ -1,8 +1,8 @@
 {
     "name": "@eliware/agentx",
     "type": "module",
-    "version": "1.1.14",
-    "description": "A lightweight terminal chat agent built on the OpenAI Responses API over WebSocket mode.",
+    "version": "1.1.15",
+    "description": "A lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.",
     "main": "agentx.mjs",
     "scripts": {
         "start": "node agentx.mjs",

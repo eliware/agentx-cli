@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.1.15 - Windows-aware platform support and CLI packaging
+
+- Added cross-platform platform helpers for home-directory lookup, prompt identity, shell launcher selection, and display-path normalization.
+- Made `cd`, path completion, prompt formatting, and shell execution work across POSIX and Windows path conventions.
+- Added a `bin` mapping in `package.json` so the installed package exposes the `agentx` CLI.
+- Added Windows support docs and refreshed startup/environment guidance for the no-`.env` workflow.
+- Expanded tests around platform handling, path completion, shell launchers, and resume behavior.
+
 ## 1.1.14 - Interrupted-session resume and shell execution upgrades
 
 - Added a startup resume menu for sessions with pending tool calls, including auto-resume, retry-hint, interruption notice, and new-session paths.

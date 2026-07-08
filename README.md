@@ -11,7 +11,7 @@ It is designed to feel shell-like:
 - supports tab completion for local files and folders
 - remembers the last response id, usage counters, last user/assistant messages, pending shell transcript, and pending tool calls in `.agentx_responseid`
 - can prompt to resume interrupted tool execution on startup
-- can be launched directly from `agentx.mjs` or through a symlink like `/usr/bin/agentx`
+- can be launched directly from `agentx.mjs`, through a symlink like `/usr/bin/agentx`, or from an installed `agentx` bin on your PATH
 - includes quick CLI flags for help, version, and debug logging
 - prints friendly startup errors for missing config or API keys
 
@@ -107,6 +107,7 @@ User-facing docs live in [`docs/`](./docs):
 
 - Main entrypoint: [`agentx.mjs`](./agentx.mjs)
 - Implementation modules: [`src/`](./src)
+- Package installs expose the `agentx` CLI via `bin`
 - Launch the app locally:
 
   ```bash
