@@ -95,6 +95,12 @@ export function responseItemToTranscript(item) {
   return `${item.role || item.type || 'item'}: ${compactJson(item)}`;
 }
 
+function isShellCallEvent(event, raw) {
+  if (event?.type === 'shell_call') return true;
+  if (event?.item?.type === 'shell_call') return true;
+  return typeof raw === 'string' && raw.includes('"type":"shell_call"') && !raw.includes('"type":"shell_call_output"');
+}
+
 function createLiveResponseHandlers({ liveStreaming }) {
   let sawOutput = false;
   let streamedText = '';
@@ -108,6 +114,12 @@ function createLiveResponseHandlers({ liveStreaming }) {
     sawOutput: () => sawOutput,
     streamedText: () => streamedText,
     handlers: liveStreaming ? {
+      onEvent(event, message) {
+        if (!isShellCallEvent(event, message?.raw)) return;
+        markOutput();
+        const raw = String(message?.raw ?? '');
+        if (raw) process.stdout.write(`${formatCommandMessage(raw)}\n`);
+      },
       onTextDelta(delta) {
         markOutput();
         const text = String(delta ?? '');
@@ -116,10 +128,6 @@ function createLiveResponseHandlers({ liveStreaming }) {
       },
       onItemAdded(item) {
         if (item?.type) markOutput();
-        if (item?.type === 'shell_call') {
-          const summary = toolCallSummary(item);
-          if (summary) process.stdout.write(`${formatCommandMessage(summary)}\n`);
-        }
       },
       onItemDone(item) {
         if (item?.type) markOutput();
@@ -155,7 +163,10 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
 
     for (const call of calls) {
-      process.stdout.write(`${toolCallSummary(call)}\n`);
+      const summary = toolCallSummary(call);
+      if (summary) {
+        process.stdout.write(`${formatCommandMessage(summary)}\n`);
+      }
     }
 
     const results = await Promise.all(calls.map(async (call) => ({
