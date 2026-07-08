@@ -24,7 +24,7 @@ function isReconnectableClose(code, reason) {
   return text.includes('close') || text.includes('limit') || text.includes('disconnect');
 }
 
-export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl } = {}) {
+export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl, debug = false, debugLogger = null } = {}) {
   if (!apiKey) {
     throw new Error('OpenAI API key is required');
   }
@@ -67,6 +67,8 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl } = 
       apiKey,
       url,
       WebSocketImpl,
+      debug,
+      debugLogger,
       onOpen: () => {
         if (readyResolve) readyResolve(client);
         readyResolve = null;

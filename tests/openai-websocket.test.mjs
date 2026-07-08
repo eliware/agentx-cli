@@ -1,5 +1,5 @@
 import { describe, expect, test, jest } from '@jest/globals';
-import { createOpenAIWebSocketClient, parseOpenAIWebSocketMessage, sendOpenAIWebSocketEvent } from '../src/openai-websocket.mjs';
+import { createOpenAIWebSocketClient, formatOpenAIWebSocketFrame, parseOpenAIWebSocketMessage, sendOpenAIWebSocketEvent } from '../src/openai-websocket.mjs';
 
 describe('openai websocket helpers', () => {
   test('parses text and binary websocket messages', () => {
@@ -70,6 +70,64 @@ describe('openai websocket helpers', () => {
 
     client.close(1000, Buffer.from('bye'));
     expect(client.socket.closed).toEqual({ code: 1000, reason: Buffer.from('bye') });
+  });
+
+  test('logs websocket frames when debug is enabled', () => {
+    const handlers = new Map();
+    const sent = [];
+    const logs = [];
+    const originalConsoleLog = console.log;
+    console.log = (...args) => {
+      logs.push(args.map(String).join(' '));
+    };
+
+    try {
+      class FakeWebSocket {
+        constructor(url, options) {
+          this.url = url;
+          this.options = options;
+        }
+        on(event, handler) {
+          handlers.set(event, handler);
+        }
+        send(payload) {
+          sent.push(payload);
+        }
+        close(code, reason) {
+          this.closed = { code, reason };
+        }
+      }
+
+      const client = createOpenAIWebSocketClient({
+        apiKey: 'test-key',
+        url: 'wss://example.test',
+        WebSocketImpl: FakeWebSocket,
+        debug: true,
+        onMessage: jest.fn(),
+        onError: jest.fn(),
+        onClose: jest.fn(),
+      });
+
+      client.sendResponseCreate({ model: 'gpt-5.4-mini', input: [] });
+      handlers.get('message')('{"type":"response.completed"}', false);
+      handlers.get('error')(new Error('boom'));
+      handlers.get('close')(1000, Buffer.from('bye'));
+
+      expect(sent).toHaveLength(1);
+      expect(logs).toContain('ws send: {"type":"response.create","model":"gpt-5.4-mini","input":[]}');
+      expect(logs).toContain('ws recv: {"type":"response.completed"}');
+      expect(logs.some((line) => line.startsWith('ws error: '))).toBe(true);
+      expect(logs.some((line) => line.includes('ws close code=1000 binary frame (3 bytes): hex=627965 base64=Ynll'))).toBe(true);
+    } finally {
+      console.log = originalConsoleLog;
+    }
+  });
+
+  test('formats binary websocket frames with length and encodings', () => {
+    const frame = formatOpenAIWebSocketFrame(Buffer.from('bye'), true, 'ws recv');
+    expect(frame).toContain('ws recv binary frame (3 bytes)');
+    expect(frame).toContain('hex=627965');
+    expect(frame).toContain('base64=Ynll');
   });
 
   test('parses additional websocket payload shapes', () => {

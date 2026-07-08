@@ -54,16 +54,6 @@ function shellFunctionCallPreview(item) {
   return compactJson(JSON.parse(raw));
 }
 
-function debugLogOpenAIRequest(request) {
-  if (!process.argv.includes('--debug')) return;
-  console.log('OpenAI request:', JSON.stringify(request, null, 2));
-}
-
-function debugLogOpenAIResponse(response) {
-  if (!process.argv.includes('--debug')) return;
-  console.log('OpenAI response:', JSON.stringify(response, null, 2));
-}
-
 export function responseItemToTranscript(item) {
   if (!item || item.role === 'developer' || item.role === 'system') return '';
 
@@ -168,7 +158,6 @@ async function createStreamedResponse(openai, request, { liveStreaming = false }
   if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
     process.stdout.write('\n');
   }
-  debugLogOpenAIResponse(response);
   return response;
 }
 
@@ -203,7 +192,6 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       previous_response_id: current.id,
       store: true,
     };
-    debugLogOpenAIRequest(request);
     current = await createStreamedResponse(openai, request, liveStreaming ? { liveStreaming } : undefined);
   }
 }

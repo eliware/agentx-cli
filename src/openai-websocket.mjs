@@ -20,28 +20,59 @@ export function parseOpenAIWebSocketMessage(data, isBinary = false) {
   }
 }
 
-export function sendOpenAIWebSocketEvent(socket, payload) {
-  socket.send(JSON.stringify(payload));
+function toHexString(buffer) {
+  return Buffer.from(buffer).toString('hex');
+}
+
+function toBase64String(buffer) {
+  return Buffer.from(buffer).toString('base64');
+}
+
+function formatWebSocketBinaryFrame(data, label) {
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+  return `${label} binary frame (${buffer.length} bytes): hex=${toHexString(buffer)} base64=${toBase64String(buffer)}`;
+}
+
+export function formatOpenAIWebSocketFrame(data, isBinary = false, label = 'frame') {
+  if (typeof data === 'string') return `${label}: ${data}`;
+  if (Buffer.isBuffer(data) || data instanceof Uint8Array) return formatWebSocketBinaryFrame(data, label);
+  if (isBinary) return formatWebSocketBinaryFrame(String(data ?? ''), label);
+  return `${label}: ${String(data ?? '')}`;
+}
+
+function createWebSocketDebugLogger(debug) {
+  if (!debug) return null;
+  if (typeof debug === 'function') return debug;
+  return (line) => console.log(line);
+}
+
+export function sendOpenAIWebSocketEvent(socket, payload, debug = null) {
+  const raw = JSON.stringify(payload);
+  if (debug) debug(formatOpenAIWebSocketFrame(raw, false, 'ws send'));
+  socket.send(raw);
 }
 
 export function createOpenAIWebSocketClient(options) {
   const {
-  apiKey,
-  url = OPENAI_RESPONSES_WS_URL,
-  WebSocketImpl = WebSocket,
-  onOpen,
-  onMessage,
-  onError,
-  onClose,
-  onUpgrade,
-  onPing,
-  onPong,
-  onUnexpectedResponse,
-} = options ?? {};
+    apiKey,
+    url = OPENAI_RESPONSES_WS_URL,
+    WebSocketImpl = WebSocket,
+    onOpen,
+    onMessage,
+    onError,
+    onClose,
+    onUpgrade,
+    onPing,
+    onPong,
+    onUnexpectedResponse,
+    debug = false,
+    debugLogger = null,
+  } = options ?? {};
   if (!apiKey) {
     throw new Error('OpenAI API key is required');
   }
 
+  const logDebug = createWebSocketDebugLogger(debugLogger ?? debug);
   const socket = new WebSocketImpl(url, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -49,9 +80,18 @@ export function createOpenAIWebSocketClient(options) {
   });
 
   if (onOpen) socket.on('open', () => onOpen(socket));
-  if (onMessage) socket.on('message', (data, isBinary) => onMessage(parseOpenAIWebSocketMessage(data, isBinary), socket));
-  if (onError) socket.on('error', (error) => onError(error, socket));
-  if (onClose) socket.on('close', (code, reason) => onClose(code, reason, socket));
+  if (onMessage) socket.on('message', (data, isBinary) => {
+    if (logDebug) logDebug(formatOpenAIWebSocketFrame(data, isBinary, 'ws recv'));
+    onMessage(parseOpenAIWebSocketMessage(data, isBinary), socket);
+  });
+  if (onError) socket.on('error', (error) => {
+    if (logDebug) logDebug(`ws error: ${error?.stack || error?.message || String(error)}`);
+    onError(error, socket);
+  });
+  if (onClose) socket.on('close', (code, reason) => {
+    if (logDebug) logDebug(formatOpenAIWebSocketFrame(Buffer.isBuffer(reason) || reason instanceof Uint8Array ? reason : String(reason ?? ''), Buffer.isBuffer(reason) || reason instanceof Uint8Array, `ws close code=${code}`));
+    onClose(code, reason, socket);
+  });
   if (onUpgrade) socket.on('upgrade', (response) => onUpgrade(response, socket));
   if (onPing) socket.on('ping', (data) => onPing(data, socket));
   if (onPong) socket.on('pong', (data) => onPong(data, socket));
@@ -60,10 +100,10 @@ export function createOpenAIWebSocketClient(options) {
   return {
     socket,
     send(payload) {
-      sendOpenAIWebSocketEvent(socket, payload);
+      sendOpenAIWebSocketEvent(socket, payload, logDebug);
     },
     sendResponseCreate(request) {
-      sendOpenAIWebSocketEvent(socket, { type: 'response.create', ...request });
+      sendOpenAIWebSocketEvent(socket, { type: 'response.create', ...request }, logDebug);
     },
     close(code, reason) {
       socket.close(code, reason);

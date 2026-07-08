@@ -20,7 +20,7 @@ agentx
 
 - `agentx --help` or `agentx -h` shows quick help
 - `agentx --version` or `agentx -v` prints the package version
-- `agentx --debug` prints OpenAI request and response logs
+- `agentx --debug` prints raw websocket send and receive logs
 
 ## Before you begin
 

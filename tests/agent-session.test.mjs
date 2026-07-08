@@ -210,7 +210,7 @@ describe('agent session helpers', () => {
     }
   });
 
-  test('handleToolCalls logs debug request and response around tool continuations', async () => {
+  test('handleToolCalls does not emit REST-style debug logs', async () => {
     const originalArgv = [...process.argv];
     const originalConsoleLog = console.log;
     const logs = [];
@@ -232,10 +232,8 @@ describe('agent session helpers', () => {
 
       await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }));
 
-      expect(logs.some((line) => line.includes('OpenAI request:'))).toBe(true);
-      expect(logs.some((line) => line.includes('previous_response_id'))).toBe(true);
-      expect(logs.some((line) => line.includes('OpenAI response:'))).toBe(true);
-      expect(logs.some((line) => line.includes('resp-next'))).toBe(true);
+      expect(logs.some((line) => line.includes('OpenAI request:'))).toBe(false);
+      expect(logs.some((line) => line.includes('OpenAI response:'))).toBe(false);
     } finally {
       process.argv = originalArgv;
       console.log = originalConsoleLog;

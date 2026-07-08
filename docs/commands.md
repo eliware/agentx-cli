@@ -39,4 +39,4 @@ These are command-line flags, not in-app commands:
 
 - `--help`, `-h`, `-?`: show quick help and exit
 - `--version`, `-v`: print the package version and exit
-- `--debug`: print OpenAI request and response logs
+- `--debug`: print raw websocket send and receive logs

@@ -53,11 +53,8 @@ export async function runAgent({ promptPath, cwd }) {
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
   printRestoredSession(savedState);
 
-  const openai = createOpenAIResponsesTransport({ apiKey });
   const debugEnabled = process.argv.includes('--debug');
-  const debugLog = (...args) => {
-    if (debugEnabled) console.log(...args);
-  };
+  const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
 
   const rl = createReplInterface(cwd);
   let previousResponseId = savedResponseId;
@@ -153,9 +150,6 @@ export async function runAgent({ promptPath, cwd }) {
       const requestMessage = buildRequestMessage({ pendingCliTranscript, cwdNote, message });
       cwdNote = '';
       const requestOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
-      if (debugEnabled) {
-        debugLog('OpenAI request:', JSON.stringify(requestOverride, null, 2));
-      }
       let response;
       try {
         response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {

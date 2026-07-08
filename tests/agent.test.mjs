@@ -238,7 +238,7 @@ describe('agent loop', () => {
     expect(sendMessage).toHaveBeenCalledTimes(2);
     expect(persistResponseState).toHaveBeenCalled();
     expect(process.exit).toHaveBeenCalledWith(0);
-    expect(logs.some((line) => line.includes('OpenAI request:'))).toBe(true);
+    expect(logs.some((line) => line.includes('OpenAI request:'))).toBe(false);
     expect(writes.join(' ')).toContain('AGENTS.md not found');
     expect(writes.join(' ')).toContain('Last user message');
     expect(writes.join(' ')).toContain('what time is it?');

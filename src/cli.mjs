@@ -32,6 +32,6 @@ export function formatQuickHelp(version = getPackageVersion()) {
     'Flags:',
     '  --help, -h, -?   show this help',
     '  --version, -v    print the package version',
-    '  --debug          print OpenAI request/response logs',
+    '  --debug          print raw websocket send/receive logs',
   ].join('\n');
 }
