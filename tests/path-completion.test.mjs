@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import path from 'node:path';
-import { completePath } from '../src/path-completion.mjs';
+import { completePath, tokenPrefix } from '../src/path-completion.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('path completion', () => {
@@ -16,6 +16,14 @@ describe('path completion', () => {
     } finally {
       cleanupTempDir(tmp);
     }
+  });
+
+
+  test('parses Windows-style prefixes without listing the filesystem', () => {
+    const win = tokenPrefix('C:\\Users\\alice\\Doc', 'win32');
+    expect(win.baseDir).toBe('C:\\Users\\alice');
+    expect(win.prefix).toBe('C:\\Users\\alice\\');
+    expect(win.needle).toBe('Doc');
   });
 
   test('sorts matches and quotes entries with spaces', async () => {

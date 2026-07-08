@@ -2,6 +2,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { StringDecoder } from 'node:string_decoder';
 import { MAX_TOOL_OUTPUT, truncateToolOutput } from './tool-output.mjs';
+import { getShellLaunchers, isMissingLauncherError } from './platform.mjs';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -32,28 +33,41 @@ function isTimeoutError(error) {
   return Boolean(error?.killed && error?.signal === 'SIGTERM');
 }
 
-async function executeShellCommand(command, cwd, { timeoutMs, maxOutputLength } = {}) {
+function getLaunchPlan(command, platform = process.platform) {
+  return getShellLaunchers(platform).map((launcher) => ({
+    file: launcher.file,
+    args: [...launcher.args, command],
+  }));
+}
+
+async function executeWithLaunchers(command, cwd, { timeoutMs, maxOutputLength, platform = process.platform } = {}) {
   const maxBuffer = normalizeLimit(maxOutputLength);
-  const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
-  const args = process.platform === 'win32' ? ['/c', command] : ['-lc', command];
   const options = {
     cwd,
     maxBuffer,
     timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS,
   };
 
-  try {
-    const { stdout = '', stderr = '' } = await execFileAsync(shell, args, options);
-    return makeShellCommandOutput({ stdout, stderr, outcome: { type: 'exit', exit_code: 0 }, maxOutputLength });
-  } catch (error) {
-    const stdout = error?.stdout ?? '';
-    let stderr = error?.stderr ?? '';
-    if (!stdout && !stderr && error?.message) stderr = error.message;
-    const outcome = isTimeoutError(error)
-      ? { type: 'timeout' }
-      : { type: 'exit', exit_code: Number.isFinite(error?.code) ? Number(error.code) : 1 };
-    return makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength });
+  let lastError = null;
+  for (const plan of getLaunchPlan(command, platform)) {
+    try {
+      const { stdout = '', stderr = '' } = await execFileAsync(plan.file, plan.args, options);
+      return makeShellCommandOutput({ stdout, stderr, outcome: { type: 'exit', exit_code: 0 }, maxOutputLength });
+    } catch (error) {
+      lastError = error;
+      if (isMissingLauncherError(error)) continue;
+      const stdout = error?.stdout ?? '';
+      let stderr = error?.stderr ?? '';
+      if (!stdout && !stderr && error?.message) stderr = error.message;
+      const outcome = isTimeoutError(error)
+        ? { type: 'timeout' }
+        : { type: 'exit', exit_code: Number.isFinite(error?.code) ? Number(error.code) : 1 };
+      return makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength });
+    }
   }
+
+  const stderr = lastError?.message || 'Unable to locate a supported shell launcher';
+  return makeShellCommandOutput({ stdout: '', stderr, outcome: { type: 'exit', exit_code: 1 }, maxOutputLength });
 }
 
 function normalizeCommands(commands) {
@@ -87,7 +101,7 @@ function createStreamingCollector(maxOutputLength) {
     if (part.length < text.length) truncated = true;
   }
 
-  function handleChunk(kind, chunk, writer, decoder) {
+  function handleChunk(chunk, writer, decoder) {
     if (!chunk || !chunk.length) return;
     writer?.(chunk);
     appendText(decoder.write(chunk));
@@ -101,55 +115,76 @@ function createStreamingCollector(maxOutputLength) {
 
   return {
     handleStdout(chunk, writer) {
-      handleChunk('stdout', chunk, writer, stdoutDecoder);
+      handleChunk(chunk, writer, stdoutDecoder);
     },
     handleStderr(chunk, writer) {
-      handleChunk('stderr', chunk, writer, stderrDecoder);
+      handleChunk(chunk, writer, stderrDecoder);
     },
     finalize,
   };
 }
 
-async function executeShellCommandStream(command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr } = {}) {
-  const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
-  const args = process.platform === 'win32' ? ['/c', command] : ['-lc', command];
+async function executeShellCommandStream(command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr, platform = process.platform } = {}) {
   const collector = createStreamingCollector(maxOutputLength);
   const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
 
   return await new Promise((resolve) => {
+    const launchers = getLaunchPlan(command, platform);
+    let current = 0;
     let completed = false;
-    let timedOut = false;
-    const child = spawn(shell, args, { cwd, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGTERM');
-    }, timeout);
+    let timer = null;
+    let child = null;
+    let stderrFallback = '';
 
     const finish = (outcome) => {
       if (completed) return;
       completed = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       resolve(makeShellCommandOutput({
         stdout: collector.finalize(),
-        stderr: '',
+        stderr: stderrFallback,
         outcome,
         maxOutputLength,
       }));
     };
 
-    child.stdout?.on('data', (chunk) => collector.handleStdout(chunk, writeStdout));
-    child.stderr?.on('data', (chunk) => collector.handleStderr(chunk, writeStderr));
-    child.on('error', (error) => {
-      if (completed) return;
-      const message = error?.message || String(error);
-      collector.handleStderr(Buffer.from(message), writeStderr);
-      finish({ type: 'exit', exit_code: 1 });
-    });
-    child.on('close', (code) => {
-      finish(timedOut
-        ? { type: 'timeout' }
-        : { type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 });
-    });
+    const startNext = () => {
+      if (current >= launchers.length) {
+        finish({ type: 'exit', exit_code: 1 });
+        return;
+      }
+
+      const plan = launchers[current++];
+      child = spawn(plan.file, plan.args, {
+        cwd,
+        env: process.env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+      });
+      timer = setTimeout(() => {
+        child?.kill('SIGTERM');
+      }, timeout);
+
+      child.stdout?.on('data', (chunk) => collector.handleStdout(chunk, writeStdout));
+      child.stderr?.on('data', (chunk) => collector.handleStderr(chunk, writeStderr));
+      child.on('error', (error) => {
+        if (completed) return;
+        if (isMissingLauncherError(error)) {
+          if (timer) clearTimeout(timer);
+          startNext();
+          return;
+        }
+        stderrFallback = error?.message || String(error);
+        finish({ type: 'exit', exit_code: 1 });
+      });
+      child.on('close', (code) => {
+        if (completed) return;
+        if (timer) clearTimeout(timer);
+        finish({ type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 });
+      });
+    };
+
+    startNext();
   });
 }
 
@@ -159,7 +194,7 @@ export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLeng
   let status = 'completed';
 
   for (const command of commandList) {
-    const chunk = await executeShellCommand(command, cwd, { timeoutMs, maxOutputLength });
+    const chunk = await executeWithLaunchers(command, cwd, { timeoutMs, maxOutputLength });
     output.push(chunk);
     if (chunk.outcome?.type === 'timeout') {
       status = 'incomplete';
@@ -218,3 +253,5 @@ export async function shellExec(command, cwd) {
   });
   return truncateToolOutput(result.stdout);
 }
+
+export { getShellLaunchers };

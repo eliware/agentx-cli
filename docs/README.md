@@ -9,3 +9,4 @@ This folder contains user-facing documentation for the AgentX terminal chat agen
 - [Session state](session-state.md)
 - [Examples](examples.md)
 - [Troubleshooting](troubleshooting.md)
+- [Windows support specification](windows-spec.md)

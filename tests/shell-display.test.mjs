@@ -5,25 +5,36 @@ describe('shell display', () => {
   test('formats prompt and messages and clears the terminal', () => {
     const writes = [];
     const originalWrite = process.stdout.write;
+    const originalTTY = process.stdout.isTTY;
     const originalUser = process.env.USER;
+    const originalUsername = process.env.USERNAME;
+    const originalHost = process.env.HOSTNAME;
+    const originalComputer = process.env.COMPUTERNAME;
 
     try {
       process.stdout.write = (chunk) => {
         writes.push(String(chunk));
         return true;
       };
-      delete process.env.USER;
+      Object.defineProperty(process.stdout, 'isTTY', { value: false, configurable: true });
+      process.env.USER = 'alice';
+      process.env.HOSTNAME = 'laptop';
+      delete process.env.USERNAME;
+      delete process.env.COMPUTERNAME;
 
-      expect(formatPromptForCwd('/tmp/work')).toContain('root@dev:/tmp/work');
-      expect(formatSystemMessage('hello')).toBe('[33mhello[0m');
-      expect(formatCommandMessage('hello')).toBe('[32mhello[0m');
-      expect(formatInfoMessage('hello')).toBe('[94mhello[0m');
+      expect(formatPromptForCwd('/tmp/work')).toBe(`[[33mAgentX alice@laptop:/tmp/work[0m] `);
+      expect(formatSystemMessage('hello')).toBe(`[33mhello[0m`);
+      expect(formatCommandMessage('hello')).toBe(`[32mhello[0m`);
+      expect(formatInfoMessage('hello')).toBe(`[94mhello[0m`);
       clearTerminal();
-      expect(writes).toContain('c');
+      expect(writes).toContain('\n');
     } finally {
       process.stdout.write = originalWrite;
-      if (originalUser === undefined) delete process.env.USER;
-      else process.env.USER = originalUser;
+      Object.defineProperty(process.stdout, 'isTTY', { value: originalTTY, configurable: true });
+      if (originalUser === undefined) delete process.env.USER; else process.env.USER = originalUser;
+      if (originalUsername === undefined) delete process.env.USERNAME; else process.env.USERNAME = originalUsername;
+      if (originalHost === undefined) delete process.env.HOSTNAME; else process.env.HOSTNAME = originalHost;
+      if (originalComputer === undefined) delete process.env.COMPUTERNAME; else process.env.COMPUTERNAME = originalComputer;
     }
   });
 });

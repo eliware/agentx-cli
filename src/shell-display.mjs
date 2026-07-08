@@ -1,14 +1,21 @@
+import { getPromptIdentity } from './platform.mjs';
+
 const YELLOW = '\u001b[33m';
 const GREEN = '\u001b[32m';
 const LIGHT_BLUE = '\u001b[94m';
 const RESET = '\u001b[0m';
 
 export function clearTerminal() {
-  process.stdout.write('\x1Bc');
+  if (process.stdout?.isTTY === false) {
+    process.stdout.write('\n');
+    return;
+  }
+  process.stdout.write('\x1b[2J\x1b[H');
 }
 
 export function formatPromptForCwd(cwd) {
-  return `[${YELLOW}AgentX ${process.env.USER || 'root'}@dev:${cwd}${RESET}] `;
+  const { user, host } = getPromptIdentity(process.env);
+  return `[${YELLOW}AgentX ${user}@${host}:${cwd}${RESET}] `;
 }
 
 export function formatSystemMessage(message) {

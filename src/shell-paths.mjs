@@ -1,14 +1,10 @@
-import path from 'node:path';
 import { fs } from '@eliware/common';
+import { resolveUserPath } from './platform.mjs';
 
-export async function resolveCdTarget(target, cwd) {
-  const rawTarget = target || process.env.HOME || cwd;
-  const nextPath = rawTarget.startsWith('~')
-    ? rawTarget.replace(/^~(?=$|\/)/, process.env.HOME || cwd)
-    : rawTarget;
-  const resolved = path.isAbsolute(nextPath) ? nextPath : path.resolve(cwd, nextPath);
+export async function resolveCdTarget(target, cwd, options = {}) {
+  const resolved = resolveUserPath(target, cwd, options);
   const stats = await fs.promises.stat(resolved);
-  if (!stats.isDirectory()) throw new Error(`cd: not a directory: ${target || rawTarget}`);
+  if (!stats.isDirectory()) throw new Error(`cd: not a directory: ${target || resolved}`);
   return resolved;
 }
 

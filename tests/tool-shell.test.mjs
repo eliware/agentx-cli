@@ -1,7 +1,11 @@
 import { describe, expect, test } from '@jest/globals';
-import { runShellCommandGroups, runShellCommands, shellExec } from '../src/tool-shell.mjs';
+import { getShellLaunchers, runShellCommandGroups, runShellCommands, shellExec } from '../src/tool-shell.mjs';
 
 describe('tool shell', () => {
+
+  test('exposes Windows launcher order', () => {
+    expect(getShellLaunchers('win32').map((item) => item.file)).toEqual(['pwsh', 'powershell.exe', 'cmd.exe']);
+  });
   test('runs individual shell commands', async () => {
     const result = await runShellCommands(['printf ok'], '/opt/agentx-cli', { callId: 'call-1' });
     expect(result).toMatchObject({ type: 'shell_call_output', call_id: 'call-1', status: 'completed' });

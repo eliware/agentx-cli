@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { buildWorkingDirectoryNote, resolveCdTarget } from '../src/shell-paths.mjs';
+import { getHomeDirectory, resolveUserPath } from '../src/platform.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('shell paths', () => {
@@ -54,6 +55,14 @@ describe('shell paths', () => {
       else process.env.HOME = home;
       cleanupTempDir(tmp);
     }
+  });
+
+
+  test('resolves Windows-style home and drive paths', () => {
+    expect(getHomeDirectory({ USERPROFILE: 'C:\\Users\\alice' }, 'win32')).toBe('C:\\Users\\alice');
+    expect(getHomeDirectory({ HOMEDRIVE: 'C:', HOMEPATH: '\\Users\\alice' }, 'win32')).toBe('C:\\Users\\alice');
+    expect(resolveUserPath('~\\docs', 'C:\\work', { platform: 'win32', env: { USERPROFILE: 'C:\\Users\\alice' } })).toBe('C:\\Users\\alice\\docs');
+    expect(resolveUserPath('C:\\Temp', 'C:\\work', { platform: 'win32', env: {} })).toBe('C:\\Temp');
   });
 
   test('uses HOME in the error path when the target is empty', async () => {
