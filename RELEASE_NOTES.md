@@ -2,8 +2,6 @@
 
 ## 1.1.14 - Interrupted-session resume and shell execution upgrades
 
-Deltas from 1.1.13:
-
 - Added a startup resume menu for sessions with pending tool calls, including auto-resume, retry-hint, interruption notice, and new-session paths.
 - Persisted pending tool calls in session state so interrupted turns can be resumed safely after restart.
 - Reworked shell-call execution to support sequential commands inside parallel groups, with per-group cwd, timeout, and output-limit controls.
@@ -11,8 +9,6 @@ Deltas from 1.1.13:
 - Expanded docs and regression coverage for resume flows, session-state persistence, shell dispatch, and path completion.
 
 ## 1.1.13 - Live status updates and session/runtime polish
-
-Deltas from 1.1.12:
 
 - Added live terminal status lines for reasoning and tool execution, with elapsed time and spinner updates.
 - Improved streamed Responses handling so status output clears cleanly when assistant text or tool output starts.
@@ -23,8 +19,6 @@ Deltas from 1.1.12:
 
 ## 1.1.12 - WebSocket Responses transport and parallel shell calls
 
-Deltas from 1.1.11:
-
 - Switched the agent runtime to the direct `openai` package and added a WebSocket-based Responses transport.
 - Added reconnect and retry handling for websocket transport errors and response continuation.
 - Reworked live streaming output to show streamed function-call arguments and command summaries.
@@ -33,8 +27,6 @@ Deltas from 1.1.11:
 - Updated prompt metadata, docs, and regression coverage for the new transport and shell flow.
 
 ## 1.1.11 - CLI flags, startup hardening, and docs refresh
-
-Deltas from 1.1.10:
 
 - Added `--help/-h/-?`, `--version/-v`, and `--debug` startup flags.
 - Added clear startup errors for missing API keys and unreadable prompt templates.
@@ -45,15 +37,11 @@ Deltas from 1.1.10:
 
 ## 1.1.10 - Usage accounting fixes for tool retriggers
 
-Deltas from 1.1.9:
-
 - Fixed per-turn usage accounting so shell tool retriggers are counted in the persisted session totals.
 - Restored usage status output during tool continuations so tool-heavy turns report accurate token totals.
 - Added regression coverage for usage accumulation and tool-retrigger reporting.
 
 ## 1.1.9 - Server-side compaction and shell tool cleanup
-
-Deltas from 1.1.8:
 
 - Enabled server-side Responses API compaction via `context_management` in `prompt.json`.
 - Removed the old manual `/compact` flow and the local transcript-summarization fallback.
@@ -66,8 +54,6 @@ Deltas from 1.1.8:
 
 ## 1.1.8 - Session transcript persistence and local shell passthrough
 
-Deltas from 1.1.7:
-
 - Added leading `>` shell command passthrough that runs locally and buffers output into the next AI request.
 - Persisted last user/assistant messages and pending CLI transcript in `.agentx_responseid`, with legacy-state normalization on load/save.
 - Restored and printed the last exchanged messages when resuming a saved session.
@@ -75,12 +61,35 @@ Deltas from 1.1.7:
 
 ## 1.1.7 - Request preservation and coverage hardening
 
-Deltas from 1.1.6:
-
 - Preserved top-level Responses API request fields across session resumes and tool-call continuations.
 - Improved direct-invocation detection so the REPL only starts when launched as the main entrypoint.
 - Added fallback handling for prompt building, CLI defaults, and path-completion edge cases.
 - Expanded coverage-focused tests and added a dedicated `coverage` npm script.
+
+## 1.1.6 - File tools
+
+- Added file tool support in `src/tool-files.mjs`.
+- Added corresponding test coverage in `tests/tool-files.test.mjs`.
+- Package metadata and lockfile version updates.
+
+## 1.1.5 - Session state and shell command expansion
+
+- Added full session-state management in `src/agent-session.mjs`.
+- Expanded `src/agent.mjs` to support persisted session usage tracking and resume behavior.
+- Added support for shell commands in `src/shell-commands.mjs`.
+- Added and expanded tests for session management and shell behavior.
+- Added usage aggregation and per-turn reporting.
+
+## 1.1.4 - Shell agent improvements
+
+- Improved shell-agent handling in `src/shell-agents.mjs`.
+- Updated shell test coverage in `tests/shell.test.mjs`.
+- Package metadata and lockfile version updates.
+
+## 1.1.3 - Version bump
+
+- No functional code changes.
+- Package metadata and lockfile version updates only.
 
 ## 1.1.2 - Initial release baseline
 
@@ -103,35 +112,3 @@ Initial capabilities present in the 1.1.2 baseline:
 - Response text extraction and usage reporting.
 - Terminal output wrapping and prompt formatting.
 
-## 1.1.3 - Version bump
-
-Deltas from 1.1.2:
-
-- No functional code changes.
-- Package metadata and lockfile version updates only.
-
-## 1.1.4 - Shell agent improvements
-
-Deltas from 1.1.3:
-
-- Improved shell-agent handling in `src/shell-agents.mjs`.
-- Updated shell test coverage in `tests/shell.test.mjs`.
-- Package metadata and lockfile version updates.
-
-## 1.1.5 - Session state and shell command expansion
-
-Deltas from 1.1.4:
-
-- Added full session-state management in `src/agent-session.mjs`.
-- Expanded `src/agent.mjs` to support persisted session usage tracking and resume behavior.
-- Added support for shell commands in `src/shell-commands.mjs`.
-- Added and expanded tests for session management and shell behavior.
-- Added usage aggregation and per-turn reporting.
-
-## 1.1.6 - File tools
-
-Deltas from 1.1.5:
-
-- Added file tool support in `src/tool-files.mjs`.
-- Added corresponding test coverage in `tests/tool-files.test.mjs`.
-- Package metadata and lockfile version updates.
