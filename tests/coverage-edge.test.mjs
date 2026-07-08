@@ -119,13 +119,20 @@ describe('helper coverage', () => {
   test('tool helpers cover supported, unsupported and error cases', async () => {
     const tmp = makeTempDir('agentx-tools-');
     tempDirs.push(tmp);
-    expect(await runToolCall({ type: 'shell_call', call_id: 'call-0', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({
-      type: 'shell_call_output',
-      call_id: 'call-0',
-      status: 'completed',
-      output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }],
-    });
-    const structured = await runToolCall({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'], timeout_ms: 30000, max_output_length: 12000 } }, tmp);
+    const originalStdoutWrite = process.stdout.write;
+    process.stdout.write = () => true;
+    let structured;
+    try {
+      expect(await runToolCall({ type: 'shell_call', call_id: 'call-0', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({
+        type: 'shell_call_output',
+        call_id: 'call-0',
+        status: 'completed',
+        output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }],
+      });
+      structured = await runToolCall({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'], timeout_ms: 30000, max_output_length: 12000 } }, tmp);
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+    }
     expect(structured).toMatchObject({
       type: 'shell_call_output',
       call_id: 'call-1',

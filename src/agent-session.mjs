@@ -175,7 +175,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       store: true,
     };
     debugLogOpenAIRequest(request);
-    current = await createStreamedResponse(openai, request, { liveStreaming });
+    current = await createStreamedResponse(openai, request, liveStreaming ? { liveStreaming } : undefined);
   }
 }
 
@@ -193,7 +193,7 @@ export async function sendMessage(openai, template, previousResponseId, userMess
       store: true,
     });
 
-  const response = await createStreamedResponse(openai, request, { liveStreaming: Boolean(streamOptions?.liveStreaming) });
+  const response = await createStreamedResponse(openai, request, streamOptions?.liveStreaming ? { liveStreaming: true } : undefined);
   return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, streamOptions);
 }
 

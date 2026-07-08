@@ -72,7 +72,48 @@ describe('openai websocket helpers', () => {
     expect(client.socket.closed).toEqual({ code: 1000, reason: Buffer.from('bye') });
   });
 
+  test('parses additional websocket payload shapes', () => {
+    expect(parseOpenAIWebSocketMessage(new Uint8Array(Buffer.from('{"type":"response.updated"}')))).toEqual({
+      raw: '{"type":"response.updated"}',
+      json: { type: 'response.updated' },
+    });
+
+    expect(parseOpenAIWebSocketMessage({ toString: () => '{"type":"response.delta"}' }, true)).toEqual({
+      raw: '{"type":"response.delta"}',
+      json: { type: 'response.delta' },
+    });
+
+    expect(parseOpenAIWebSocketMessage({ value: 1 })).toEqual({ raw: '[object Object]', json: null });
+    expect(parseOpenAIWebSocketMessage(undefined)).toEqual({ raw: '', json: null });
+  });
+
+  test('creates a websocket client without optional handlers', () => {
+    const events = [];
+
+    class FakeWebSocket {
+      constructor(url, options) {
+        this.url = url;
+        this.options = options;
+      }
+      on(event, handler) {
+        events.push([event, handler]);
+      }
+      send(payload) {
+        this.sent = payload;
+      }
+      close(code, reason) {
+        this.closed = { code, reason };
+      }
+    }
+
+    const client = createOpenAIWebSocketClient({ apiKey: 'test-key', WebSocketImpl: FakeWebSocket });
+    expect(client.socket.options.headers.Authorization).toBe('Bearer test-key');
+    expect(events).toEqual([]);
+    client.send({ type: 'ping' });
+    expect(client.socket.sent).toBe('{"type":"ping"}');
+  });
+
   test('rejects missing api keys', () => {
-    expect(() => createOpenAIWebSocketClient({})).toThrow('OpenAI API key is required');
+    expect(() => createOpenAIWebSocketClient(undefined)).toThrow('OpenAI API key is required');
   });
 });

@@ -81,7 +81,6 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl } = 
   };
 
   const resendActiveRequest = async () => {
-    if (!active || closed || intentionalClose) return false;
     connect();
     try {
       await readyPromise;
@@ -140,7 +139,7 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl } = 
         }
         if (error.code === 'websocket_connection_limit_reached') {
           clearConnection();
-          void resendActiveRequest().catch((retryError) => rejectActive(retryError));
+          void resendActiveRequest();
           break;
         }
         rejectActive(error);
@@ -162,7 +161,7 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl } = 
 
     if (active && !intentionalClose) {
       clearConnection();
-      void resendActiveRequest().catch((retryError) => rejectActive(retryError));
+      void resendActiveRequest();
       return;
     }
 
@@ -185,7 +184,7 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl } = 
 
     if (active && isReconnectableClose(code, reason)) {
       clearConnection();
-      void resendActiveRequest().catch((retryError) => rejectActive(retryError));
+      void resendActiveRequest();
       return;
     }
 

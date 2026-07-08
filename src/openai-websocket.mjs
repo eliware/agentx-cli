@@ -2,11 +2,12 @@ import WebSocket from 'ws';
 
 export const OPENAI_RESPONSES_WS_URL = 'wss://api.openai.com/v1/responses';
 
-function toUtf8String(data, isBinary = false) {
+function toUtf8String(data, isBinary) {
+  const binary = Boolean(isBinary);
   if (typeof data === 'string') return data;
   if (Buffer.isBuffer(data)) return data.toString('utf8');
   if (data instanceof Uint8Array) return Buffer.from(data).toString('utf8');
-  if (isBinary && data?.toString) return data.toString('utf8');
+  if (binary && data?.toString) return data.toString('utf8');
   return String(data ?? '');
 }
 
@@ -23,7 +24,8 @@ export function sendOpenAIWebSocketEvent(socket, payload) {
   socket.send(JSON.stringify(payload));
 }
 
-export function createOpenAIWebSocketClient({
+export function createOpenAIWebSocketClient(options) {
+  const {
   apiKey,
   url = OPENAI_RESPONSES_WS_URL,
   WebSocketImpl = WebSocket,
@@ -35,7 +37,7 @@ export function createOpenAIWebSocketClient({
   onPing,
   onPong,
   onUnexpectedResponse,
-} = {}) {
+} = options ?? {};
   if (!apiKey) {
     throw new Error('OpenAI API key is required');
   }

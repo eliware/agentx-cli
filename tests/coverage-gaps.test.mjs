@@ -139,7 +139,13 @@ describe('coverage gaps', () => {
         },
       },
     };
-    await handleToolCalls(shellOpenai, { id: 'resp-shell', output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }] }, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }));
+    const originalStdoutWrite = process.stdout.write;
+    process.stdout.write = () => true;
+    try {
+      await handleToolCalls(shellOpenai, { id: 'resp-shell', output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }] }, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }));
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+    }
     expect(shellRequests[0].input).toEqual([{ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }]);
 
     const requestCalls = [];
@@ -321,13 +327,19 @@ describe('coverage gaps', () => {
   test('tool helpers cover structured shell calls and unsupported tools', async () => {
     const tmp = makeTempDir('agentx-tool-gaps-');
     tempDirs.push(tmp);
-    expect(await runToolCallDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({
-      type: 'shell_call_output',
-      call_id: 'call-1',
-      status: 'completed',
-    });
-    expect(await runToolCallDirect({ name: 'unknown', arguments: '' }, tmp)).toBe('ERROR: unsupported tool unknown');
-    expect(toolCallSummaryDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, { type: 'shell_call_output', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] })).toBe('printf ok');
+    const originalStdoutWrite = process.stdout.write;
+    process.stdout.write = () => true;
+    try {
+      expect(await runToolCallDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({
+        type: 'shell_call_output',
+        call_id: 'call-1',
+        status: 'completed',
+      });
+      expect(await runToolCallDirect({ name: 'unknown', arguments: '' }, tmp)).toBe('ERROR: unsupported tool unknown');
+      expect(toolCallSummaryDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, { type: 'shell_call_output', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] })).toBe('printf ok');
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+    }
   });
 
   test('parseInternalCommand and display helpers cover remaining branches', () => {

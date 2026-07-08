@@ -174,7 +174,7 @@ describe('agent session helpers', () => {
         },
       };
 
-      await sendMessage(openai, template, 'prev-1', 'next', '', '/tmp/work');
+      await sendMessage(openai, template, 'prev-1', 'next', '', '/tmp/work', null, null, { liveStreaming: true });
 
       expect(stdoutWrites.join('')).toContain('printf "tool output"');
       expect(calls[1]).toMatchObject({
@@ -221,6 +221,71 @@ describe('agent session helpers', () => {
       process.argv = originalArgv;
       console.log = originalConsoleLog;
     }
+  });
+
+  test('sendMessage streams live output, tool summaries, and reasoning transcripts', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const calls = [];
+    const openai = {
+      responses: {
+        create: async (request, handlers) => {
+          calls.push({ request, handlers: Boolean(handlers) });
+          handlers?.onTextDelta(undefined);
+          handlers?.onTextDelta('Hi');
+          handlers?.onTextDelta(' there');
+          handlers?.onItemAdded({});
+          handlers?.onItemAdded({ type: 'message' });
+          handlers?.onItemAdded({ type: 'shell_call', call_id: 'call-empty', action: { commands: [] } });
+          handlers?.onItemAdded({ type: 'shell_call', call_id: 'call-1', action: { commands: ['echo live'] } });
+          handlers?.onItemDone({});
+          handlers?.onItemDone({ type: 'message' });
+          handlers?.onItemDone({ type: 'reasoning', summary: [] });
+          handlers?.onItemDone({ type: 'reasoning', summary: [{ type: 'input_text', text: 'thinking' }] });
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].handlers).toBe(true);
+    expect(stdoutWrites.join('')).toContain('Hi there');
+    expect(stdoutWrites.join('')).toContain('echo live');
+    expect(stdoutWrites.join('')).toContain('assistant reasoning summary: thinking');
+  });
+
+  test('sendMessage appends a newline after live streamed text when needed', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers?.onTextDelta('done');
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+    expect(stdoutWrites.join('')).toContain('done\n');
+  });
+
+  test('sendMessage does not append an extra newline when streamed text already ends with one', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers?.onTextDelta('done\n');
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+    expect(stdoutWrites.join('')).toContain('done\n');
+    expect(stdoutWrites.join('')).not.toContain('done\n\n');
   });
 
   test('handleToolCalls runs multiple tool calls in parallel and preserves output order', async () => {
