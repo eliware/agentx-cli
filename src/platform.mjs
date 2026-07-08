@@ -11,8 +11,10 @@ export function getPathModule(platform = process.platform) {
 export function getHomeDirectory(env = process.env, platform = process.platform) {
   if (isWindowsPlatform(platform)) {
     if (env?.USERPROFILE) return String(env.USERPROFILE);
-    if (env?.HOMEDRIVE || env?.HOMEPATH) {
-      return `${String(env.HOMEDRIVE || '')}${String(env.HOMEPATH || '')}` || String(env.HOME || '');
+    const homeDrive = String(env?.HOMEDRIVE || '');
+    const homePath = String(env?.HOMEPATH || '');
+    if (homeDrive || homePath) {
+      return `${homeDrive}${homePath}`;
     }
   }
   return String(env?.HOME || env?.USERPROFILE || '');

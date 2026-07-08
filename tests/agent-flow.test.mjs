@@ -10,6 +10,21 @@ describe('agent flow helpers', () => {
     expect(resolveAgentApiKey({ AGENTX_API_KEY: 'upper' })).toBe('upper');
   });
 
+
+  test('resolveAgentApiKey reads from process.env when no env object is passed', () => {
+    const originalLowerApiKey = process.env.agentx_api_key;
+    const originalUpperApiKey = process.env.AGENTX_API_KEY;
+
+    try {
+      delete process.env.agentx_api_key;
+      process.env.AGENTX_API_KEY = 'process-upper';
+      expect(resolveAgentApiKey()).toBe('process-upper');
+    } finally {
+      if (originalLowerApiKey === undefined) delete process.env.agentx_api_key; else process.env.agentx_api_key = originalLowerApiKey;
+      if (originalUpperApiKey === undefined) delete process.env.AGENTX_API_KEY; else process.env.AGENTX_API_KEY = originalUpperApiKey;
+    }
+  });
+
   test('resolveAgentApiKey explains when no key is configured', () => {
     expect(() => resolveAgentApiKey({})).toThrow('Set agentx_api_key or AGENTX_API_KEY in your shell environment.');
   });

@@ -28,6 +28,11 @@ describe('shell display', () => {
       expect(formatInfoMessage('hello')).toBe(`[94mhello[0m`);
       clearTerminal();
       expect(writes).toContain('\n');
+
+      writes.length = 0;
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+      clearTerminal();
+      expect(writes).toContain('\x1b[2J\x1b[H');
     } finally {
       process.stdout.write = originalWrite;
       Object.defineProperty(process.stdout, 'isTTY', { value: originalTTY, configurable: true });
