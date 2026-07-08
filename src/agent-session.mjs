@@ -24,7 +24,7 @@ function formatSpinnerFrame(elapsedMs) {
   return STATUS_SPINNER_FRAMES[frame];
 }
 
-function createStatusLineController() {
+function createStatusLineController(sessionStartedAt = Date.now()) {
   let timer = null;
   let startedAt = 0;
   let lastRendered = '';
@@ -46,9 +46,10 @@ function createStatusLineController() {
     const elapsedMs = Date.now() - startedAt;
     const spinner = formatSpinnerFrame(elapsedMs);
     const elapsed = formatElapsedStatus(elapsedMs);
+    const totalElapsed = formatElapsedStatus(Date.now() - sessionStartedAt);
     const text = state.type === 'executing'
-      ? `${spinner} Executing ${state.done} of ${state.total}... ${elapsed}`
-      : `${spinner} Reasoning... ${elapsed}`;
+      ? `[${totalElapsed}] ${spinner} Executing ${state.done} of ${state.total}... ${elapsed}`
+      : `[${totalElapsed}] ${spinner} Reasoning... ${elapsed}`;
 
     if (text === lastRendered) return;
     clearRenderedLine();
@@ -250,7 +251,8 @@ async function createStreamedResponse(openai, request, { liveStreaming = false, 
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
   let current = response;
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
-  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController() : null);
+  const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
+  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt) : null);
 
   for (; ;) {
     const usage = extractUsage(current);
@@ -299,7 +301,8 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 
 export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null, streamOptions = {}) {
   const baseRequest = JSON.parse(JSON.stringify(template));
-  const statusController = streamOptions?.statusController || createStatusLineController();
+  const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
+  const statusController = streamOptions?.statusController || createStatusLineController(sessionStartedAt);
   const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
       ...baseRequest,

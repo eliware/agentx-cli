@@ -30,7 +30,7 @@ describe('agent session helpers', () => {
   test('status line controller handles idle, executing, and unchanged refreshes', () => {
     jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
     try {
-      const controller = createStatusLineController();
+      const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'));
       controller.refresh();
       expect(stdoutWrites.join('')).toBe('');
 
@@ -43,8 +43,10 @@ describe('agent session helpers', () => {
       expect(stdoutWrites.length).toBe(before);
 
       controller.showExecuting(1, 2);
+      expect(stdoutWrites.join('')).toContain('[0s]');
       expect(stdoutWrites.join('')).toContain('Executing 1 of 2... 0s');
       controller.refresh();
+      expect(stdoutWrites.join('')).toContain('[0s]');
       expect(stdoutWrites.join('')).toContain('Executing 1 of 2... 0s');
     } finally {
       jest.useRealTimers();
@@ -399,10 +401,10 @@ describe('agent session helpers', () => {
 
       const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-      expect(stdoutWrites.join('')).toContain('| Reasoning... 0s');
+      expect(stdoutWrites.join('')).toContain('[0s] | Reasoning... 0s');
 
       await jest.advanceTimersByTimeAsync(250);
-      expect(stdoutWrites.join('')).toContain('/ Reasoning... 0s');
+      expect(stdoutWrites.join('')).toContain('[0s] / Reasoning... 0s');
 
       jest.setSystemTime(Date.parse('2026-07-08T00:01:00Z'));
       await jest.advanceTimersByTimeAsync(250);
@@ -453,14 +455,14 @@ describe('agent session helpers', () => {
 
     const pending = handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('| Executing 0 of 2... 0s');
+    expect(stdoutWrites.join('')).toContain('[0s] | Executing 0 of 2... 0s');
 
     await new Promise((resolve) => setTimeout(resolve, 70));
-    expect(stdoutWrites.join('')).toContain('| Executing 1 of 2... 0s');
+    expect(stdoutWrites.join('')).toContain('[0s] | Executing 1 of 2... 0s');
 
     await pending;
-    expect(stdoutWrites.join('')).toContain('| Executing 2 of 2... 0s');
-    expect(stdoutWrites.join('')).toContain('| Reasoning... 0s');
+    expect(stdoutWrites.join('')).toContain('[0s] | Executing 2 of 2... 0s');
+    expect(stdoutWrites.join('')).toContain('[0s] | Reasoning... 0s');
   });
 
   test('handleToolCalls processes shell_call function calls', async () => {

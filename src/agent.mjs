@@ -148,6 +148,7 @@ export async function runAgent({ promptPath, cwd }) {
       }
 
       const requestMessage = buildRequestMessage({ pendingCliTranscript, cwdNote, message });
+      const sessionStartedAt = Date.now();
       cwdNote = '';
       const requestOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
       let response;
@@ -156,7 +157,7 @@ export async function runAgent({ promptPath, cwd }) {
           addUsageTotals(sessionUsage, usage);
           sessionUsage.turns += 1;
           return sessionUsage;
-        }, requestOverride, { liveStreaming: true });
+        }, requestOverride, { liveStreaming: true, sessionStartedAt });
       } catch (error) {
         if (error?.code === 'previous_response_not_found' && previousResponseId) {
           process.stdout.write(`${formatSystemMessage('Previous response not found; starting a new chain')}\n`);
@@ -166,7 +167,7 @@ export async function runAgent({ promptPath, cwd }) {
             addUsageTotals(sessionUsage, usage);
             sessionUsage.turns += 1;
             return sessionUsage;
-          }, retryOverride, { liveStreaming: true });
+          }, retryOverride, { liveStreaming: true, sessionStartedAt });
         } else {
           throw error;
         }
