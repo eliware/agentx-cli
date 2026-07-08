@@ -1,8 +1,13 @@
 #!/usr/bin/env node
-import "dotenv/config";
-import { isDirectInvocation, promptPath } from './src/runtime.mjs';
-import { runAgent } from './src/agent.mjs';
-import { formatQuickHelp, getPackageVersion, hasFlag } from './src/cli.mjs';
+import { config as loadDotenv } from 'dotenv';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+loadDotenv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env'), quiet: true });
+
+const { isDirectInvocation, promptPath } = await import('./src/runtime.mjs');
+const { runAgent } = await import('./src/agent.mjs');
+const { formatQuickHelp, getPackageVersion, hasFlag } = await import('./src/cli.mjs');
 
 function printAndExit(text, code = 0) {
   process.stdout.write(`${text}\n`);

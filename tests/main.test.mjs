@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import path from 'node:path';
 import { getPackageVersion } from '../src/cli.mjs';
 
 const packageVersion = getPackageVersion();
@@ -6,6 +7,25 @@ const packageVersion = getPackageVersion();
 describe('entrypoint', () => {
   beforeEach(() => {
     jest.resetModules();
+  });
+
+
+  test('agentx.mjs loads .env from the entrypoint directory', async () => {
+    const config = jest.fn();
+
+    await jest.unstable_mockModule('dotenv', () => ({
+      config,
+    }));
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({
+      isDirectInvocation: () => false,
+      promptPath: '/tmp/prompt.json',
+    }));
+    const runAgent = jest.fn();
+    await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+
+    await import('../agentx.mjs');
+
+    expect(config).toHaveBeenCalledWith(expect.objectContaining({ path: path.resolve(process.cwd(), '.env'), quiet: true }));
   });
 
   test('agentx.mjs does not start the REPL when invoked indirectly', async () => {
