@@ -1,5 +1,16 @@
 # AgentX Release Notes
 
+## 1.1.11 - CLI flags, startup hardening, and docs refresh
+
+Deltas from 1.1.10:
+
+- Added `--help/-h/-?`, `--version/-v`, and `--debug` startup flags.
+- Added clear startup errors for missing API keys and unreadable prompt templates.
+- Made API key lookup prefer `agentx_api_key` and fall back to `AGENTX_API_KEY`.
+- Refactored request-building and session-prep logic into `src/agent-flow.mjs`.
+- Expanded the user docs under `docs/` with quickstart, command reference, examples, session state, and troubleshooting guides.
+- Added regression coverage for CLI flags, request shaping, Responses API compatibility, and smoke-startup behavior.
+
 ## 1.1.10 - Usage accounting fixes for tool retriggers
 
 Deltas from 1.1.9:

@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { getPackageVersion } from '../src/cli.mjs';
+
+const packageVersion = getPackageVersion();
 
 describe('entrypoint', () => {
   beforeEach(() => {
@@ -70,7 +73,7 @@ describe('entrypoint', () => {
       await import('../agentx.mjs');
 
       expect(runAgent).not.toHaveBeenCalled();
-      expect(writes.join('')).toContain('1.1.10');
+      expect(writes.join('')).toContain(packageVersion);
       expect(process.exit).toHaveBeenCalledWith(0);
     } finally {
       process.stdout.write = originalWrite;

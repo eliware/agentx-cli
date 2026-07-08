@@ -1,6 +1,8 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { formatQuickHelp, getPackageVersion, hasFlag } from '../src/cli.mjs';
 
+const packageVersion = getPackageVersion();
+
 describe('cli helpers', () => {
   test('hasFlag matches any supported alias', () => {
     expect(hasFlag(['--debug', 'hello'], ['--debug'])).toBe(true);
@@ -9,7 +11,7 @@ describe('cli helpers', () => {
   });
 
   test('getPackageVersion reads the package version', () => {
-    expect(getPackageVersion()).toBe('1.1.10');
+    expect(packageVersion).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   test('getPackageVersion falls back to unknown when the package has no version', async () => {
@@ -25,7 +27,7 @@ describe('cli helpers', () => {
 
   test('formatQuickHelp uses the package version by default', () => {
     const help = formatQuickHelp();
-    expect(help).toContain('AgentX 1.1.10');
+    expect(help).toContain(`AgentX ${packageVersion}`);
   });
 
   test('formatQuickHelp includes the core flags and commands', () => {
