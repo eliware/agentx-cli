@@ -46,6 +46,46 @@ describe('session state', () => {
     }
   });
 
+
+
+  test('normalizes primitive pending tool calls and fallback metadata', async () => {
+    const tmp = makeTempDir('agentx-state-');
+    const statePath = `${tmp}/.agentx_responseid`;
+    try {
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({
+        response_id: 'resp-raw',
+        pending_tool_calls: [null, 42, { type: 'function_call', id: 'fallback-id', input: 7, arguments: 8 }, { type: 'function_call', input: 9, arguments: 10 }],
+      }));
+      await expect(readSessionState(statePath)).resolves.toEqual({
+        response_id: 'resp-raw',
+        usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 },
+        last_user_message: '',
+        last_assistant_message: '',
+        pending_cli_transcript: '',
+        pending_tool_calls: [{ type: 'function_call', id: 'fallback-id', input: 7, arguments: 8 }, { type: 'function_call', input: 9, arguments: 10 }],
+      });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('falls back when pending tool calls cannot be cloned', async () => {
+    const tmp = makeTempDir('agentx-state-');
+    const statePath = `${tmp}/.agentx_responseid`;
+    try {
+      const first = { type: 'function_call', name: 'shell_call', call_id: 'call-1' };
+      first.self = first;
+      const second = { id: 'fallback-id', input: 7, arguments: 8 };
+      second.self = second;
+      const third = {};
+      third.self = third;
+      await persistResponseState(statePath, { response_id: 'resp-circular', pending_tool_calls: [first, second, third] });
+      await expect(readSessionState(statePath)).resolves.toEqual({ response_id: 'resp-circular', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '', pending_tool_calls: [{ type: 'function_call', name: 'shell_call', call_id: 'call-1', input: undefined, arguments: undefined }, { type: 'function_call', name: undefined, call_id: 'fallback-id', input: '7', arguments: '8' }, { type: 'function_call', name: undefined, call_id: '', input: undefined, arguments: undefined }] });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
   test('normalizes JSON, legacy text and malformed content', async () => {
     const tmp = makeTempDir('agentx-state-');
     const statePath = `${tmp}/.agentx_responseid`;

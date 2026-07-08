@@ -39,8 +39,8 @@ describe('response helpers', () => {
   });
 
   test('format helpers render usage stats', () => {
-    expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","sum":"$0.000","msgs":"4","avg":"$0.000"}');
-    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","sum":"$0.000"}');
-    expect(formatUsageSummary({ usage: sampleUsage })).toBe('{"in":"3 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","sum":"$0.000","msgs":"1","avg":"$0.000"}');
+    expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"4","avg":"$0.000","total":"$0.000"}');
+    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","total":"$0.000"}');
+    expect(formatUsageSummary({ usage: sampleUsage })).toBe('{"in":"3 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}');
   });
 });

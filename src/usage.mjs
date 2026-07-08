@@ -9,24 +9,43 @@ export function normalizeUsage({ inputTokens = 0, cachedTokens = 0, outputTokens
   };
 }
 
-export function calculateUsageCost({ inputTokens, cachedTokens, outputTokens }) {
-  const inputRate = 0.75 / 1_000_000;
-  const cachedRate = 0.075 / 1_000_000;
-  const outputRate = 4.5 / 1_000_000;
+const INPUT_NANO_DOLLARS_PER_TOKEN = 750n;
+const CACHED_NANO_DOLLARS_PER_TOKEN = 75n;
+const OUTPUT_NANO_DOLLARS_PER_TOKEN = 4500n;
+const NANO_DOLLARS_PER_DISPLAY_UNIT = 1_000_000n;
 
-  return (inputTokens * inputRate) + (cachedTokens * cachedRate) + (outputTokens * outputRate);
+function toTokenCount(value) {
+  return BigInt(Math.trunc(Number(value ?? 0)));
 }
 
-function formatMoney(value) {
-  return `$${value.toFixed(3)}`;
+export function calculateUsageCostNanoDollars({ inputTokens, cachedTokens, outputTokens }) {
+  return (toTokenCount(inputTokens) * INPUT_NANO_DOLLARS_PER_TOKEN)
+    + (toTokenCount(cachedTokens) * CACHED_NANO_DOLLARS_PER_TOKEN)
+    + (toTokenCount(outputTokens) * OUTPUT_NANO_DOLLARS_PER_TOKEN);
+}
+
+export function calculateUsageCost({ inputTokens, cachedTokens, outputTokens }) {
+  return Number(calculateUsageCostNanoDollars({ inputTokens, cachedTokens, outputTokens })) / 1_000_000_000;
+}
+
+export function formatMoney(value) {
+  const nanoDollars = typeof value === 'bigint' ? value : BigInt(Math.trunc(Number(value ?? 0) * 1_000_000_000));
+  const roundedThousandths = nanoDollars >= 0n
+    ? (nanoDollars + (NANO_DOLLARS_PER_DISPLAY_UNIT / 2n)) / NANO_DOLLARS_PER_DISPLAY_UNIT
+    : -(((-nanoDollars) + (NANO_DOLLARS_PER_DISPLAY_UNIT / 2n)) / NANO_DOLLARS_PER_DISPLAY_UNIT);
+  const sign = roundedThousandths < 0n ? '-' : '';
+  const absolute = roundedThousandths < 0n ? -roundedThousandths : roundedThousandths;
+  const whole = absolute / 1000n;
+  const fractional = (absolute % 1000n).toString().padStart(3, '0');
+  return `$${sign}${whole.toString()}.${fractional}`;
 }
 
 function formatTokenCount(tokens) {
   return Number(tokens).toLocaleString('en-US');
 }
 
-function formatTokenCost(tokens, rate) {
-  return `${formatTokenCount(tokens)} (${formatMoney(tokens * rate)})`;
+function formatTokenCost(tokens, rateNanoDollarsPerToken) {
+  return `${formatTokenCount(tokens)} (${formatMoney(BigInt(Math.trunc(Number(tokens ?? 0))) * rateNanoDollarsPerToken)})`;
 }
 
 function formatUsageJson(fields) {
@@ -34,31 +53,25 @@ function formatUsageJson(fields) {
 }
 
 export function formatUsageReport({ inputTokens, cachedTokens, outputTokens, turns }) {
-  const inputRate = 0.75 / 1_000_000;
-  const cachedRate = 0.075 / 1_000_000;
-  const outputRate = 4.5 / 1_000_000;
-  const totalCost = calculateUsageCost({ inputTokens, cachedTokens, outputTokens });
-  const avgCostPerTurn = turns > 0 ? totalCost / turns : 0;
+  const totalCost = calculateUsageCostNanoDollars({ inputTokens, cachedTokens, outputTokens });
+  const avgCostPerTurn = turns > 0 ? totalCost / BigInt(turns) : 0n;
   return formatUsageJson({
-    in: formatTokenCost(inputTokens, inputRate),
-    cache: formatTokenCost(cachedTokens, cachedRate),
-    out: formatTokenCost(outputTokens, outputRate),
-    sum: formatMoney(totalCost),
-    msgs: String(turns),
+    in: formatTokenCost(inputTokens, INPUT_NANO_DOLLARS_PER_TOKEN),
+    cache: formatTokenCost(cachedTokens, CACHED_NANO_DOLLARS_PER_TOKEN),
+    out: formatTokenCost(outputTokens, OUTPUT_NANO_DOLLARS_PER_TOKEN),
+    turns: String(turns),
     avg: formatMoney(avgCostPerTurn),
+    total: formatMoney(totalCost),
   });
 }
 
 export function formatTurnUsageReport({ inputTokens, cachedTokens, outputTokens }) {
-  const inputRate = 0.75 / 1_000_000;
-  const cachedRate = 0.075 / 1_000_000;
-  const outputRate = 4.5 / 1_000_000;
-  const totalCost = calculateUsageCost({ inputTokens, cachedTokens, outputTokens });
+  const totalCost = calculateUsageCostNanoDollars({ inputTokens, cachedTokens, outputTokens });
   return formatUsageJson({
-    in: formatTokenCost(inputTokens, inputRate),
-    cache: formatTokenCost(cachedTokens, cachedRate),
-    out: formatTokenCost(outputTokens, outputRate),
-    sum: formatMoney(totalCost),
+    in: formatTokenCost(inputTokens, INPUT_NANO_DOLLARS_PER_TOKEN),
+    cache: formatTokenCost(cachedTokens, CACHED_NANO_DOLLARS_PER_TOKEN),
+    out: formatTokenCost(outputTokens, OUTPUT_NANO_DOLLARS_PER_TOKEN),
+    total: formatMoney(totalCost),
   });
 }
 

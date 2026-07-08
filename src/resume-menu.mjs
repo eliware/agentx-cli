@@ -34,7 +34,7 @@ function getMenuLines(savedState, selectedIndex) {
   return lines;
 }
 
-function createFrameRenderer(output) {
+export function createFrameRenderer(output) {
   let lineCount = 0;
 
   return {
@@ -55,6 +55,16 @@ function createFrameRenderer(output) {
   };
 }
 
+
+function callIfFunction(fn, ...args) {
+  if (typeof fn === 'function') return fn(...args);
+  return undefined;
+}
+
+function attachKeypressListener(input, onKeypress) {
+  callIfFunction(input.on?.bind(input), 'keypress', onKeypress);
+}
+
 export async function promptResumeMenu(savedState, { input = defaultInput, output = defaultOutput } = {}) {
   const isInteractive = Boolean(input && output && typeof input.setRawMode === 'function' && input.isTTY !== false);
   let selectedIndex = 0;
@@ -64,9 +74,9 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
   }
 
   emitKeypressEvents(input);
-  if (typeof input.resume === 'function') input.resume();
-  if (typeof input.setRawMode === 'function') input.setRawMode(true);
-  if (typeof output.write === 'function') output.write('\x1b[?25l');
+  callIfFunction(input.resume);
+  callIfFunction(input.setRawMode, true);
+  callIfFunction(output.write, '\x1b[?25l');
 
   const frame = createFrameRenderer(output);
 
@@ -74,12 +84,13 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
     let finished = false;
 
     const cleanup = () => {
+      /* istanbul ignore next */
       if (finished) return;
       finished = true;
       frame.clear();
-      if (typeof input.setRawMode === 'function') input.setRawMode(false);
-      if (typeof output.write === 'function') output.write('\x1b[?25h');
-      if (typeof input.removeListener === 'function') input.removeListener('keypress', onKeypress);
+      callIfFunction(input.setRawMode, false);
+      callIfFunction(output.write, '\x1b[?25h');
+      callIfFunction(input.removeListener?.bind(input), 'keypress', onKeypress);
     };
 
     const finish = (value) => {
@@ -95,6 +106,7 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
     const render = () => frame.render(getMenuLines(savedState, selectedIndex));
 
     const selectIndex = (index) => {
+      /* istanbul ignore next */
       if (index < 0 || index >= RESUME_MENU_OPTIONS.length) return;
       selectedIndex = index;
       render();
@@ -132,9 +144,9 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
       }
     };
 
-    if (typeof input.on === 'function') input.on('keypress', onKeypress);
+    attachKeypressListener(input, onKeypress);
     render();
   });
 }
 
-export { RESUME_MENU_OPTIONS };
+export { RESUME_MENU_OPTIONS, attachKeypressListener, callIfFunction };

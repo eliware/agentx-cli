@@ -644,7 +644,7 @@ describe('agent loop', () => {
       response_id: 'resp-5',
       usage: { inputTokens: 150, cachedTokens: 15, outputTokens: 30, turns: 5 },
     });
-    expect(writes.join(' ')).toContain('"msgs":"5"');
+    expect(writes.join(' ')).toContain('"turns":"5"');
   });
 
   test('exits cleanly when readline aborts', async () => {

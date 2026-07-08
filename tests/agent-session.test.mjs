@@ -253,8 +253,40 @@ describe('agent session helpers', () => {
     }, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }));
 
     const output = stdoutWrites.join('');
-    expect(output).toContain('{"in":"6 ($0.000)","cache":"4 ($0.000)","out":"6 ($0.000)","sum":"$0.000"}');
-    expect(output).toContain('{"in":"12 ($0.000)","cache":"8 ($0.000)","out":"12 ($0.000)","sum":"$0.000","msgs":"2","avg":"$0.000"}');
+    expect(output).toContain('{"in":"6 ($0.000)","cache":"4 ($0.000)","out":"6 ($0.000)","total":"$0.000"}');
+    expect(output).toContain('{"in":"12 ($0.000)","cache":"8 ($0.000)","out":"12 ($0.000)","turns":"2","avg":"$0.000","total":"$0.000"}');
+  });
+
+
+
+  test('handleToolCalls can skip initial usage accounting on the first response', async () => {
+    const stateCalls = [];
+    const openai = {
+      responses: {
+        create: async () => ({ id: 'resp-skip', output: [] }),
+      },
+    };
+    const response = { id: 'resp-skip', output: [], usage: { input_tokens: 9, input_tokens_details: { cached_tokens: 2 }, output_tokens: 4 } };
+
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { skipInitialUsageAccounting: true, onResponseState: async (snapshot) => stateCalls.push(snapshot) })).resolves.toBe(response);
+
+    expect(stateCalls).toHaveLength(1);
+    expect(stateCalls[0].cumulativeUsage).toBeNull();
+  });
+
+  test('handleToolCalls invokes onResponseState with the current response snapshot', async () => {
+    const stateCalls = [];
+    const openai = {
+      responses: {
+        create: async () => ({ id: 'resp-state', output: [] }),
+      },
+    };
+    const response = { id: 'resp-state', output: [], usage: { input_tokens: 1, input_tokens_details: { cached_tokens: 0 }, output_tokens: 0 } };
+
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { onResponseState: async (snapshot) => stateCalls.push(snapshot) })).resolves.toBe(response);
+
+    expect(stateCalls).toHaveLength(1);
+    expect(stateCalls[0]).toMatchObject({ response, pendingToolCalls: [], isInitialResponse: true });
   });
 
   test('handleToolCalls preserves request fields on tool continuations', async () => {
@@ -583,7 +615,7 @@ describe('agent session helpers', () => {
   });
 
   test('formatUsageSummary renders usage stats', () => {
-    expect(formatUsageSummary({ usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } })).toBe('{"in":"1 ($0.000)","cache":"1 ($0.000)","out":"3 ($0.000)","sum":"$0.000","msgs":"1","avg":"$0.000"}');
+    expect(formatUsageSummary({ usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } })).toBe('{"in":"1 ($0.000)","cache":"1 ($0.000)","out":"3 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}');
   });
 
   test('responseItemToTranscript formats shell_call function call inputs', () => {
