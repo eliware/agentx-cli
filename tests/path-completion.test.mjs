@@ -108,13 +108,16 @@ describe('path completion', () => {
     }
   });
 
-  test('handles nested and hidden paths', async () => {
+  test('handles nested, trailing-slash and hidden paths', async () => {
     const tmp = makeTempDir('agentx-complete-');
     try {
+      makeDirectory(tmp, 'foo');
       makeDirectory(tmp, 'src/nested');
       makeFile(tmp, '.env.local');
       const [nested] = await completePath('cd src/n', tmp);
       expect(nested).toContain('src/nested/');
+      const [trailingSlash] = await completePath('foo/', tmp);
+      expect(trailingSlash).toContain('foo/');
       const [hidden] = await completePath('.', tmp);
       expect(hidden).toContain('.env.local');
     } finally {

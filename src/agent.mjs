@@ -102,7 +102,6 @@ export async function runAgent({ promptPath, cwd }) {
         const command = message.slice(1).trim();
         if (!command) continue;
         const result = await shellExec(command, cwd);
-        if (result) process.stdout.write(result.endsWith('\n') ? result : `${result}\n`);
         pendingCliTranscript = appendCliTranscript(pendingCliTranscript, command, result);
         await saveState();
         continue;

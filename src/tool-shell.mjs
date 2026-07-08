@@ -180,6 +180,8 @@ function normalizeGroup(group, defaultCwd) {
   return {
     cwd: String(group?.c ?? defaultCwd ?? ''),
     commands: normalizeCommands(group?.s),
+    timeoutMs: group?.t,
+    maxOutputLength: group?.l,
   };
 }
 
@@ -187,11 +189,16 @@ function normalizeGroups(groups, defaultCwd) {
   return Array.isArray(groups) ? groups.map((group) => normalizeGroup(group, defaultCwd)) : [];
 }
 
-export async function runShellCommandGroups(groups, cwd, { timeoutMs, maxOutputLength, callId, defaultCwd } = {}) {
+export async function runShellCommandGroups(groups, cwd, { callId, defaultCwd } = {}) {
   const resolvedDefaultCwd = String(defaultCwd ?? cwd ?? '');
   const normalizedGroups = normalizeGroups(groups, resolvedDefaultCwd);
-  const results = await Promise.all(normalizedGroups.map(async (group) => runShellCommands(group.commands, group.cwd || resolvedDefaultCwd, { timeoutMs, maxOutputLength })));
+  const results = await Promise.all(
+    normalizedGroups.map(async (group) => runShellCommands(group.commands, group.cwd || resolvedDefaultCwd, { timeoutMs: group.timeoutMs, maxOutputLength: group.maxOutputLength })),
+  );
   const output = results.flatMap((result) => Array.isArray(result?.output) ? result.output : []);
+  const maxOutputLength = normalizedGroups.length > 0
+    ? Math.max(...normalizedGroups.map((group) => Number(group.maxOutputLength)).filter((value) => Number.isFinite(value) && value > 0))
+    : null;
 
   return {
     type: 'shell_call_output',
@@ -199,7 +206,7 @@ export async function runShellCommandGroups(groups, cwd, { timeoutMs, maxOutputL
     cwd: resolvedDefaultCwd,
     status: results.some((group) => group.status === 'incomplete') ? 'incomplete' : 'completed',
     output,
-    max_output_length: Number.isFinite(Number(maxOutputLength)) ? Number(maxOutputLength) : null,
+    max_output_length: Number.isFinite(maxOutputLength) ? maxOutputLength : null,
   };
 }
 

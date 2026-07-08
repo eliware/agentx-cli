@@ -259,7 +259,11 @@ describe('agent loop', () => {
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
-      shellExec: jest.fn(async (command) => (command === 'ls' ? 'one.txt\ntwo.txt' : '/tmp/work')),
+      shellExec: jest.fn(async (command) => {
+        const output = command === 'ls' ? 'one.txt\ntwo.txt' : '/tmp/work';
+        process.stdout.write(`${output}\n`);
+        return output;
+      }),
     }));
 
     const persistResponseState = jest.fn(async () => { });
@@ -325,10 +329,11 @@ describe('agent loop', () => {
       pending_cli_transcript: '',
     });
     expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(writes.join(' ')).not.toContain('Running shell command: ls');
-    expect(writes.join(' ')).not.toContain('Running shell command: pwd');
-    expect(writes.join(' ')).toContain('one.txt');
-    expect(writes.join(' ')).toContain('/tmp/work');
+    const combinedWrites = writes.join('');
+    expect(combinedWrites).not.toContain('Running shell command: ls');
+    expect(combinedWrites).not.toContain('Running shell command: pwd');
+    expect((combinedWrites.match(/one\.txt/g) || []).length).toBe(1);
+    expect((combinedWrites.match(/\/tmp\/work/g) || []).length).toBe(1);
   });
 
 

@@ -51,11 +51,11 @@
         "properties": {
           "c": {
             "type": "string",
-            "description": "Default cwd."
+            "description": "Optional default cwd for all command groups; falls back to the current cwd."
           },
           "p": {
             "type": "array",
-            "description": "Parallel command groups; use one group only when commands must run in order.",
+            "description": "Parallel command groups; commands inside each group run sequentially.",
             "items": {
               "type": "object",
               "description": "Sequential command list.",
@@ -65,7 +65,7 @@
               "properties": {
                 "c": {
                   "type": "string",
-                  "description": "Group cwd."
+                  "description": "Group cwd override."
                 },
                 "s": {
                   "type": "array",
@@ -74,18 +74,18 @@
                     "type": "string",
                     "description": "Shell cmd."
                   }
+                },
+                "t": {
+                  "type": "integer",
+                  "description": "Timeout ms for this group."
+                },
+                "l": {
+                  "type": "integer",
+                  "description": "Max output chars for this group."
                 }
               },
               "additionalProperties": false
             }
-          },
-          "t": {
-            "type": "integer",
-            "description": "Timeout ms."
-          },
-          "l": {
-            "type": "integer",
-            "description": "Max output chars."
           }
         },
         "additionalProperties": false

@@ -11,12 +11,25 @@ describe('tool shell', () => {
   test('runs shell command groups in parallel', async () => {
     const started = Date.now();
     const result = await runShellCommandGroups([
-      { c: '/opt/agentx-cli', s: ['node -e "setTimeout(() => console.log(1), 100)"'] },
-      { c: '/opt/agentx-cli', s: ['node -e "setTimeout(() => console.log(2), 100)"'] },
+      { c: '/opt/agentx-cli', s: ['node -e "setTimeout(() => console.log(1), 100)"'], t: 1000, l: 10 },
+      { c: '/opt/agentx-cli', s: ['node -e "setTimeout(() => console.log(2), 100)"'], t: 1000, l: 10 },
     ], '/opt/agentx-cli', { callId: 'call-2' });
     expect(Date.now() - started).toBeLessThan(300);
     expect(result).toMatchObject({ type: 'shell_call_output', call_id: 'call-2', status: 'completed', cwd: '/opt/agentx-cli' });
     expect(result.output).toHaveLength(2);
+    expect(result).toMatchObject({ max_output_length: 10 });
+  });
+
+  test('applies per-group timeouts and output limits', async () => {
+    const result = await runShellCommandGroups([
+      { c: '/opt/agentx-cli', s: ['printf abc'], t: 1000, l: 3 },
+      { c: '/opt/agentx-cli', s: ['node -e "setTimeout(() => console.log(2), 200)"'], t: 50, l: 10 },
+    ], '/opt/agentx-cli', { callId: 'call-3' });
+
+    expect(result.status).toBe('incomplete');
+    expect(result.output[0]).toMatchObject({ stdout: 'abc', stderr: '', outcome: { type: 'exit', exit_code: 0 } });
+    expect(result.output[1]).toMatchObject({ outcome: { type: 'timeout' } });
+    expect(result.max_output_length).toBe(10);
   });
 
   test('shellExec streams and returns command output', async () => {

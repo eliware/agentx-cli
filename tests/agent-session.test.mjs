@@ -26,6 +26,8 @@ describe('agent session helpers', () => {
     expect(responseItemToTranscript({ type: 'message', content: [{ type: 'input_text', text: '' }, { type: 'output_text', text: '' }] })).toBe('');
     expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', input: '{not valid json' })).toBe('assistant shell call: {not valid json');
     expect(responseItemToTranscript({ type: 'function_call', name: 'other_tool', input: 'abc' })).toBe('assistant tool call: other_tool(abc)');
+    expect(responseItemToTranscript({ type: 'function_call', name: 'other_tool' })).toBe('assistant tool call: other_tool()');
+    expect(responseItemToTranscript({ type: 'message', content: undefined })).toBe('');
     expect(responseItemToTranscript({ type: 'function_call_output', output: null })).toBe('tool output: ');
     expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'x'.repeat(200), stderr: 'y'.repeat(200), outcome: { type: 'exit', exit_code: 0 } }, 'ignored'], max_output_length: 10, status: 'completed' })).toContain('tool output shell_call_output:');
     expect(responseItemToTranscript({ type: 'reasoning', summary: [] })).toBe('');

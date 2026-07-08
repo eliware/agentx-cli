@@ -10,13 +10,6 @@ function getShellCommands(call) {
   return commands.map((command) => String(command ?? ''));
 }
 
-function getShellLimits(call) {
-  return {
-    timeoutMs: call?.action?.timeout_ms,
-    maxOutputLength: call?.action?.max_output_length,
-  };
-}
-
 function formatShellCommandSummary(call) {
   const commands = getShellCommands(call);
   return commands.length > 0 ? commands.join(' && ') : '';
@@ -87,18 +80,13 @@ export async function runToolCall(call, cwd) {
 
     const defaultCwd = String(input?.c ?? cwd ?? '');
     const groups = Array.isArray(input?.p) ? input.p : [];
-    const limits = {
-      timeoutMs: input?.t,
-      maxOutputLength: input?.l,
-    };
-    const result = await runShellCommandGroups(groups, cwd, { ...limits, callId: call?.call_id || call?.id || '', defaultCwd });
+    const result = await runShellCommandGroups(groups, cwd, { callId: call?.call_id || call?.id || '', defaultCwd });
     return JSON.stringify(result);
   }
 
   if (call?.type === 'shell_call') {
     const commands = getShellCommands(call);
-    const limits = getShellLimits(call);
-    return await runShellCommands(commands, cwd, { ...limits, callId: call?.call_id || call?.id || '' });
+    return await runShellCommands(commands, cwd, { timeoutMs: call?.action?.timeout_ms, maxOutputLength: call?.action?.max_output_length, callId: call?.call_id || call?.id || '' });
   }
 
   return `ERROR: unsupported tool ${call?.name || call?.type}`;

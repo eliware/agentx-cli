@@ -56,6 +56,20 @@ describe('shell paths', () => {
     }
   });
 
+  test('uses HOME in the error path when the target is empty', async () => {
+    const tmp = makeTempDir('agentx-shell-');
+    const home = process.env.HOME;
+    try {
+      makeFile(tmp, 'home-file');
+      process.env.HOME = `${tmp}/home-file`;
+      await expect(resolveCdTarget('', tmp)).rejects.toThrow(/not a directory: .*home-file/);
+    } finally {
+      if (home === undefined) delete process.env.HOME;
+      else process.env.HOME = home;
+      cleanupTempDir(tmp);
+    }
+  });
+
   test('accepts relative, absolute and home-based directories', async () => {
     const tmp = makeTempDir('agentx-shell-');
     try {
