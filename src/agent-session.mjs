@@ -44,6 +44,19 @@ function shellOutputPreview(item) {
   }));
 }
 
+function isShellToolCall(item) {
+  return item?.type === 'shell_call' || (item?.type === 'function_call' && item?.name === 'shell_call');
+}
+
+function shellFunctionCallPreview(item) {
+  try {
+    const parsed = JSON.parse(String(item?.input ?? item?.arguments ?? '{}'));
+    return compactJson(parsed);
+  } catch {
+    return String(item?.input ?? item?.arguments ?? '');
+  }
+}
+
 function debugLogOpenAIRequest(request) {
   if (!process.argv.includes('--debug')) return;
   console.log('OpenAI request:', JSON.stringify(request, null, 2));
@@ -64,7 +77,10 @@ export function responseItemToTranscript(item) {
   }
 
   if (item.type === 'function_call') {
-    return `assistant tool call: ${item.name || 'function'}(${item.arguments || ''})`;
+    if (item.name === 'shell_call') {
+      return `assistant shell call: ${shellFunctionCallPreview(item)}`;
+    }
+    return `assistant tool call: ${item.name || 'function'}(${item.arguments || item.input || ''})`;
   }
 
   if (item.type === 'shell_call') {
@@ -97,8 +113,10 @@ export function responseItemToTranscript(item) {
 
 function isShellCallEvent(event, raw) {
   if (event?.type === 'shell_call') return true;
+  if (event?.type === 'function_call' && event?.name === 'shell_call') return true;
   if (event?.item?.type === 'shell_call') return true;
-  return typeof raw === 'string' && raw.includes('"type":"shell_call"') && !raw.includes('"type":"shell_call_output"');
+  if (event?.item?.type === 'function_call' && event?.item?.name === 'shell_call') return true;
+  return typeof raw === 'string' && ((raw.includes('"type":"shell_call"')) || (raw.includes('"type":"function_call"') && raw.includes('"name":"shell_call"'))) && !raw.includes('"type":"shell_call_output"');
 }
 
 function createLiveResponseHandlers({ liveStreaming }) {
@@ -157,7 +175,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   for (; ;) {
     const usage = extractUsage(current);
     if (onResponseUsage) onResponseUsage(usage);
-    const calls = (current?.output ?? []).filter((item) => item?.type === 'shell_call');
+    const calls = (current?.output ?? []).filter((item) => isShellToolCall(item));
     if (calls.length === 0) return current;
 
     process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);

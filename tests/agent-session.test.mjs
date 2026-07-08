@@ -294,6 +294,35 @@ describe('agent session helpers', () => {
     expect(stdoutWrites.join('')).not.toContain('done\n\n');
   });
 
+  test('handleToolCalls processes shell_call function calls', async () => {
+    const createCalls = [];
+    const openai = {
+      responses: {
+        create: async (request) => {
+          createCalls.push(request);
+          return { id: 'resp-next', output: [] };
+        },
+      },
+    };
+    const response = {
+      id: 'resp-1',
+      output: [{ type: 'function_call', call_id: 'call-1', name: 'shell_call', input: JSON.stringify({ c: '/tmp/work', p: [{ s: ['printf hi'] }] }) }],
+    };
+
+    const runToolCallFn = async (call) => {
+      expect(call.type).toBe('function_call');
+      expect(call.name).toBe('shell_call');
+      return JSON.stringify({ call_id: call.call_id, cwd: '/tmp/work', status: 'completed', groups: [] });
+    };
+
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
+
+    expect(stdoutWrites.join('')).toContain('printf hi');
+    expect(createCalls).toHaveLength(1);
+    expect(createCalls[0].input).toHaveLength(1);
+    expect(createCalls[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'call-1' });
+  });
+
   test('handleToolCalls runs multiple tool calls in parallel and preserves output order', async () => {
     const createCalls = [];
     const openai = {

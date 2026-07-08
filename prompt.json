@@ -38,9 +38,57 @@
   ],
   "tools": [
     {
-      "type": "shell",
-      "environment": {
-        "type": "local"
+      "type": "function",
+      "name": "shell_call",
+      "description": "Run shell cmds in parallel groups.",
+      "strict": false,
+      "parameters": {
+        "type": "object",
+        "description": "Tool args.",
+        "required": [
+          "p"
+        ],
+        "properties": {
+          "c": {
+            "type": "string",
+            "description": "Default cwd."
+          },
+          "p": {
+            "type": "array",
+            "description": "Parallel command groups; use one group only when commands must run in order.",
+            "items": {
+              "type": "object",
+              "description": "Sequential command list.",
+              "required": [
+                "s"
+              ],
+              "properties": {
+                "c": {
+                  "type": "string",
+                  "description": "Group cwd."
+                },
+                "s": {
+                  "type": "array",
+                  "description": "Run these commands in order.",
+                  "items": {
+                    "type": "string",
+                    "description": "Shell cmd."
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "t": {
+            "type": "integer",
+            "description": "Timeout ms."
+          },
+          "l": {
+            "type": "integer",
+            "description": "Max output chars."
+          }
+        },
+        "additionalProperties": false
       }
     },
     {

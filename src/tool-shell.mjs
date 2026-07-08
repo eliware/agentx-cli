@@ -55,9 +55,13 @@ async function executeShellCommand(command, cwd, { timeoutMs, maxOutputLength } 
   }
 }
 
+function normalizeCommands(commands) {
+  return Array.isArray(commands) ? commands.map((command) => String(command ?? '')) : [];
+}
+
 export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLength, callId } = {}) {
   const output = [];
-  const commandList = Array.isArray(commands) ? commands.map((command) => String(command ?? '')) : [];
+  const commandList = normalizeCommands(commands);
   let status = 'completed';
 
   for (const command of commandList) {
@@ -75,6 +79,33 @@ export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLeng
     output,
     max_output_length: Number.isFinite(Number(maxOutputLength)) ? Number(maxOutputLength) : null,
     status,
+  };
+}
+
+function normalizeGroup(group, defaultCwd) {
+  return {
+    cwd: String(group?.c ?? defaultCwd ?? ''),
+    commands: normalizeCommands(group?.s),
+  };
+}
+
+function normalizeGroups(groups, defaultCwd) {
+  return Array.isArray(groups) ? groups.map((group) => normalizeGroup(group, defaultCwd)) : [];
+}
+
+export async function runShellCommandGroups(groups, cwd, { timeoutMs, maxOutputLength, callId, defaultCwd } = {}) {
+  const resolvedDefaultCwd = String(defaultCwd ?? cwd ?? '');
+  const normalizedGroups = normalizeGroups(groups, resolvedDefaultCwd);
+  const results = await Promise.all(normalizedGroups.map(async (group) => ({
+    ...group,
+    ...(await runShellCommands(group.commands, group.cwd || resolvedDefaultCwd, { timeoutMs, maxOutputLength })),
+  })));
+
+  return {
+    call_id: callId || '',
+    cwd: resolvedDefaultCwd,
+    status: results.some((group) => group.status === 'incomplete') ? 'incomplete' : 'completed',
+    groups: results,
   };
 }
 

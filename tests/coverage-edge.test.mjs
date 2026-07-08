@@ -164,9 +164,18 @@ describe('helper coverage', () => {
     expect(toolCallSummary({}, 'ok')).toBe('tool... OK!');
     expect(await runToolCall({ type: 'bogus' }, tmp)).toBe('ERROR: unsupported tool bogus');
     expect(await runToolCall({ type: 'shell_call', id: 'call-shell-id', action: { commands: ['printf ok'] } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: 'call-shell-id' });
-    expect(toolOutputForCall({ type: 'function_call', id: 'call-fn-id' }, 'done')).toEqual({ type: 'function_call_output', call_id: '', output: 'done' });
+    expect(toolOutputForCall({ type: 'function_call', id: 'call-fn-id' }, 'done')).toEqual({ type: 'function_call_output', call_id: 'call-fn-id', output: 'done' });
     expect(toolOutputForCall({ type: 'function_call' }, undefined)).toEqual({ type: 'function_call_output', call_id: '', output: '' });
     expect(toolOutputForCall({ type: 'shell_call', action: { commands: ['ls'] } }, { type: 'shell_call_output', output: [] })).toEqual({ type: 'shell_call_output', call_id: '', output: [] });
+    const functionCall = await runToolCall({ type: 'function_call', call_id: 'call-fn', name: 'shell_call', input: JSON.stringify({ c: tmp, p: [{ s: ['printf one'] }, { s: ['printf two'] }] }) }, tmp);
+    const parsedFunctionCall = JSON.parse(functionCall);
+    expect(parsedFunctionCall).toMatchObject({ call_id: 'call-fn', cwd: tmp, status: 'completed' });
+    expect(parsedFunctionCall.groups).toHaveLength(2);
+    const started = Date.now();
+    await runToolCall({ type: 'function_call', call_id: 'call-parallel', name: 'shell_call', input: JSON.stringify({ c: tmp, p: [{ s: ["node -e \"setTimeout(() => console.log('a'), 120)\""] }, { s: ["node -e \"setTimeout(() => console.log('b'), 120)\""] }] }) }, tmp);
+    expect(Date.now() - started).toBeLessThan(350);
+    expect(toolCallSummary({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: tmp, p: [{ s: ['printf one'] }, { s: ['printf two'] }] }) }, functionCall)).toContain('printf one');
+    expect(toolCallSummary({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: tmp, p: [{ s: ['printf one'] }, { s: ['printf two'] }] }) }, functionCall)).toContain('printf two');
   });
 
   test('shell execution returns command output and error output', async () => {
