@@ -11,6 +11,7 @@ It is designed to feel shell-like:
 - supports tab completion for local files and folders
 - remembers the last response id, usage counters, last user/assistant messages, and pending shell transcript in `.agentx_responseid`
 - can be launched directly from `agentx.mjs` or through a symlink like `/usr/bin/agentx`
+- includes quick CLI flags for help, version, and debug logging
 
 ---
 
@@ -19,6 +20,7 @@ It is designed to feel shell-like:
 - [Features](#features)
 - [Usage](#usage)
 - [Behavior](#behavior)
+- [Docs](#docs)
 - [Development](#development)
 - [Testing](#testing)
 - [Environment](#environment)
@@ -41,7 +43,7 @@ It is designed to feel shell-like:
 Start the agent from the repository root or from any working directory:
 
 ```bash
-node /opt/agentx/agentx.mjs
+node agentx.mjs
 ```
 
 If you have a symlink installed, you can also run:
@@ -50,10 +52,16 @@ If you have a symlink installed, you can also run:
 agentx
 ```
 
+Quick flags:
+
+- `agentx --help`, `agentx -h`, or `agentx -?` prints quick help
+- `agentx --version` or `agentx -v` prints the package version
+- `agentx --debug` prints OpenAI request/response logs
+
 The prompt will look like this:
 
 ```text
-[AgentX root@dev:/opt/agentx] 
+[AgentX root@dev:/opt/agentx-cli] 
 ```
 
 ## Behavior
@@ -82,6 +90,16 @@ On the first message of a new session, the agent loads `prompt.json`, injects:
 - the user’s first message
 
 If `AGENTS.md` is missing, the app prints a notice and continues with a fallback instruction.
+
+## Docs
+
+User-facing docs live in [`docs/`](./docs):
+
+- [Quickstart](./docs/quickstart.md)
+- [Command reference](./docs/commands.md)
+- [Session state](./docs/session-state.md)
+- [Examples](./docs/examples.md)
+- [Troubleshooting](./docs/troubleshooting.md)
 
 ## Development
 

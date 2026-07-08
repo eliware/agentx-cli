@@ -38,7 +38,7 @@ describe('completion', () => {
       makeDirectory(tmp, 'opt');
       makeFile(tmp, 'opt/agentx');
       const [matches] = await completePath('/opt/agen', tmp);
-      expect(matches).toContain('/opt/agentx/');
+      expect(matches).toContain('/opt/agentx-cli/');
     } finally {
       cleanupTempDir(tmp);
     }
