@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AgentX GUI</title>
+    <link rel="stylesheet" href="/dist/app.bundle.css">
+    <script type="module" src="/dist/app.bundle.mjs" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <h1>Hello world</h1>
+      <p>AgentX GUI is up.</p>
+      <button data-ws-connect type="button">Reconnect WebSocket</button>
+      <dl>
+        <div><dt>Status</dt><dd data-ws-status>idle</dd></div>
+        <div><dt>Reply</dt><dd data-ws-reply>none</dd></div>
+      </dl>
+    </main>
+  </body>
+</html>

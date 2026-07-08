@@ -63,3 +63,5 @@ node_modules/
 
 # agentx
 .agentx_responseid
+
+public/dist/
