@@ -1,4 +1,4 @@
-import { describe, expect, test } from '@jest/globals';
+﻿import { describe, expect, test } from '@jest/globals';
 import path from 'node:path';
 import {
   getHomeDirectory,
@@ -31,10 +31,26 @@ describe('platform helpers', () => {
 
   test('uses default platform and identity fallbacks when omitted', () => {
     const expectedWindows = process.platform === 'win32';
-    expect(isWindowsPlatform()).toBe(expectedWindows);
-    expect(getPathModule()).toBe(expectedWindows ? path.win32 : path.posix);
-    expect(getPromptIdentity()).toEqual({ user: 'root', host: String(process.env.HOSTNAME || process.env.COMPUTERNAME || 'dev') });
-    expect(normalizeDisplayPath()).toBe(expectedWindows ? '.' : '.');
+    const defaultPath = expectedWindows ? path.win32 : path.posix;
+    const originalUser = process.env.USER;
+    const originalUsername = process.env.USERNAME;
+    const originalHostname = process.env.HOSTNAME;
+    const originalComputerName = process.env.COMPUTERNAME;
+    delete process.env.USER;
+    delete process.env.USERNAME;
+    delete process.env.HOSTNAME;
+    delete process.env.COMPUTERNAME;
+    try {
+      expect(isWindowsPlatform()).toBe(expectedWindows);
+      expect(getPathModule()).toBe(defaultPath);
+      expect(getPromptIdentity()).toEqual({ user: 'root', host: 'dev' });
+      expect(normalizeDisplayPath()).toBe('.');
+    } finally {
+      if (originalUser === undefined) delete process.env.USER; else process.env.USER = originalUser;
+      if (originalUsername === undefined) delete process.env.USERNAME; else process.env.USERNAME = originalUsername;
+      if (originalHostname === undefined) delete process.env.HOSTNAME; else process.env.HOSTNAME = originalHostname;
+      if (originalComputerName === undefined) delete process.env.COMPUTERNAME; else process.env.COMPUTERNAME = originalComputerName;
+    }
   });
 
   test('builds prompt identity with fallbacks', () => {
@@ -73,14 +89,15 @@ describe('platform helpers', () => {
     expect(resolveUserPath('', '', { env: {}, platform: 'linux' })).toBe(path.posix.resolve(''));
     expect(resolveUserPath('~', '', { env: {}, platform: 'linux' })).toBe(path.posix.resolve(''));
     expect(resolveUserPath('~', '/work', { env: {}, platform: 'linux' })).toBe('/work');
-    expect(resolveUserPath('notes', '/work')).toBe('/work/notes');
+    expect(resolveUserPath('notes', '/work')).toBe(path.resolve('/work', 'notes'));
     expect(resolveUserPath('', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/home/alice');
     expect(resolveUserPath('~/notes', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/home/alice/notes');
     expect(resolveUserPath('/abs/path', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/abs/path');
     expect(resolveUserPath('', 'C:\\work', { env: { USERPROFILE: 'C:\\Users\\alice' }, platform: 'win32' })).toBe('C:\\Users\\alice');
-    expect(resolveUserPath('docs', 'C:\\work', { env: { USERPROFILE: 'C:\\Users\\alice' }, platform: 'win32' })).toBe('C:\\work\\docs');
+    expect(resolveUserPath('docs', 'C:\\work', { env: { USERPROFILE: 'C:\\Users\\alice' }, platform: 'win32' })).toBe(path.win32.resolve('C:\\work', 'docs'));
     expect(resolveUserPath('~\\docs', 'C:\\work', { env: { USERPROFILE: 'C:\\Users\\alice' }, platform: 'win32' })).toBe('C:\\Users\\alice\\docs');
     expect(resolveUserPath('C:\\Temp', 'C:\\work', { env: {}, platform: 'win32' })).toBe('C:\\Temp');
+    expect(resolveUserPath('~', 'C:\\work', { env: {}, platform: 'win32' })).toBe(path.win32.resolve('C:\\work'));
   });
 
   test('normalizes display paths on both platforms', () => {

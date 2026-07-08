@@ -26,6 +26,12 @@ describe('path completion', () => {
     expect(win.needle).toBe('Doc');
   });
 
+  test('covers trailing-slash and rooted prefix branches', () => {
+    expect(tokenPrefix('foo/', 'linux')).toEqual({ baseDir: '.', prefix: '', needle: 'foo' });
+    expect(tokenPrefix('/foo', 'linux')).toEqual({ baseDir: '/', prefix: '/', needle: 'foo' });
+    expect(tokenPrefix('C:\\foo', 'win32')).toEqual({ baseDir: 'C:\\', prefix: 'C:\\', needle: 'foo' });
+  });
+
   test('sorts matches and quotes entries with spaces', async () => {
     const tmp = makeTempDir('agentx-complete-');
     try {
