@@ -3,7 +3,7 @@ import { runToolCall, toolOutputForCall } from './tool-dispatch.mjs';
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport, formatUsageReport } from './usage.mjs';
-import { formatCommandMessage, formatSystemMessage } from './shell-display.mjs';
+import { formatCommandMessage, formatInfoMessage, formatSystemMessage } from './shell-display.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
 const STATUS_UPDATE_INTERVAL_MS = 250;
@@ -22,6 +22,10 @@ function formatElapsedStatus(elapsedMs) {
 function formatSpinnerFrame(elapsedMs) {
   const frame = Math.floor(Math.max(0, Number(elapsedMs ?? 0)) / STATUS_UPDATE_INTERVAL_MS) % STATUS_SPINNER_FRAMES.length;
   return STATUS_SPINNER_FRAMES[frame];
+}
+
+function formatTransactionCompletionMessage(elapsedMs) {
+  return `Transaction completed in ${formatElapsedStatus(elapsedMs)}.`;
 }
 
 function createStatusLineController(sessionStartedAt = Date.now()) {
@@ -264,6 +268,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     }
     if (calls.length === 0) {
       statusController?.clear();
+      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(Date.now() - sessionStartedAt))}\n`);
       return current;
     }
 
@@ -319,5 +324,5 @@ export async function sendMessage(openai, template, previousResponseId, userMess
   return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, { ...streamOptions, statusController });
 }
 
-export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport, formatElapsedStatus, formatSpinnerFrame, createStatusLineController, createStreamedResponse };
+export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport, formatElapsedStatus, formatSpinnerFrame, formatTransactionCompletionMessage, createStatusLineController, createStreamedResponse };
 export { formatUsageSummary } from './response.mjs';

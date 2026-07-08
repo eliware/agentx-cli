@@ -1,5 +1,6 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { StringDecoder } from 'node:string_decoder';
 import { MAX_TOOL_OUTPUT, truncateToolOutput } from './tool-output.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -61,6 +62,97 @@ function normalizeCommands(commands) {
   return [];
 }
 
+function createStreamingCollector(maxOutputLength) {
+  const max = normalizeLimit(maxOutputLength);
+  const textParts = [];
+  let totalLength = 0;
+  let truncated = false;
+  const stdoutDecoder = new StringDecoder('utf8');
+  const stderrDecoder = new StringDecoder('utf8');
+
+  function appendText(text) {
+    if (!text || truncated) return;
+    if (totalLength >= max) {
+      truncated = true;
+      return;
+    }
+    const remaining = max - totalLength;
+    const part = text.length <= remaining ? text : text.slice(0, remaining);
+    if (!part) {
+      truncated = true;
+      return;
+    }
+    textParts.push(part);
+    totalLength += part.length;
+    if (part.length < text.length) truncated = true;
+  }
+
+  function handleChunk(kind, chunk, writer, decoder) {
+    if (!chunk || !chunk.length) return;
+    writer?.(chunk);
+    appendText(decoder.write(chunk));
+  }
+
+  function finalize() {
+    appendText(stdoutDecoder.end());
+    appendText(stderrDecoder.end());
+    return truncateText(textParts.join(''), maxOutputLength);
+  }
+
+  return {
+    handleStdout(chunk, writer) {
+      handleChunk('stdout', chunk, writer, stdoutDecoder);
+    },
+    handleStderr(chunk, writer) {
+      handleChunk('stderr', chunk, writer, stderrDecoder);
+    },
+    finalize,
+  };
+}
+
+async function executeShellCommandStream(command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr } = {}) {
+  const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+  const args = process.platform === 'win32' ? ['/c', command] : ['-lc', command];
+  const collector = createStreamingCollector(maxOutputLength);
+  const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
+
+  return await new Promise((resolve) => {
+    let completed = false;
+    let timedOut = false;
+    const child = spawn(shell, args, { cwd, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+    }, timeout);
+
+    const finish = (outcome) => {
+      if (completed) return;
+      completed = true;
+      clearTimeout(timer);
+      resolve(makeShellCommandOutput({
+        stdout: collector.finalize(),
+        stderr: '',
+        outcome,
+        maxOutputLength,
+      }));
+    };
+
+    child.stdout?.on('data', (chunk) => collector.handleStdout(chunk, writeStdout));
+    child.stderr?.on('data', (chunk) => collector.handleStderr(chunk, writeStderr));
+    child.on('error', (error) => {
+      if (completed) return;
+      const message = error?.message || String(error);
+      collector.handleStderr(Buffer.from(message), writeStderr);
+      finish({ type: 'exit', exit_code: 1 });
+    });
+    child.on('close', (code) => {
+      finish(timedOut
+        ? { type: 'timeout' }
+        : { type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 });
+    });
+  });
+}
+
 export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLength, callId } = {}) {
   const output = [];
   const commandList = normalizeCommands(commands);
@@ -112,10 +204,10 @@ export async function runShellCommandGroups(groups, cwd, { timeoutMs, maxOutputL
 }
 
 export async function shellExec(command, cwd) {
-  const result = await runShellCommands([command], cwd, { maxOutputLength: MAX_TOOL_OUTPUT });
-  const combined = result.output
-    .flatMap((chunk) => [chunk.stdout, chunk.stderr])
-    .filter(Boolean)
-    .join('\n');
-  return truncateToolOutput(combined);
+  const result = await executeShellCommandStream(command, cwd, {
+    maxOutputLength: MAX_TOOL_OUTPUT,
+    writeStdout: (chunk) => process.stdout.write(chunk),
+    writeStderr: (chunk) => process.stderr.write(chunk),
+  });
+  return truncateToolOutput(result.stdout);
 }

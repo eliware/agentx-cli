@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { buildInputMessage } from '../src/prompt-builder.mjs';
-import { formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState, formatElapsedStatus, formatSpinnerFrame, createStatusLineController, createStreamedResponse } from '../src/agent-session.mjs';
+import { formatUsageSummary, handleToolCalls, responseItemToTranscript, sendMessage, extractUsage, readSessionState, formatElapsedStatus, formatSpinnerFrame, formatTransactionCompletionMessage, createStatusLineController, createStreamedResponse } from '../src/agent-session.mjs';
 import { cleanupTempDir, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('agent session helpers', () => {
@@ -62,6 +62,11 @@ describe('agent session helpers', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  test('transaction completion message formats elapsed time', () => {
+    expect(formatTransactionCompletionMessage(9000)).toBe('Transaction completed in 9s.');
+    expect(formatTransactionCompletionMessage(61000)).toBe('Transaction completed in 1m 1s.');
   });
 
   test('createStreamedResponse uses default stream options when omitted', async () => {

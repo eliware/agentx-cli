@@ -4,7 +4,7 @@ import path from 'node:path';
 import { completePath as completePathFromWrapper } from '../src/completion.mjs';
 import { applyFirstUserMessage } from '../src/prompt-builder.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from '../src/shell.mjs';
-import { formatCommandMessage } from '../src/shell-display.mjs';
+import { formatCommandMessage, formatInfoMessage } from '../src/shell-display.mjs';
 import { buildDeveloperText } from '../src/prompt-text.mjs';
 import { runToolCall as runToolCallDirect, toolCallSummary as toolCallSummaryDirect, toolOutputForCall as toolOutputForCallDirect } from '../src/tool-dispatch.mjs';
 import { normalizeUsage, calculateUsageCost, formatUsageReport, formatTurnUsage, formatTurnUsageReport } from '../src/usage.mjs';
@@ -34,6 +34,7 @@ describe('coverage gaps', () => {
     expect(shell.formatPromptForCwd).toBe(formatPromptForCwd);
     expect(shell.formatSystemMessage).toBe(formatSystemMessage);
     expect(formatCommandMessage('x')).toBe('\u001b[32mx\u001b[0m');
+    expect(formatInfoMessage('x')).toBe('\u001b[94mx\u001b[0m');
     expect(shell.parseInternalCommand).toBe(parseInternalCommand);
     expect(shell.readAgentsFromCwdAndParents).toBe(readAgentsFromCwdAndParents);
     expect(shell.resolveCdTarget).toBe(resolveCdTarget);

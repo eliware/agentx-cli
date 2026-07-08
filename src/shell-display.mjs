@@ -1,5 +1,6 @@
 const YELLOW = '\u001b[33m';
 const GREEN = '\u001b[32m';
+const LIGHT_BLUE = '\u001b[94m';
 const RESET = '\u001b[0m';
 
 export function clearTerminal() {
@@ -16,4 +17,8 @@ export function formatSystemMessage(message) {
 
 export function formatCommandMessage(message) {
   return `${GREEN}${message}${RESET}`;
+}
+
+export function formatInfoMessage(message) {
+  return `${LIGHT_BLUE}${message}${RESET}`;
 }

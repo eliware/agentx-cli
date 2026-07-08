@@ -187,6 +187,35 @@ describe('helper coverage', () => {
     expect(failure).toContain('boom');
   });
 
+  test('shell execution streams output to the terminal while it runs', async () => {
+    const tmp = makeTempDir('agentx-shell-stream-');
+    tempDirs.push(tmp);
+    const writes = [];
+    const originalStdoutWrite = process.stdout.write;
+    const originalStderrWrite = process.stderr.write;
+
+    process.stdout.write = (chunk) => {
+      writes.push(String(chunk));
+      return true;
+    };
+    process.stderr.write = (chunk) => {
+      writes.push(String(chunk));
+      return true;
+    };
+
+    try {
+      const promise = shellExec('node -e "console.log(\'one\'); setTimeout(() => console.log(\'two\'), 150)"', tmp);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(writes.join('')).toContain('one');
+      const output = await promise;
+      expect(output).toContain('one');
+      expect(output).toContain('two');
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+      process.stderr.write = originalStderrWrite;
+    }
+  });
+
   test('path completion handles missing directories and token filtering', async () => {
     const tmp = makeTempDir('agentx-complete-');
     tempDirs.push(tmp);
