@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
+import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 import { log, registerHandlers, path } from '@eliware/common';
 import { createOpenAIResponsesTransport } from './openai-transport.mjs';
 import { shellExec } from './tool-shell.mjs';
@@ -9,6 +9,7 @@ import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSys
 import { createUsageTotals, addUsageTotals, formatUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
+import { promptResumeMenu } from './resume-menu.mjs';
 
 registerHandlers({ log });
 
@@ -23,7 +24,7 @@ function printResumeMessage(label, text) {
   printAgentText(text);
 }
 
-function createReplInterface(cwd) {
+function createReplInterface(cwd, input = defaultInput, output = defaultOutput) {
   return createInterface({ input, output, completer: (line) => completePath(line, cwd) });
 }
 
@@ -31,33 +32,46 @@ function printUsageReport(totals, { leadingNewline = false } = {}) {
   process.stdout.write(`${leadingNewline ? '\n' : ''}${formatSystemMessage(formatUsageReport(totals))}\n`);
 }
 
-function toApiUsage(usage = {}) {
-  return {
-    input_tokens: Number(usage?.inputTokens ?? 0),
-    input_tokens_details: { cached_tokens: Number(usage?.cachedTokens ?? 0) },
-    output_tokens: Number(usage?.outputTokens ?? 0),
-  };
-}
-
 function createPendingResponse(savedState) {
   return {
     id: String(savedState?.response_id ?? ''),
     output: Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : [],
-    usage: toApiUsage(savedState?.pending_response_usage),
   };
 }
 
-async function promptResumeInterruptedSession(savedState) {
-  const rl = createInterface({ input, output });
-  try {
-    const answer = await rl.question(formatSystemMessage(`Session was interrupted while tool calls were pending for ${savedState.response_id}. Resume execution? [y/N] `));
-    return /^y(es)?$/i.test(String(answer ?? '').trim());
-  } finally {
-    rl.close();
-  }
+function getToolCallId(call) {
+  return String(call?.call_id || call?.id || '').trim();
 }
 
-export async function runAgent({ promptPath, cwd }) {
+function buildInterruptedToolOutput(call, mode, cwd) {
+  const message = mode === 'retry'
+    ? 'this transaction was interrupted and the user requests you decide if you want to try running this command again or do something else'
+    : 'this transaction was interrupted and the user requests you pause and wait for further instructions';
+
+  if (call?.type === 'shell_call') {
+    return {
+      type: 'shell_call_output',
+      call_id: getToolCallId(call),
+      cwd,
+      status: 'completed',
+      output: [{ stdout: message, stderr: '', outcome: { type: 'exit', exit_code: 0 } }],
+    };
+  }
+
+  return message;
+}
+
+function createResumeToolCallRunner(mode, pendingCallIds = new Set()) {
+  return async (call, cwd) => {
+    if (pendingCallIds.has(getToolCallId(call))) {
+      return buildInterruptedToolOutput(call, mode, cwd);
+    }
+    const { runToolCall } = await import('./tool-dispatch.mjs');
+    return await runToolCall(call, cwd);
+  };
+}
+
+export async function runAgent({ promptPath, cwd, input: terminalInput = defaultInput, output: terminalOutput = defaultOutput } = {}) {
   const launchCwd = cwd;
   const statePath = path(launchCwd, '.agentx_responseid');
   const template = await loadPromptTemplate(promptPath);
@@ -84,11 +98,6 @@ export async function runAgent({ promptPath, cwd }) {
     ? { inputTokens: Number(savedState.usage.inputTokens ?? 0), cachedTokens: Number(savedState.usage.cachedTokens ?? 0), outputTokens: Number(savedState.usage.outputTokens ?? 0), turns: Number(savedState.usage.turns ?? 0) }
     : createUsageTotals();
   let pendingToolCalls = Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : [];
-  let pendingResponseUsage = savedState?.pending_response_usage ? {
-    inputTokens: Number(savedState.pending_response_usage.inputTokens ?? 0),
-    cachedTokens: Number(savedState.pending_response_usage.cachedTokens ?? 0),
-    outputTokens: Number(savedState.pending_response_usage.outputTokens ?? 0),
-  } : null;
 
   async function saveState() {
     await persistResponseState(statePath, {
@@ -98,20 +107,14 @@ export async function runAgent({ promptPath, cwd }) {
       last_assistant_message: lastAssistantMessage,
       pending_cli_transcript: pendingCliTranscript,
       pending_tool_calls: pendingToolCalls,
-      pending_response_usage: pendingResponseUsage,
     });
   }
 
-  async function persistResponseSnapshot(response, usage, calls) {
+  async function persistResponseSnapshot(snapshot) {
+    const response = snapshot?.response;
+    const nextCalls = Array.isArray(snapshot?.pendingToolCalls) ? snapshot.pendingToolCalls : [];
     previousResponseId = response?.id || previousResponseId;
-    pendingToolCalls = Array.isArray(calls) ? calls : [];
-    pendingResponseUsage = pendingToolCalls.length > 0
-      ? {
-        inputTokens: Number(usage?.inputTokens ?? 0),
-        cachedTokens: Number(usage?.cachedTokens ?? 0),
-        outputTokens: Number(usage?.outputTokens ?? 0),
-      }
-      : null;
+    pendingToolCalls = nextCalls;
     await saveState();
   }
 
@@ -123,9 +126,25 @@ export async function runAgent({ promptPath, cwd }) {
 
   const hasPendingToolCalls = Boolean(previousResponseId && pendingToolCalls.length > 0);
   if (hasPendingToolCalls) {
-    const shouldResume = await promptResumeInterruptedSession(savedState);
-    if (shouldResume) {
-      process.stdout.write(`${formatSystemMessage('Resuming pending tool execution')}\n`);
+    const resumeChoice = await promptResumeMenu(savedState, { input: terminalInput, output: terminalOutput });
+
+    if (resumeChoice === 'new-session') {
+      previousResponseId = '';
+      lastUserMessage = '';
+      lastAssistantMessage = '';
+      pendingCliTranscript = '';
+      pendingToolCalls = [];
+      sessionUsage = createUsageTotals();
+      await clearSession(statePath);
+      process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
+    } else {
+      const runPendingToolCall = resumeChoice === 'auto-resume'
+        ? undefined
+        : createResumeToolCallRunner(
+          resumeChoice === 'interrupt-retry' ? 'retry' : 'request',
+          new Set((savedState?.pending_tool_calls || []).map((call) => getToolCallId(call)).filter(Boolean)),
+        );
+      process.stdout.write(`${formatSystemMessage(resumeChoice === 'auto-resume' ? 'Resuming pending tool execution' : resumeChoice === 'interrupt-retry' ? 'Resuming pending tool execution with retry hint' : 'Resuming pending tool execution with interruption notice')}\n`);
       try {
         const resumedResponse = await handleToolCalls(
           openai,
@@ -139,7 +158,7 @@ export async function runAgent({ promptPath, cwd }) {
             }
             return sessionUsage;
           },
-          undefined,
+          runPendingToolCall,
           {
             liveStreaming: true,
             sessionStartedAt: Date.now(),
@@ -150,7 +169,6 @@ export async function runAgent({ promptPath, cwd }) {
         previousResponseId = resumedResponse?.id || previousResponseId;
         lastAssistantMessage = extractTextFromResponse(resumedResponse);
         pendingToolCalls = [];
-        pendingResponseUsage = null;
         await saveState();
       } catch (error) {
         if (error?.code === 'previous_response_not_found') {
@@ -160,27 +178,16 @@ export async function runAgent({ promptPath, cwd }) {
           lastAssistantMessage = '';
           pendingCliTranscript = '';
           pendingToolCalls = [];
-          pendingResponseUsage = null;
           sessionUsage = createUsageTotals();
           await clearSession(statePath);
         } else {
           throw error;
         }
       }
-    } else {
-      previousResponseId = '';
-      lastUserMessage = '';
-      lastAssistantMessage = '';
-      pendingCliTranscript = '';
-      pendingToolCalls = [];
-      pendingResponseUsage = null;
-      sessionUsage = createUsageTotals();
-      await clearSession(statePath);
-      process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
     }
   }
 
-  const rl = createReplInterface(cwd);
+  const rl = createReplInterface(cwd, terminalInput, terminalOutput);
 
   try {
     for (; ;) {
@@ -225,7 +232,6 @@ export async function runAgent({ promptPath, cwd }) {
         lastAssistantMessage = '';
         pendingCliTranscript = '';
         pendingToolCalls = [];
-        pendingResponseUsage = null;
         sessionUsage = createUsageTotals();
         await clearSession(statePath);
         process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
@@ -282,7 +288,6 @@ export async function runAgent({ promptPath, cwd }) {
       previousResponseId = response?.id || previousResponseId;
       lastAssistantMessage = extractTextFromResponse(response);
       pendingToolCalls = [];
-      pendingResponseUsage = null;
       pendingCliTranscript = '';
       await saveState();
     }

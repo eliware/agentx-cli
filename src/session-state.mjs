@@ -37,7 +37,6 @@ function normalizeSessionState(state) {
     last_assistant_message: String(state?.last_assistant_message ?? ''),
     pending_cli_transcript: String(state?.pending_cli_transcript ?? ''),
     pending_tool_calls: normalizePendingToolCalls(state?.pending_tool_calls),
-    pending_response_usage: state?.pending_response_usage ? normalizeUsage(state.pending_response_usage) : null,
   };
 }
 

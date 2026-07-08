@@ -3,6 +3,7 @@ import { runToolCall, toolOutputForCall } from './tool-dispatch.mjs';
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport, formatUsageReport } from './usage.mjs';
+import { createUsageTotals } from './response.mjs';
 import { formatCommandMessage, formatInfoMessage, formatSystemMessage } from './shell-display.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
@@ -262,15 +263,18 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   let isFirstResponse = true;
 
   for (; ;) {
-    const usage = extractUsage(current);
+    const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
+    const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
     const calls = (current?.output ?? []).filter((item) => isShellToolCall(item));
-    const cumulativeUsage = onResponseUsage ? onResponseUsage(usage, { skipIncrement: skipInitialUsageAccounting && isFirstResponse }) : null;
+    const cumulativeUsage = shouldReportUsage && onResponseUsage ? onResponseUsage(usage, { skipIncrement: false }) : null;
     if (onResponseState) {
-      await onResponseState({ response: current, usage, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
+      await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
     }
-    process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
-    if (cumulativeUsage) {
-      process.stdout.write(`${formatSystemMessage(formatUsageReport(cumulativeUsage))}\n`);
+    if (shouldReportUsage) {
+      process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
+      if (cumulativeUsage) {
+        process.stdout.write(`${formatSystemMessage(formatUsageReport(cumulativeUsage))}\n`);
+      }
     }
     if (calls.length === 0) {
       statusController?.clear();
@@ -283,9 +287,9 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     let completed = 0;
     let results;
     try {
-      results = await Promise.all(calls.map(async (call) => {
+      results = await Promise.all(calls.map(async (call, callIndex) => {
         try {
-          const output = await runToolCallFn(call, cwd);
+          const output = await runToolCallFn(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length });
           return { call, output };
         } finally {
           completed += 1;

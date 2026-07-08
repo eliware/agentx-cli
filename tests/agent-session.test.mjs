@@ -253,9 +253,8 @@ describe('agent session helpers', () => {
     }, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }));
 
     const output = stdoutWrites.join('');
-    expect(output).toContain('in=6 ($0.000), cache=4 ($0.000), out=6 ($0.000), sum=$0.000');
-    expect(output).toContain('in=8 ($0.000), cache=0 ($0.000), out=2 ($0.000), sum=$0.000');
-    expect(output).toContain('msgs=2');
+    expect(output).toContain('{"in":"6 ($0.000)","cache":"4 ($0.000)","out":"6 ($0.000)","sum":"$0.000"}');
+    expect(output).toContain('{"in":"12 ($0.000)","cache":"8 ($0.000)","out":"12 ($0.000)","sum":"$0.000","msgs":"2","avg":"$0.000"}');
   });
 
   test('handleToolCalls preserves request fields on tool continuations', async () => {
@@ -579,12 +578,12 @@ describe('agent session helpers', () => {
   test('readSessionState falls back to legacy response id text', async () => {
     const tmp = makeTempDir('agentx-state-');
     const file = makeFile(tmp, '.agentx_responseid', 'resp-legacy\n');
-    await expect(readSessionState(file)).resolves.toEqual({ response_id: 'resp-legacy', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '', pending_tool_calls: [], pending_response_usage: null });
+    await expect(readSessionState(file)).resolves.toEqual({ response_id: 'resp-legacy', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '', pending_tool_calls: [] });
     cleanupTempDir(tmp);
   });
 
   test('formatUsageSummary renders usage stats', () => {
-    expect(formatUsageSummary({ usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } })).toBe('in=1 ($0.000), cache=1 ($0.000), out=3 ($0.000), sum=$0.000, msgs=1, avg=$0.000');
+    expect(formatUsageSummary({ usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } })).toBe('{"in":"1 ($0.000)","cache":"1 ($0.000)","out":"3 ($0.000)","sum":"$0.000","msgs":"1","avg":"$0.000"}');
   });
 
   test('responseItemToTranscript formats shell_call function call inputs', () => {
