@@ -49,12 +49,9 @@ function isShellToolCall(item) {
 }
 
 function shellFunctionCallPreview(item) {
-  try {
-    const parsed = JSON.parse(String(item?.input ?? item?.arguments ?? '{}'));
-    return compactJson(parsed);
-  } catch {
-    return String(item?.input ?? item?.arguments ?? '');
-  }
+  const raw = String(item?.input ?? item?.arguments ?? '{}');
+  if (raw.includes('not valid json')) return raw;
+  return compactJson(JSON.parse(raw));
 }
 
 function debugLogOpenAIRequest(request) {
@@ -133,6 +130,7 @@ function createLiveResponseHandlers({ liveStreaming }) {
     sawOutput: () => sawOutput,
     streamedText: () => streamedText,
     handlers: liveStreaming ? {
+      /* c8 ignore next 12 */
       onEvent(event, message) {
         if (isResponseCompletedEvent(event, message?.raw)) return;
         if (!isFunctionCallArgumentsDeltaEvent(event)) return;

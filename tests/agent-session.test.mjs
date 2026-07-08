@@ -266,6 +266,24 @@ describe('agent session helpers', () => {
     expect(stdoutWrites.join('')).toContain('assistant reasoning summary: thinking');
   });
 
+  test('sendMessage ignores unrelated live events and empty streamed deltas', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers?.onEvent?.({ type: 'response.output_item.added' }, { raw: '{"type":"response.output_item.added"}' });
+          handlers?.onEvent?.({ type: 'response.function_call_arguments.delta', delta: '' }, { raw: '{"type":"response.function_call_arguments.delta","delta":""}' });
+          handlers?.onEvent?.({ type: 'response.function_call_arguments.delta' }, { raw: '{"type":"response.function_call_arguments.delta"}' });
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+    expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
+  });
+
   test('sendMessage appends a newline after live streamed text when needed', async () => {
     const template = { model: 'test-model', input: [], tools: [] };
     const openai = {
@@ -378,6 +396,26 @@ describe('agent session helpers', () => {
 
   test('formatUsageSummary renders usage stats', () => {
     expect(formatUsageSummary({ usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } })).toBe('in=1 ($0.000), cache=1 ($0.000), out=3 ($0.000), sum=$0.000, msgs=1, avg=$0.000');
+  });
+
+  test('responseItemToTranscript formats shell_call function call inputs', () => {
+    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: '/tmp/work', p: [{ s: ['printf hi'] }] }) })).toBe('assistant shell call: {"c":"/tmp/work","p":[{"s":["printf hi"]}]}');
+  });
+
+  test('responseItemToTranscript formats shell_call function call arguments fields', () => {
+    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ c: '/tmp/work', p: [{ s: ['printf hi'] }] }) })).toBe('assistant shell call: {"c":"/tmp/work","p":[{"s":["printf hi"]}]}');
+  });
+
+  test('responseItemToTranscript falls back to an empty shell_call preview when no payload is present', () => {
+    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call' })).toBe('assistant shell call: {}');
+  });
+
+  test('responseItemToTranscript falls back to raw shell_call arguments when JSON parsing fails', () => {
+    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', arguments: '{not valid json' })).toBe('assistant shell call: {not valid json');
+  });
+
+  test('responseItemToTranscript falls back to raw shell_call input when JSON parsing fails', () => {
+    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', input: '{not valid json' })).toBe('assistant shell call: {not valid json');
   });
 
   test('responseItemToTranscript omits developer text and serializes user text', () => {
