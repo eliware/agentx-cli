@@ -5,7 +5,9 @@ function isShellFunctionCall(call) {
 }
 
 function getShellCommands(call) {
-  return Array.isArray(call?.action?.commands) ? call.action.commands.map((command) => String(command ?? '')) : [];
+  const commands = call?.action?.commands;
+  if (!Array.isArray(commands)) return [];
+  return commands.map((command) => String(command ?? ''));
 }
 
 function getShellLimits(call) {
@@ -21,18 +23,25 @@ function formatShellCommandSummary(call) {
 }
 
 function summarizeGroup(group, defaultCwd) {
-  const cwd = String(group?.c ?? defaultCwd ?? '');
-  const commands = Array.isArray(group?.s) ? group.s.map((command) => String(command ?? '')) : [];
+  const cwd = group?.c == null ? defaultCwd : String(group.c);
+  const commands = [];
+  if (Array.isArray(group?.s)) {
+    for (const command of group.s) commands.push(String(command ?? ''));
+  }
   const prefix = cwd ? `cd ${cwd}: ` : '';
   return `${prefix}${commands.join(' && ')}`.trim();
 }
 
 function summarizeShellFunctionCall(call) {
+  let raw = call?.input;
+  if (raw == null) raw = call?.arguments;
+  if (raw == null) return '';
+
   let input = {};
   try {
-    input = JSON.parse(String(call?.input ?? call?.arguments ?? '{}'));
+    input = JSON.parse(String(raw));
   } catch {
-    return String(call?.input ?? call?.arguments ?? '').trim();
+    return String(raw).trim();
   }
 
   const defaultCwd = String(input?.c ?? '');
@@ -59,8 +68,12 @@ function normalizeFunctionOutput(call, output) {
 }
 
 function parseShellFunctionInput(call) {
+  let raw = call?.input;
+  if (raw == null) raw = call?.arguments;
+  if (raw == null) return {};
+
   try {
-    return JSON.parse(String(call?.input ?? call?.arguments ?? '{}'));
+    return JSON.parse(String(raw));
   } catch (error) {
     return { __parseError: String(error?.message ?? error) };
   }

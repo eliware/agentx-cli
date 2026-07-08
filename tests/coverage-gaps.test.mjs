@@ -6,7 +6,7 @@ import { applyFirstUserMessage } from '../src/prompt-builder.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from '../src/shell.mjs';
 import { formatCommandMessage } from '../src/shell-display.mjs';
 import { buildDeveloperText } from '../src/prompt-text.mjs';
-import { runToolCall as runToolCallDirect, toolCallSummary as toolCallSummaryDirect } from '../src/tool-dispatch.mjs';
+import { runToolCall as runToolCallDirect, toolCallSummary as toolCallSummaryDirect, toolOutputForCall as toolOutputForCallDirect } from '../src/tool-dispatch.mjs';
 import { normalizeUsage, calculateUsageCost, formatUsageReport, formatTurnUsage, formatTurnUsageReport } from '../src/usage.mjs';
 import { extractTextFromResponse, extractUsage, handleToolCalls, responseItemToTranscript, sendMessage } from '../src/agent-session.mjs';
 import { clearSession, persistResponseState, readSessionState } from '../src/session-state.mjs';
@@ -166,6 +166,68 @@ describe('coverage gaps', () => {
       },
     };
     await expect(sendMessage(noOutputOpenai, { model: 'test-model', input: [] }, 'previous', 'hello', '', '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
+  });
+
+  test('tool dispatch covers shell-call parse errors, execution, and output normalization', async () => {
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: '{not valid json' })).toBe('{not valid json');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'search' })).toBe('search... OK!');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: '/opt/agentx-cli', p: [{ s: ['printf ok'] }, { c: '/tmp', s: [] }] }) })).toBe('cd /opt/agentx-cli: printf ok || cd /tmp:');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: '/tmp', p: [{ s: [null] }] }) })).toBe('cd /tmp:');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({}) })).toBe('');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ p: [{ s: ['echo hi'] }] }) })).toBe('echo hi');
+    expect(toolCallSummaryDirect({ type: 'shell_call' })).toBe('');
+    expect(toolCallSummaryDirect({ type: 'shell_call', action: { commands: null } })).toBe('');
+    expect(toolCallSummaryDirect({ type: 'shell_call', action: { commands: [null] } })).toBe('');
+    expect(toolCallSummaryDirect({ type: 'function_call' })).toBe('function_call... OK!');
+    expect(toolCallSummaryDirect({})).toBe('tool... OK!');
+
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call' })).toBe('');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ p: [{ s: ['echo arg'] }] }) })).toBe('echo arg');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ p: [{ c: '/tmp', s: 'nope' }] }) })).toBe('cd /tmp:');
+
+    const shellFunctionResult = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-0', input: JSON.stringify({ c: '/opt/agentx-cli', p: [{ s: ['printf ok'] }], t: 1000, l: 123 }) }, '/opt/agentx-cli'));
+    expect(shellFunctionResult).toMatchObject({ call_id: 'call-0', cwd: '/opt/agentx-cli', status: 'completed' });
+    expect(shellFunctionResult.groups[0].commands).toEqual(['printf ok']);
+
+    const shellFunctionResultNoCwd = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-00', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, '/opt/agentx-cli'));
+    expect(shellFunctionResultNoCwd.cwd).toBe('/opt/agentx-cli');
+    const shellFunctionResultEmpty = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-01', input: JSON.stringify({}) }, ''));
+    expect(shellFunctionResultEmpty.cwd).toBe('');
+
+    const shellFunctionResultId = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', id: 'call-id', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, '/opt/agentx-cli'));
+    expect(shellFunctionResultId.call_id).toBe('call-id');
+    const shellFunctionResultDefault = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, undefined));
+    expect(shellFunctionResultDefault.cwd).toBe('');
+    const shellFunctionResultEmptyInput = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call' }, '/opt/agentx-cli'));
+    expect(shellFunctionResultEmptyInput).toMatchObject({ call_id: '', cwd: '/opt/agentx-cli', status: 'completed' });
+
+    const originalJsonParse = JSON.parse;
+    try {
+      JSON.parse = () => { throw 'bad parse'; };
+      await expect(runToolCallDirect({ type: 'function_call', name: 'shell_call', input: '{not valid json' }, '/opt/agentx-cli')).resolves.toContain('invalid shell_call input');
+      await expect(runToolCallDirect({ type: 'function_call', name: 'shell_call', arguments: '{not valid json' }, '/opt/agentx-cli')).resolves.toContain('invalid shell_call input');
+    } finally {
+      JSON.parse = originalJsonParse;
+    }
+
+    const shellResult = await runToolCallDirect({ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }, '/opt/agentx-cli');
+    expect(shellResult).toMatchObject({ type: 'shell_call_output', call_id: 'call-1', status: 'completed' });
+    expect(shellResult.output[0].stdout).toContain('ok');
+    const shellResultId = await runToolCallDirect({ type: 'shell_call', id: 'call-2', action: { commands: ['printf ok'] } }, '/opt/agentx-cli');
+    expect(shellResultId.call_id).toBe('call-2');
+    const shellResultDefault = await runToolCallDirect({ type: 'shell_call', action: { commands: ['printf ok'] } }, '/opt/agentx-cli');
+    expect(shellResultDefault.call_id).toBe('');
+
+    expect(() => toolOutputForCallDirect({ type: 'shell_call', call_id: 'call-bad', action: { commands: ['true'] } }, { type: 'message' })).toThrow('shell_call must return shell_call_output');
+    expect(toolOutputForCallDirect({ type: 'shell_call', id: 'call-id-fallback', action: { commands: ['true'] } }, { type: 'shell_call_output', output: [], status: 'completed' })).toMatchObject({ type: 'shell_call_output', call_id: 'call-id-fallback', status: 'completed' });
+    expect(toolOutputForCallDirect({ type: 'shell_call', action: { commands: ['true'] } }, { type: 'shell_call_output', output: [], status: 'completed' })).toMatchObject({ type: 'shell_call_output', call_id: '', status: 'completed' });
+    expect(toolOutputForCallDirect({ type: 'function_call', id: 'call-3', name: 'search' }, { ok: true })).toEqual({ type: 'function_call_output', call_id: 'call-3', output: '{\"ok\":true}' });
+    expect(toolOutputForCallDirect({ type: 'function_call', call_id: 'call-4', name: 'search' }, 'done')).toEqual({ type: 'function_call_output', call_id: 'call-4', output: 'done' });
+    expect(toolOutputForCallDirect({ type: 'function_call', name: 'search' }, null)).toEqual({ type: 'function_call_output', call_id: '', output: '' });
+    expect(toolOutputForCallDirect({ type: 'other', call_id: 'call-5' }, 42)).toEqual({ type: 'function_call_output', call_id: 'call-5', output: '42' });
+    expect(toolOutputForCallDirect({ type: 'other' }, null)).toEqual({ type: 'function_call_output', call_id: '', output: '' });
+    expect(await runToolCallDirect({ type: 'unknown' }, '/opt/agentx-cli')).toBe('ERROR: unsupported tool unknown');
+    expect(await runToolCallDirect({}, '/opt/agentx-cli')).toBe('ERROR: unsupported tool undefined');
   });
 
   test('shell path helpers handle home, tilde and invalid targets', async () => {
