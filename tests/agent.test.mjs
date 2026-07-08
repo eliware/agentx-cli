@@ -94,6 +94,82 @@ describe('agent loop', () => {
     rmSync(cwd, { recursive: true, force: true });
   });
 
+  test('resumes interrupted tool execution when the user confirms', async () => {
+    const questionQueue = ['y', '/exit'];
+
+    await jest.unstable_mockModule('node:readline/promises', () => ({
+      createInterface: () => ({
+        question: async () => questionQueue.shift() ?? '/exit',
+        close: jest.fn(),
+      }),
+    }));
+
+    await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
+      shellExec: jest.fn(),
+    }));
+
+    const persistResponseState = jest.fn(async () => { });
+    const clearSession = jest.fn(async () => { });
+    const readSessionState = jest.fn(async () => ({
+      response_id: 'resp-pending',
+      usage: { inputTokens: 10, cachedTokens: 2, outputTokens: 5, turns: 3 },
+      last_user_message: 'please do something',
+      last_assistant_message: '',
+      pending_cli_transcript: '',
+      pending_tool_calls: [{ type: 'function_call', name: 'shell_call', call_id: 'call-1', input: '{"p":[{"s":["echo resume"]}]}' }],
+      pending_response_usage: { inputTokens: 4, cachedTokens: 1, outputTokens: 2 },
+    }));
+    const extractTextFromResponse = jest.fn(() => 'final assistant');
+    const handleToolCalls = jest.fn(async (_openai, response, _baseRequest, _cwd, _onResponseUsage, _runToolCallFn, streamOptions) => {
+      expect(response.id).toBe('resp-pending');
+      expect(response.output).toHaveLength(1);
+      expect(streamOptions.skipInitialUsageAccounting).toBe(true);
+      return {
+        id: 'resp-complete',
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'done' }] }],
+      };
+    });
+
+    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+      clearSession,
+      extractTextFromResponse,
+      handleToolCalls,
+      extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
+      persistResponseState,
+      readSessionState,
+      sendMessage: jest.fn(),
+    }));
+
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({
+      readJson: async () => ({
+        model: 'test-model',
+        input: [
+          { role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] },
+          { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] },
+        ],
+        tools: [],
+      }),
+    }));
+
+    await jest.unstable_mockModule('../src/text-wrap.mjs', () => ({
+      getTerminalWidth: () => 80,
+      wrapText: (text) => text,
+    }));
+
+    const { runAgent } = await import('../src/agent.mjs');
+    await runAgent({ promptPath, cwd });
+
+    expect(handleToolCalls).toHaveBeenCalledTimes(1);
+    expect(clearSession).not.toHaveBeenCalled();
+    expect(persistResponseState.mock.calls.at(-1)[1]).toMatchObject({
+      response_id: 'resp-complete',
+      pending_tool_calls: [],
+      last_assistant_message: 'final assistant',
+    });
+    expect(writes.join(' ')).toContain('Resuming pending tool execution');
+  });
+
   test('retries a turn without previous_response_id when the prior response is missing', async () => {
     const questionQueue = ['hello', '/exit'];
 
@@ -133,6 +209,7 @@ describe('agent loop', () => {
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
       persistResponseState,
       readSessionState,
+      handleToolCalls: jest.fn(),
       sendMessage,
     }));
 
@@ -208,6 +285,7 @@ describe('agent loop', () => {
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
       persistResponseState,
       readSessionState,
+      handleToolCalls: jest.fn(),
       sendMessage,
     }));
 
@@ -293,6 +371,7 @@ describe('agent loop', () => {
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
       persistResponseState,
       readSessionState,
+      handleToolCalls: jest.fn(),
       sendMessage,
     }));
 
@@ -315,7 +394,7 @@ describe('agent loop', () => {
     const { runAgent } = await import('../src/agent.mjs');
     await runAgent({ promptPath, cwd });
 
-    expect(persistResponseState).toHaveBeenCalledTimes(3);
+    expect(persistResponseState).toHaveBeenCalledTimes(4);
     expect(persistResponseState.mock.calls[0][1]).toMatchObject({
       response_id: '',
       pending_cli_transcript: '> ls\none.txt\ntwo.txt',
@@ -325,6 +404,11 @@ describe('agent loop', () => {
       pending_cli_transcript: '> ls\none.txt\ntwo.txt\n\n> pwd\n/tmp/work',
     });
     expect(persistResponseState.mock.calls[2][1]).toMatchObject({
+      response_id: '',
+      last_user_message: 'hello',
+      pending_cli_transcript: '> ls\none.txt\ntwo.txt\n\n> pwd\n/tmp/work',
+    });
+    expect(persistResponseState.mock.calls[3][1]).toMatchObject({
       response_id: 'resp-1',
       pending_cli_transcript: '',
     });
@@ -377,6 +461,7 @@ describe('agent loop', () => {
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
       persistResponseState,
       readSessionState,
+      handleToolCalls: jest.fn(),
       sendMessage,
     }));
 
@@ -433,6 +518,7 @@ describe('agent loop', () => {
       extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
       persistResponseState: noop,
       readSessionState: async () => null,
+      handleToolCalls: noop,
       sendMessage: noop,
     }));
 
@@ -479,6 +565,7 @@ describe('agent loop', () => {
       extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
       persistResponseState: noop,
       readSessionState: async () => null,
+      handleToolCalls: noop,
       sendMessage: noop,
     }));
 

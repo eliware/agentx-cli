@@ -257,11 +257,17 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
   const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt) : null);
+  const onResponseState = streamOptions?.onResponseState;
+  const skipInitialUsageAccounting = Boolean(streamOptions?.skipInitialUsageAccounting);
+  let isFirstResponse = true;
 
   for (; ;) {
     const usage = extractUsage(current);
-    const cumulativeUsage = onResponseUsage ? onResponseUsage(usage) : null;
     const calls = (current?.output ?? []).filter((item) => isShellToolCall(item));
+    const cumulativeUsage = onResponseUsage ? onResponseUsage(usage, { skipIncrement: skipInitialUsageAccounting && isFirstResponse }) : null;
+    if (onResponseState) {
+      await onResponseState({ response: current, usage, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
+    }
     process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
     if (cumulativeUsage) {
       process.stdout.write(`${formatSystemMessage(formatUsageReport(cumulativeUsage))}\n`);
@@ -272,6 +278,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       return current;
     }
 
+    isFirstResponse = false;
     statusController?.showExecuting(0, calls.length);
     let completed = 0;
     let results;

@@ -579,7 +579,7 @@ describe('agent session helpers', () => {
   test('readSessionState falls back to legacy response id text', async () => {
     const tmp = makeTempDir('agentx-state-');
     const file = makeFile(tmp, '.agentx_responseid', 'resp-legacy\n');
-    await expect(readSessionState(file)).resolves.toEqual({ response_id: 'resp-legacy', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '' });
+    await expect(readSessionState(file)).resolves.toEqual({ response_id: 'resp-legacy', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '', pending_tool_calls: [], pending_response_usage: null });
     cleanupTempDir(tmp);
   });
 

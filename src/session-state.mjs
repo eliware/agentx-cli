@@ -9,6 +9,26 @@ function normalizeUsage(usage = {}) {
   };
 }
 
+function normalizePendingToolCall(call) {
+  if (!call || typeof call !== 'object') return null;
+  try {
+    return JSON.parse(JSON.stringify(call));
+  } catch {
+    return {
+      type: String(call.type ?? 'function_call'),
+      name: call.name == null ? undefined : String(call.name),
+      call_id: String(call.call_id ?? call.id ?? ''),
+      input: call.input == null ? undefined : String(call.input),
+      arguments: call.arguments == null ? undefined : String(call.arguments),
+    };
+  }
+}
+
+function normalizePendingToolCalls(calls) {
+  if (!Array.isArray(calls)) return [];
+  return calls.map(normalizePendingToolCall).filter(Boolean);
+}
+
 function normalizeSessionState(state) {
   return {
     response_id: String(state?.response_id ?? ''),
@@ -16,6 +36,8 @@ function normalizeSessionState(state) {
     last_user_message: String(state?.last_user_message ?? ''),
     last_assistant_message: String(state?.last_assistant_message ?? ''),
     pending_cli_transcript: String(state?.pending_cli_transcript ?? ''),
+    pending_tool_calls: normalizePendingToolCalls(state?.pending_tool_calls),
+    pending_response_usage: state?.pending_response_usage ? normalizeUsage(state.pending_response_usage) : null,
   };
 }
 
