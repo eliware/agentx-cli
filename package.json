@@ -6,7 +6,7 @@
     "main": "agentx.mjs",
     "scripts": {
         "start": "node agentx.mjs",
-        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --coverage --detectOpenHandles --silent"
+        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --coverage --detectOpenHandles --silent --runInBand"
     },
     "repository": {
         "type": "git",
