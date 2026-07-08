@@ -20,6 +20,11 @@ If the prompt template is missing or invalid, AgentX prints the file path and th
 
 That means there is no `AGENTS.md` in the current directory or any parent directory. AgentX will continue with a fallback instruction.
 
+## Web GUI looks broken
+
+That is expected for now. The browser UI is still a proof of concept and many flows are incomplete or fail.
+Use the CLI if you want the more reliable path.
+
 ## Shell command output looks missing
 
 Remember that lines starting with `>` run locally and are buffered for the next AI request. If you want the output included in the next reply, send a normal message after the command.

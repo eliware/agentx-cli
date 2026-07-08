@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.2.0 - Web GUI proof of concept
+
+- Added a browser-based web GUI and local Express/WebSocket server mode for AgentX.
+- The GUI is only a proof of concept right now: lots of things are broken, some flows are incomplete, and it is not ready to rely on yet.
+- Added browser-session, auth-token, and Linux auth plumbing to support the new web path.
+- Added frontend build tooling, static assets, and a bundled `public/dist/` output.
+- Expanded tests and docs around the web GUI and session plumbing.
+
 ## 1.1.15 - Windows-aware platform support and CLI packaging
 
 - Added cross-platform platform helpers for home-directory lookup, prompt identity, shell launcher selection, and display-path normalization.

@@ -8,7 +8,8 @@
 - Prefer small, focused changes.
 - Keep the codebase ESM-only.
 - Preserve the interactive CLI behavior unless the user asks otherwise.
-- Do not add dotenv or `.env` support for `agentx_api_key`; the agent should use the environment directly.
+- The launchers load `.env` when present, but the app still reads `agentx_api_key` / `AGENTX_API_KEY` from the environment.
+- The web GUI is a proof-of-concept only; expect broken and incomplete flows, and keep CLI behavior as the source of truth.
 - When editing files, keep the behavior aligned with the current tests and update tests when behavior changes.
 
 ## Tooling

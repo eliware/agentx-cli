@@ -3,6 +3,7 @@
 ## @eliware/agentx [![npm version](https://img.shields.io/npm/v/@eliware/agentx.svg)](https://www.npmjs.com/package/@eliware/agentx)[![license](https://img.shields.io/github/license/eliware/agentx.svg)](LICENSE)[![build status](https://github.com/eliware/agentx/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx/actions)
 
 `agentx` is a lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.
+A browser-based web GUI is also included, but it is only a proof of concept and still rough.
 
 It is designed to feel shell-like:
 - waits for your first message before calling OpenAI
@@ -12,6 +13,7 @@ It is designed to feel shell-like:
 - remembers the last response id, usage counters, last user/assistant messages, pending shell transcript, and pending tool calls in `.agentx_responseid`
 - can prompt to resume interrupted tool execution on startup
 - can be launched directly from `agentx.mjs`, through a symlink like `/usr/bin/agentx`, or from an installed `agentx` bin on your PATH
+- includes an experimental browser GUI, but it is still a proof of concept and many flows are broken or incomplete
 - includes quick CLI flags for help, version, and debug logging
 - prints friendly startup errors for missing config or API keys
 
@@ -39,6 +41,7 @@ It is designed to feel shell-like:
 - Server-side Responses API compaction for long-running sessions
 - Concise terminal output for tool calls
 - Sorted path completion, with quoted suggestions for paths containing spaces
+- Experimental browser GUI served by the local AgentX backend
 
 ## Usage
 
@@ -53,6 +56,15 @@ If you have a symlink installed, you can also run:
 ```bash
 agentx
 ```
+
+To try the experimental web GUI:
+
+```bash
+npm run start:gui
+```
+
+Then open the local port it prints, usually `http://localhost:3100`.
+The GUI is a proof of concept and a lot of things are still broken or incomplete.
 
 Quick flags:
 
@@ -101,11 +113,13 @@ User-facing docs live in [`docs/`](./docs):
 - [Command reference](./docs/commands.md)
 - [Session state](./docs/session-state.md)
 - [Examples](./docs/examples.md)
+- [Web GUI](./docs/web-gui.md)
 - [Troubleshooting](./docs/troubleshooting.md)
 
 ## Development
 
 - Main entrypoint: [`agentx.mjs`](./agentx.mjs)
+- Web GUI entrypoint: [`agentx-gui.mjs`](./agentx-gui.mjs)
 - Implementation modules: [`src/`](./src)
 - Package installs expose the `agentx` CLI via `bin`
 - Launch the app locally:
@@ -133,14 +147,15 @@ The tests cover:
 
 ## Environment
 
-Set your OpenAI key in the shell environment:
+Set your OpenAI key in the shell environment, or in a local `.env` file if you prefer:
 
 ```bash
 export agentx_api_key="your-key-here"
 # or: export AGENTX_API_KEY="your-key-here"
 ```
 
-AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`. It does not require dotenv or a `.env` file.
+AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
+The launchers also load `.env` when present.
 
 ## License
 

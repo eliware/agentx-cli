@@ -1,8 +1,8 @@
 {
     "name": "@eliware/agentx",
     "type": "module",
-    "version": "1.1.15",
-    "description": "A lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.",
+    "version": "1.1.16",
+    "description": "A lightweight terminal chat agent with an experimental web GUI.",
     "main": "agentx.mjs",
     "scripts": {
         "start": "node agentx.mjs",
@@ -20,7 +20,10 @@
         "openai",
         "responses-api",
         "cli",
-        "terminal"
+        "terminal",
+        "web-gui",
+        "express",
+        "websocket"
     ],
     "author": "Eli Sterling, eliware.org <eli@eliware.org>",
     "license": "MIT",

@@ -1,8 +1,9 @@
 # Quickstart
 
 AgentX is a terminal chat agent built on the OpenAI Responses API over WebSocket transport.
+It also includes an experimental web GUI, but that is still a proof of concept and a lot of things are broken or incomplete.
 
-## Start it
+## Start the CLI
 
 From the repo root:
 
@@ -16,6 +17,15 @@ Or, if you have a symlink installed:
 agentx
 ```
 
+## Optional: start the web GUI
+
+```bash
+npm run start:gui
+```
+
+Then open the local port it prints, usually `http://localhost:3100`.
+Use the CLI if you want the more reliable path; the GUI is still rough.
+
 ## Quick flags
 
 - `agentx --help` or `agentx -h` shows quick help
@@ -24,7 +34,7 @@ agentx
 
 ## Before you begin
 
-Set your API key in the shell environment:
+Set your API key in the shell environment, or in a local `.env` file if you prefer:
 
 ```bash
 export agentx_api_key="your-key-here"
@@ -32,6 +42,7 @@ export agentx_api_key="your-key-here"
 ```
 
 AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
+The launchers also load `.env` when present.
 
 ## First run
 
