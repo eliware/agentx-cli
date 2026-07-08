@@ -1,4 +1,5 @@
-import { describe, expect, test } from '@jest/globals';
+﻿import { describe, expect, test } from '@jest/globals';
+import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
 
@@ -10,7 +11,7 @@ describe('test helpers', () => {
       makeDirectory(tmp, 'nested/dir');
 
       expect(tmp).toMatch(/agentx-/);
-      expect(filePath).toBe(`${tmp}/nested/file.txt`);
+      expect(filePath).toBe(path.join(tmp, 'nested', 'file.txt'));
       expect(readFileSync(filePath, 'utf8')).toBe('x');
     } finally {
       cleanupTempDir(tmp);

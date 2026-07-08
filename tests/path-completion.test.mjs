@@ -1,4 +1,4 @@
-import { describe, expect, test } from '@jest/globals';
+﻿import { describe, expect, test } from '@jest/globals';
 import path from 'node:path';
 import { completePath, tokenPrefix } from '../src/path-completion.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
@@ -18,7 +18,6 @@ describe('path completion', () => {
       cleanupTempDir(tmp);
     }
   });
-
 
   test('parses Windows-style prefixes without listing the filesystem', () => {
     const win = tokenPrefix('C:\\Users\\alice\\Doc', 'win32');
@@ -56,8 +55,6 @@ describe('path completion', () => {
     }
   });
 
-
-
   test('handles plain tokens, nested directories and missing directories', async () => {
     const tmp = makeTempDir('agentx-complete-');
     try {
@@ -82,8 +79,6 @@ describe('path completion', () => {
     expect(token).toBe('missing');
     expect(matches).toEqual([]);
   });
-
-
 
   test('preserves non-root absolute prefixes', async () => {
     if (process.platform === 'win32') return;
@@ -127,9 +122,9 @@ describe('path completion', () => {
       makeDirectory(tmp, 'src/nested');
       makeFile(tmp, '.env.local');
       const [nested] = await completePath('cd src/n', tmp);
-      expect(nested).toContain('src/nested/');
+      expect(nested).toContain(`src${sep}nested${sep}`);
       const [trailingSlash] = await completePath('foo/', tmp);
-      expect(trailingSlash).toContain('foo/');
+      expect(trailingSlash).toContain(`foo${sep}`);
       const [hidden] = await completePath('.', tmp);
       expect(hidden).toContain('.env.local');
     } finally {

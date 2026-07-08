@@ -1,9 +1,9 @@
-import { describe, expect, test } from '@jest/globals';
+﻿import { describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -61,7 +61,7 @@ describe('CLI smoke test', () => {
       const result = spawnSync(process.execPath, [
         '--no-warnings',
         '--experimental-loader',
-        makeLoader(tmp, transportStub, readlineStub),
+        pathToFileURL(makeLoader(tmp, transportStub, readlineStub)).href,
         path.join(repoRoot, 'agentx.mjs'),
       ], {
         cwd: tmp,

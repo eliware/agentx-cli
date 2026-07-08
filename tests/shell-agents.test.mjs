@@ -1,10 +1,9 @@
-import { describe, expect, test, jest } from '@jest/globals';
+﻿import { describe, expect, test, jest } from '@jest/globals';
 import { fs as commonFs } from '@eliware/common';
 import { readAgentsFromCwdAndParents } from '../src/shell-agents.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('shell agents', () => {
-
   test('readAgentsFromCwdAndParents hits the ENOENT branch via a mocked module', async () => {
     await jest.isolateModulesAsync(async () => {
       await jest.unstable_mockModule('@eliware/common', () => ({
@@ -40,7 +39,6 @@ describe('shell agents', () => {
     }
   });
 
-
   test('propagates non-ENOENT read errors', async () => {
     const originalReadFile = commonFs.promises.readFile;
     const originalLstat = commonFs.promises.lstat;
@@ -72,6 +70,7 @@ describe('shell agents', () => {
   });
 
   test('deduplicates symlinked AGENTS files by real path', async () => {
+    if (process.platform === 'win32') return;
     const tmp = makeTempDir('agentx-');
     try {
       makeDirectory(tmp, 'docs');
