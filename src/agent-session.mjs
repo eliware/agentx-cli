@@ -1,5 +1,5 @@
 import { extractTextFromResponse, extractUsage } from './response.mjs';
-import { runToolCall, toolCallSummary, toolOutputForCall } from './tool-dispatch.mjs';
+import { runToolCall, toolOutputForCall } from './tool-dispatch.mjs';
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport } from './usage.mjs';
@@ -111,12 +111,13 @@ export function responseItemToTranscript(item) {
   return `${item.role || item.type || 'item'}: ${compactJson(item)}`;
 }
 
-function isShellCallEvent(event, raw) {
-  if (event?.type === 'shell_call') return true;
-  if (event?.type === 'function_call' && event?.name === 'shell_call') return true;
-  if (event?.item?.type === 'shell_call') return true;
-  if (event?.item?.type === 'function_call' && event?.item?.name === 'shell_call') return true;
-  return typeof raw === 'string' && ((raw.includes('"type":"shell_call"')) || (raw.includes('"type":"function_call"') && raw.includes('"name":"shell_call"'))) && !raw.includes('"type":"shell_call_output"');
+function isResponseCompletedEvent(event, raw) {
+  if (event?.type === 'response.completed') return true;
+  return typeof raw === 'string' && raw.includes('"type":"response.completed"');
+}
+
+function isFunctionCallArgumentsDeltaEvent(event) {
+  return event?.type === 'response.function_call_arguments.delta';
 }
 
 function createLiveResponseHandlers({ liveStreaming }) {
@@ -133,10 +134,14 @@ function createLiveResponseHandlers({ liveStreaming }) {
     streamedText: () => streamedText,
     handlers: liveStreaming ? {
       onEvent(event, message) {
-        if (!isShellCallEvent(event, message?.raw)) return;
+        if (isResponseCompletedEvent(event, message?.raw)) return;
+        if (!isFunctionCallArgumentsDeltaEvent(event)) return;
         markOutput();
-        const raw = String(message?.raw ?? '');
-        if (raw) process.stdout.write(`${formatCommandMessage(raw)}\n`);
+        const delta = String(event?.delta ?? '');
+        if (delta) {
+          streamedText += delta;
+          process.stdout.write(formatCommandMessage(delta));
+        }
       },
       onTextDelta(delta) {
         markOutput();
@@ -144,11 +149,12 @@ function createLiveResponseHandlers({ liveStreaming }) {
         streamedText += text;
         process.stdout.write(text);
       },
-      onItemAdded(item) {
-        if (item?.type) markOutput();
-      },
       onItemDone(item) {
-        if (item?.type) markOutput();
+        if (isShellToolCall(item)) {
+          markOutput();
+          streamedText += '\n';
+          process.stdout.write('\n');
+        }
         if (item?.type === 'reasoning') {
           const transcript = responseItemToTranscript(item);
           if (transcript) process.stdout.write(`${formatSystemMessage(transcript)}\n`);
@@ -179,13 +185,6 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     if (calls.length === 0) return current;
 
     process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
-
-    for (const call of calls) {
-      const summary = toolCallSummary(call);
-      if (summary) {
-        process.stdout.write(`${formatCommandMessage(summary)}\n`);
-      }
-    }
 
     const results = await Promise.all(calls.map(async (call) => ({
       call,

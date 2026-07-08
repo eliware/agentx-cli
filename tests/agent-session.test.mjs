@@ -176,7 +176,6 @@ describe('agent session helpers', () => {
 
       await sendMessage(openai, template, 'prev-1', 'next', '', '/tmp/work', null, null, { liveStreaming: true });
 
-      expect(stdoutWrites.join('')).toContain('printf "tool output"');
       expect(calls[1]).toMatchObject({
         model: 'test-model',
         text: { format: { type: 'text' }, verbosity: 'low' },
@@ -223,7 +222,7 @@ describe('agent session helpers', () => {
     }
   });
 
-  test('sendMessage streams live output, tool summaries, and reasoning transcripts', async () => {
+  test('sendMessage streams live output, streamed arguments, and reasoning transcripts', async () => {
     const template = { model: 'test-model', input: [], tools: [] };
     const calls = [];
     const openai = {
@@ -234,17 +233,20 @@ describe('agent session helpers', () => {
           handlers?.onTextDelta('Hi');
           handlers?.onTextDelta(' there');
           handlers?.onEvent?.(
-            { type: 'response.output_item.added', item: { type: 'shell_call', call_id: 'call-1', action: { commands: ['echo live'] } } },
-            { raw: '{"type":"response.output_item.added","item":{"type":"shell_call","call_id":"call-1","action":{"commands":["echo live"]}}}', json: { type: 'response.output_item.added', item: { type: 'shell_call', call_id: 'call-1', action: { commands: ['echo live'] } } } },
+            { type: 'response.function_call_arguments.delta', delta: '{"p":[{"s":["echo ' },
+            { raw: '{"type":"response.function_call_arguments.delta","delta":"{\\"p\\":[{\\"s\\":[\\"echo "}', json: { type: 'response.function_call_arguments.delta', delta: '{"p":[{"s":["echo ' } },
           );
-          handlers?.onItemAdded({});
-          handlers?.onItemAdded({ type: 'message' });
-          handlers?.onItemAdded({ type: 'shell_call', call_id: 'call-empty', action: { commands: [] } });
-          handlers?.onItemAdded({ type: 'shell_call', call_id: 'call-1', action: { commands: ['echo live'] } });
-          handlers?.onItemDone({});
-          handlers?.onItemDone({ type: 'message' });
+          handlers?.onEvent?.(
+            { type: 'response.function_call_arguments.delta', delta: 'live"]}]}'},
+            { raw: '{"type":"response.function_call_arguments.delta","delta":"live\\"]}]}"}', json: { type: 'response.function_call_arguments.delta', delta: 'live"]}]}' } },
+          );
+          handlers?.onItemDone({ type: 'function_call', name: 'shell_call', call_id: 'call-1', arguments: '{"p":[{"s":["echo live"]}]}' });
           handlers?.onItemDone({ type: 'reasoning', summary: [] });
           handlers?.onItemDone({ type: 'reasoning', summary: [{ type: 'input_text', text: 'thinking' }] });
+          handlers?.onEvent?.(
+            { type: 'response.completed', response: { id: 'resp-live', output: [] } },
+            { raw: '{"type":"response.completed","response":{"id":"resp-live","output":[]}}', json: { type: 'response.completed', response: { id: 'resp-live', output: [] } } },
+          );
           return { id: 'resp-live', output: [] };
         },
       },
@@ -255,9 +257,12 @@ describe('agent session helpers', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].handlers).toBe(true);
     expect(stdoutWrites.join('')).toContain('Hi there');
-    expect(stdoutWrites.join('')).toContain('"type":"response.output_item.added"');
-    expect(stdoutWrites.join('')).toContain('"type":"shell_call"');
-    expect(stdoutWrites.join('')).toContain('echo live');
+    expect(stdoutWrites.join('')).toContain('\u001b[32m{"p":[{"s":["echo ');
+    expect(stdoutWrites.join('')).toContain('\u001b[32mlive"]}]}');
+    expect(stdoutWrites.join('')).toContain('\n');
+    expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
+    expect(stdoutWrites.join('')).not.toContain('response.output_item.done');
+    expect(stdoutWrites.join('')).not.toContain('response.completed');
     expect(stdoutWrites.join('')).toContain('assistant reasoning summary: thinking');
   });
 
@@ -317,7 +322,6 @@ describe('agent session helpers', () => {
 
     await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
 
-    expect(stdoutWrites.join('')).toContain('printf hi');
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0].input).toHaveLength(1);
     expect(createCalls[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'call-1' });
@@ -355,8 +359,8 @@ describe('agent session helpers', () => {
     await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
 
     expect(maxActive).toBe(2);
-    expect(stdoutWrites.join('')).toContain('\u001b[32mone\u001b[0m\n');
-    expect(stdoutWrites.join('')).toContain('\u001b[32mtwo\u001b[0m\n');
+    expect(stdoutWrites.join('')).not.toContain('\u001b[32mone\u001b[0m\n');
+    expect(stdoutWrites.join('')).not.toContain('\u001b[32mtwo\u001b[0m\n');
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0].input.map((item) => item.call_id)).toEqual(['call-1', 'call-2']);
   });

@@ -6,7 +6,6 @@ import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
 import { clearSession, extractTextFromResponse, persistResponseState, readSessionState, sendMessage } from './agent-session.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
-import { formatCommandMessage } from './shell-display.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport, formatTurnUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
@@ -113,7 +112,6 @@ export async function runAgent({ promptPath, cwd }) {
       if (message.startsWith('>')) {
         const command = message.slice(1).trim();
         if (!command) continue;
-        process.stdout.write(`${formatCommandMessage(`Running shell command: ${command}`)}\n`);
         const result = await shellExec(command, cwd);
         if (result) process.stdout.write(result.endsWith('\n') ? result : `${result}\n`);
         pendingCliTranscript = appendCliTranscript(pendingCliTranscript, command, result);

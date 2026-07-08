@@ -325,8 +325,8 @@ describe('agent loop', () => {
       pending_cli_transcript: '',
     });
     expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(writes.join(' ')).toContain('Running shell command: ls');
-    expect(writes.join(' ')).toContain('Running shell command: pwd');
+    expect(writes.join(' ')).not.toContain('Running shell command: ls');
+    expect(writes.join(' ')).not.toContain('Running shell command: pwd');
     expect(writes.join(' ')).toContain('one.txt');
     expect(writes.join(' ')).toContain('/tmp/work');
   });
