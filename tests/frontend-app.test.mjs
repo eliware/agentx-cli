@@ -11,6 +11,7 @@ class FakeElement {
     this.value = '';
     this.checked = false;
     this.disabled = false;
+    this.hidden = false;
   }
 
   addEventListener(event, handler) {
@@ -72,6 +73,7 @@ class FakeWebSocket {
     this.listeners = new Map();
     this.readyState = 0;
     this.closeCalls = [];
+    this.sendCalls = [];
     const ctor = this.constructor;
     if (!Array.isArray(ctor.instances)) {
       ctor.instances = [];
@@ -89,6 +91,10 @@ class FakeWebSocket {
     this.listeners.get('close')?.({ code, reason });
   }
 
+  send(data) {
+    this.sendCalls.push(data);
+  }
+
   emit(event, payload) {
     if (event === 'open') this.readyState = 1;
     this.listeners.get(event)?.(payload);
@@ -104,6 +110,7 @@ class FakeWebSocketOnOnly {
     this.listeners = new Map();
     this.readyState = 0;
     this.closeCalls = [];
+    this.sendCalls = [];
     FakeWebSocketOnOnly.instances.push(this);
   }
 
@@ -115,6 +122,10 @@ class FakeWebSocketOnOnly {
     this.closeCalls.push({ code, reason });
     this.readyState = 3;
     this.listeners.get('close')?.({ code, reason });
+  }
+
+  send(data) {
+    this.sendCalls.push(data);
   }
 
   emit(event, payload) {
@@ -130,31 +141,32 @@ class FakeWebSocketNoListeners {
 }
 
 function buildEnvironment() {
+  const loginScreen = new FakeElement('section');
+  const sessionScreen = new FakeElement('section');
   const form = new FakeElement('form');
   const username = new FakeElement('input');
   const password = new FakeElement('input');
   const remember = new FakeElement('input');
+  const autologin = new FakeElement('input');
   const loginButton = new FakeElement('button');
   const logoutButton = new FakeElement('button');
   const status = new FakeElement('span');
-  const detail = new FakeElement('span');
-  const wsState = new FakeElement('span');
-  const messages = new FakeElement('ul');
+  const wsStatus = new FakeElement('span');
   const elements = new Map([
+    ['[data-login-screen]', loginScreen],
+    ['[data-session-screen]', sessionScreen],
     ['[data-login-form]', form],
     ['[data-login-username]', username],
     ['[data-login-password]', password],
     ['[data-login-remember]', remember],
+    ['[data-login-autologin]', autologin],
     ['[data-login-button]', loginButton],
-    ['[data-logout-button]', logoutButton],
+    ['[data-session-logout-button]', logoutButton],
     ['[data-status]', status],
-    ['[data-detail]', detail],
-    ['[data-ws-state]', wsState],
-    ['[data-messages]', messages],
+    ['[data-ws-status]', wsStatus],
   ]);
   const document = new FakeDocument(elements);
-  messages.ownerDocument = document;
-  return { form, username, password, remember, loginButton, logoutButton, status, detail, wsState, messages, document };
+  return { loginScreen, sessionScreen, form, username, password, remember, autologin, loginButton, logoutButton, status, wsStatus, document };
 }
 
 function flush() {
@@ -179,61 +191,76 @@ describe('frontend gui app', () => {
     clearCredentials(null);
   });
 
-  test('auto-logs in from local storage and opens a websocket with the issued token', async () => {
-    FakeWebSocket.instances = [];
-    const storage = new FakeStorage();
-    const creds = { username: 'root', password: 'secret', remember: true };
-    saveCredentials(storage, creds);
-    expect(loadStoredCredentials(storage)).toEqual(creds);
+  test('auto-logs in from local storage, switches screens, and sends keepalive pings', async () => {
+    jest.useFakeTimers();
+    try {
+      FakeWebSocket.instances = [];
+      const storage = new FakeStorage();
+      const creds = { username: 'root', password: 'secret', remember: true, autologin: true };
+      saveCredentials(storage, creds);
+      expect(loadStoredCredentials(storage)).toEqual(creds);
 
-    const env = buildEnvironment();
-    const fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ ok: true, username: 'root', token: 'token-123', expiresAt: 1, ttlMs: 30000 }),
-    });
+      const env = buildEnvironment();
+      const fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ ok: true, username: 'root', token: 'token-123', expiresAt: 1, ttlMs: 30000 }),
+      });
 
-    const app = createFrontendApp({
-      document: env.document,
-      window: {
-        location: { protocol: 'http:', host: 'example.test' },
-        setTimeout,
-        clearTimeout,
-      },
-      fetch,
-      storage,
-      WebSocketImpl: FakeWebSocket,
-    });
+      const app = createFrontendApp({
+        document: env.document,
+        window: {
+          location: { protocol: 'http:', host: 'example.test' },
+          setTimeout,
+          clearTimeout,
+          setInterval,
+          clearInterval,
+        },
+        fetch,
+        storage,
+        WebSocketImpl: FakeWebSocket,
+      });
 
-    await flush();
-    expect(fetch).toHaveBeenCalledWith('/api/login', expect.objectContaining({ method: 'POST' }));
-    expect(FakeWebSocket.instances).toHaveLength(1);
-    expect(FakeWebSocket.instances[0].url).toContain('/ws?token=token-123');
-    expect(env.username.value).toBe('root');
-    expect(env.password.value).toBe('secret');
-    expect(env.remember.checked).toBe(true);
-    expect(env.status.textContent).toBe('connecting websocket');
+      for (let i = 0; i < 6; i += 1) {
+        await Promise.resolve();
+      }
+      expect(fetch).toHaveBeenCalledWith('/api/login', expect.objectContaining({ method: 'POST' }));
+      expect(FakeWebSocket.instances).toHaveLength(1);
+      expect(FakeWebSocket.instances[0].url).toContain('/ws?token=token-123');
+      expect(env.loginScreen.hidden).toBe(true);
+      expect(env.sessionScreen.hidden).toBe(false);
+      expect(env.username.value).toBe('root');
+      expect(env.password.value).toBe('secret');
+      expect(env.remember.checked).toBe(true);
+      expect(env.autologin.checked).toBe(true);
+      expect(env.wsStatus.textContent).toBe('connecting websocket');
 
-    FakeWebSocket.instances[0].emit('open');
-    expect(env.status.textContent).toBe('connected as root');
+      FakeWebSocket.instances[0].emit('open');
+      expect(env.wsStatus.textContent).toBe('connected');
 
-    FakeWebSocket.instances[0].emit('message', { data: '{"type":"connected","username":"root"}' });
-    expect(env.messages.children).toHaveLength(1);
-    expect(env.detail.textContent).toContain('connected');
+      await jest.advanceTimersByTimeAsync(45_000);
+      expect(FakeWebSocket.instances[0].sendCalls[0]).toBe(JSON.stringify({ type: 'ping' }));
 
-    env.logoutButton.dispatch('click');
-    expect(app.state.auth).toBeNull();
-    expect(storage.getItem('agentx.gui.credentials')).toBeNull();
-    expect(FakeWebSocket.instances[0].closeCalls[0]).toMatchObject({ code: 1000 });
-    expect(env.status.textContent).toBe('logged out');
+      env.logoutButton.dispatch('click');
+      expect(app.state.auth).toBeNull();
+      expect(storage.getItem('agentx.gui.credentials')).toContain('root');
+      expect(FakeWebSocket.instances[0].closeCalls[0]).toMatchObject({ code: 1000 });
+      expect(env.loginScreen.hidden).toBe(false);
+      expect(env.sessionScreen.hidden).toBe(true);
+      expect(env.username.value).toBe('root');
+      expect(env.password.value).toBe('secret');
+      expect(env.remember.checked).toBe(true);
+      expect(env.autologin.checked).toBe(true);
+      expect(env.status.textContent).toBe('signed out');
+      expect(env.wsStatus.textContent).toBe('signed out');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('submits manual login requests and stores credentials when requested', async () => {
     FakeWebSocket.instances = [];
     const storage = new FakeStorage();
     const env = buildEnvironment();
-    env.username.value = 'alice';
-    env.password.value = 'hunter2';
-    env.remember.checked = true;
 
     const fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -246,11 +273,18 @@ describe('frontend gui app', () => {
         location: { protocol: 'http:', host: 'example.test' },
         setTimeout,
         clearTimeout,
+        setInterval,
+        clearInterval,
       },
       fetch,
       storage,
       WebSocketImpl: FakeWebSocket,
     });
+
+    env.username.value = 'alice';
+    env.password.value = 'hunter2';
+    env.remember.checked = true;
+    env.autologin.checked = false;
 
     env.form.dispatch('submit', { preventDefault() {} });
     await Promise.resolve();
@@ -259,6 +293,36 @@ describe('frontend gui app', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(storage.getItem('agentx.gui.credentials')).toContain('alice');
     expect(FakeWebSocket.instances[0].url).toContain('token-456');
+    expect(env.loginScreen.hidden).toBe(true);
+    expect(env.sessionScreen.hidden).toBe(false);
+  });
+
+  test('clearing remember me wipes stored credentials and form fields', async () => {
+    const storage = new FakeStorage();
+    const env = buildEnvironment();
+
+    saveCredentials(storage, { username: 'alice', password: 'hunter2', remember: true, autologin: false });
+
+    createFrontendApp({
+      document: env.document,
+      window: {
+        location: { protocol: 'http:', host: 'example.test' },
+        setTimeout,
+        clearTimeout,
+        setInterval,
+        clearInterval,
+      },
+      fetch: jest.fn(),
+      storage,
+      WebSocketImpl: FakeWebSocket,
+    });
+
+    env.remember.checked = false;
+    env.remember.dispatch('change');
+    expect(storage.getItem('agentx.gui.credentials')).toBeNull();
+    expect(env.username.value).toBe('');
+    expect(env.password.value).toBe('');
+    expect(env.autologin.checked).toBe(false);
   });
 
   test('reports login failures and auto-login failures', async () => {
@@ -271,6 +335,8 @@ describe('frontend gui app', () => {
         location: { protocol: 'http:', host: 'example.test' },
         setTimeout,
         clearTimeout,
+        setInterval,
+        clearInterval,
       },
       fetch: loginFetch,
       storage: new FakeStorage(),
@@ -280,11 +346,13 @@ describe('frontend gui app', () => {
     env.form.dispatch('submit', { preventDefault() {} });
     await Promise.resolve();
     await flush();
-    expect(env.status.textContent).toBe('signed out');
-    expect(env.detail.textContent).toBe('network down');
+    expect(env.loginScreen.hidden).toBe(false);
+    expect(env.sessionScreen.hidden).toBe(true);
+    expect(env.status.textContent).toBe('login failed');
+    expect(env.wsStatus.textContent).toBe('network down');
 
     const autologinStorage = new FakeStorage();
-    autologinStorage.setItem('agentx.gui.credentials', JSON.stringify({ username: 'root', password: 'secret', remember: true }));
+    autologinStorage.setItem('agentx.gui.credentials', JSON.stringify({ username: 'root', password: 'secret', remember: true, autologin: true }));
     const failingFetch = jest.fn().mockResolvedValue({
       ok: false,
       json: async () => ({ ok: false, error: 'denied' }),
@@ -296,14 +364,22 @@ describe('frontend gui app', () => {
         location: { protocol: 'http:', host: 'example.test' },
         setTimeout,
         clearTimeout,
+        setInterval,
+        clearInterval,
       },
       fetch: failingFetch,
       storage: autologinStorage,
       WebSocketImpl: FakeWebSocket,
     });
     await flush();
-    expect(env2.status.textContent).toBe('signed out');
-    expect(env2.detail.textContent).toBe('denied');
+    expect(env2.loginScreen.hidden).toBe(false);
+    expect(env2.sessionScreen.hidden).toBe(true);
+    expect(env2.username.value).toBe('root');
+    expect(env2.password.value).toBe('secret');
+    expect(env2.remember.checked).toBe(true);
+    expect(env2.autologin.checked).toBe(true);
+    expect(env2.status.textContent).toBe('auto-login failed');
+    expect(env2.wsStatus.textContent).toBe('denied');
   });
 
   test('reconnects on unexpected websocket close and uses the on() fallback', async () => {
@@ -328,17 +404,21 @@ describe('frontend gui app', () => {
           location: { protocol: 'https:', host: 'example.test' },
           setTimeout,
           clearTimeout,
+          setInterval,
+          clearInterval,
         },
         fetch,
         storage,
         WebSocketImpl: FakeWebSocketOnOnly,
       });
 
-      await app.login({ username: 'root', password: 'secret', remember: false });
+      await app.login({ username: 'root', password: 'secret', remember: false, autologin: false });
       expect(FakeWebSocketOnOnly.instances[0].url).toContain('wss://example.test/ws?token=token-a');
+      expect(env.loginScreen.hidden).toBe(true);
+      expect(env.sessionScreen.hidden).toBe(false);
 
       FakeWebSocketOnOnly.instances[0].listeners.get('close')?.({ code: 1006 });
-      expect(env.wsState.textContent).toBe('closed');
+      expect(env.wsStatus.textContent).toBe('reconnecting');
 
       await jest.advanceTimersByTimeAsync(1000);
       await Promise.resolve();
@@ -371,12 +451,14 @@ describe('frontend gui app', () => {
         location: { protocol: 'http:', host: 'example.test' },
         setTimeout,
         clearTimeout,
+        setInterval,
+        clearInterval,
       },
       fetch,
       storage: new FakeStorage(),
       WebSocketImpl: FakeWebSocketNoListeners,
     });
 
-    await expect(app.login({ username: 'root', password: 'secret', remember: false })).rejects.toThrow('WebSocket implementation does not support event listeners');
+    await expect(app.login({ username: 'root', password: 'secret', remember: false, autologin: false })).rejects.toThrow('WebSocket implementation does not support event listeners');
   });
 });

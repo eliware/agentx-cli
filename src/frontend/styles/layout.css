@@ -17,21 +17,7 @@
   gap: 1rem;
 }
 
-.meta {
-  display: grid;
-  gap: 0.75rem;
+.session-actions {
   margin-top: 1.5rem;
-}
-
-.meta > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
-  border-radius: 0.75rem;
-  background: rgba(30, 41, 59, 0.8);
-}
-
-.messages {
-  margin-top: 1.5rem;
+  justify-content: flex-end;
 }

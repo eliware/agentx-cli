@@ -1,9 +1,11 @@
-import { appendLine, queryFrontendElements } from './dom.mjs';
 import { clearCredentials, loadStoredCredentials, saveCredentials } from './credentials.mjs';
 import { makeStatusText } from './status.mjs';
 import { buildWebSocketUrl } from './websocket.mjs';
+import { queryFrontendElements } from './dom.mjs';
 
 export { clearCredentials, loadStoredCredentials, saveCredentials } from './credentials.mjs';
+
+const KEEPALIVE_MS = 45_000;
 
 export function createFrontendApp({
   document = globalThis.document,
@@ -17,16 +19,17 @@ export function createFrontendApp({
   }
 
   const {
+    loginScreenEl,
+    sessionScreenEl,
     form,
     usernameInput,
     passwordInput,
     rememberInput,
+    autologinInput,
     loginButton,
-    logoutButton,
+    sessionLogoutButton,
     statusEl,
-    detailEl,
-    messagesEl,
-    wsStateEl,
+    wsStatusEl,
   } = queryFrontendElements(document);
 
   const state = {
@@ -38,22 +41,48 @@ export function createFrontendApp({
     manualLogout: false,
     loggedOut: false,
     replacingSocket: false,
+    reconnecting: false,
+    keepaliveTimer: null,
+    forcedScreen: null,
   };
 
   function setStatus(text) {
     if (statusEl) statusEl.textContent = text;
   }
 
-  function setDetail(text) {
-    if (detailEl) detailEl.textContent = text;
+  function setWsStatus(text) {
+    if (wsStatusEl) wsStatusEl.textContent = text;
   }
 
-  function setWsState(text) {
-    if (wsStateEl) wsStateEl.textContent = text;
+  function setScreen(screen) {
+    if (loginScreenEl) loginScreenEl.hidden = screen !== 'login';
+    if (sessionScreenEl) sessionScreenEl.hidden = screen !== 'session';
+  }
+
+  function fillLoginForm(credentials) {
+    if (usernameInput) usernameInput.value = credentials?.username || '';
+    if (passwordInput) passwordInput.value = credentials?.password || '';
+    if (rememberInput) rememberInput.checked = Boolean(credentials?.remember);
+    if (autologinInput) autologinInput.checked = Boolean(credentials?.autologin);
+  }
+
+  function showSavedLoginForm() {
+    const saved = loadStoredCredentials(storage);
+    if (saved) {
+      fillLoginForm(saved);
+    } else {
+      fillLoginForm({ username: '', password: '', remember: false, autologin: false });
+    }
+    state.forcedScreen = 'login';
+    setScreen('login');
+    setStatus('signed out');
+    setWsStatus('signed out');
+    refreshUi();
   }
 
   function getSocketState() {
     if (!state.socket) {
+      if (state.reconnecting && state.auth) return 'reconnecting';
       return state.auth ? 'disconnected' : 'idle';
     }
     const openState = typeof WebSocketImpl.OPEN === 'number' ? WebSocketImpl.OPEN : 1;
@@ -61,20 +90,50 @@ export function createFrontendApp({
   }
 
   function refreshUi() {
-    setStatus(makeStatusText({
-      loggedOut: state.loggedOut,
-      authenticated: Boolean(state.auth),
-      socketState: getSocketState(),
-      username: state.auth?.username,
-    }));
-    if (logoutButton) logoutButton.disabled = !state.auth;
+    const socketState = getSocketState();
+    if (state.forcedScreen === 'session' && !state.auth) {
+      setStatus('authenticating');
+      setWsStatus(socketState === 'reconnecting' ? 'reconnecting' : 'authenticating');
+    } else {
+      setStatus(makeStatusText({
+        loggedOut: state.loggedOut,
+        authenticated: Boolean(state.auth),
+        socketState,
+      }));
+      setWsStatus(makeStatusText({
+        authenticated: Boolean(state.auth),
+        socketState,
+      }));
+    }
     if (loginButton) loginButton.disabled = false;
-    setWsState(state.socket ? 'open' : (state.auth ? 'closed' : 'idle'));
+    if (sessionLogoutButton) sessionLogoutButton.disabled = !state.auth;
+    setScreen(state.forcedScreen || (state.auth ? 'session' : 'login'));
+  }
+
+  function clearKeepalive() {
+    if (state.keepaliveTimer) {
+      window.clearInterval(state.keepaliveTimer);
+      state.keepaliveTimer = null;
+    }
+  }
+
+  function startKeepalive() {
+    clearKeepalive();
+    state.keepaliveTimer = window.setInterval(() => {
+      const openState = typeof WebSocketImpl.OPEN === 'number' ? WebSocketImpl.OPEN : 1;
+      if (!state.socket || state.socket.readyState !== openState) return;
+      try {
+        state.socket.send(JSON.stringify({ type: 'ping' }));
+      } catch {
+        // Ignore keepalive send failures; close handling will recover.
+      }
+    }, KEEPALIVE_MS);
   }
 
   function disconnectSocket() {
     const socket = state.socket;
     state.socket = null;
+    clearKeepalive();
     if (socket) {
       state.replacingSocket = true;
       try {
@@ -94,16 +153,17 @@ export function createFrontendApp({
 
   function scheduleReconnect() {
     clearReconnect();
+    state.reconnecting = true;
     state.reconnectTimer = window.setTimeout(() => {
       state.reconnectTimer = null;
       if (!state.credentials || state.manualLogout) return;
-      login(state.credentials, { autoReconnect: true }).catch((error) => {
-        setDetail(error?.message || 'Reconnect failed');
+      login(state.credentials, { autoReconnect: true }).catch(() => {
+        setWsStatus('reconnecting');
         scheduleReconnect();
       });
     }, state.reconnectDelay);
     state.reconnectDelay = Math.min(state.reconnectDelay * 2, 10_000);
-    setWsState('reconnecting');
+    setWsStatus('reconnecting');
     refreshUi();
   }
 
@@ -114,7 +174,8 @@ export function createFrontendApp({
     const socket = new WebSocketImpl(buildWebSocketUrl(window, token));
     state.socket = socket;
     state.reconnectDelay = 1000;
-    setWsState('connecting');
+    state.reconnecting = false;
+    setWsStatus('connecting websocket');
     refreshUi();
 
     const on = socket.addEventListener?.bind(socket) || socket.on?.bind(socket);
@@ -123,29 +184,23 @@ export function createFrontendApp({
     }
 
     on('open', () => {
-      setWsState('open');
+      state.reconnecting = false;
+      setWsStatus('connected');
+      startKeepalive();
       refreshUi();
-    });
-
-    on('message', (event) => {
-      const data = typeof event?.data === 'string' ? event.data : String(event?.data ?? '');
-      appendLine(messagesEl, data);
-      setDetail(data);
     });
 
     on('close', (event) => {
       state.socket = null;
+      clearKeepalive();
       const replacing = state.replacingSocket;
       state.replacingSocket = false;
-      setWsState(`closed${event?.code ? ` (${event.code})` : ''}`);
+      setWsStatus(`closed${event?.code ? ` (${event.code})` : ''}`);
       refreshUi();
-      if (replacing) {
-        return;
-      }
+      if (replacing) return;
       if (state.manualLogout) {
         state.loggedOut = true;
-        setStatus('logged out');
-        setDetail('');
+        setStatus('signed out');
         return;
       }
       if (state.credentials) {
@@ -154,7 +209,7 @@ export function createFrontendApp({
     });
 
     on('error', () => {
-      setWsState('error');
+      setWsStatus('error');
       refreshUi();
     });
   }
@@ -181,11 +236,13 @@ export function createFrontendApp({
   async function login(credentials, { autoReconnect = false } = {}) {
     clearReconnect();
     state.manualLogout = false;
+    state.reconnecting = false;
     state.loggedOut = false;
     state.credentials = {
       username: String(credentials.username || '').trim(),
       password: String(credentials.password || ''),
       remember: Boolean(credentials.remember),
+      autologin: Boolean(credentials.autologin),
     };
 
     if (state.credentials.remember) {
@@ -195,9 +252,9 @@ export function createFrontendApp({
     }
 
     setStatus(autoReconnect ? 'reconnecting' : 'authenticating');
-    setDetail('');
     const data = await requestToken(state.credentials);
     state.auth = data;
+    state.forcedScreen = null;
     state.loggedOut = false;
     attachSocket(data.token);
     refreshUi();
@@ -206,19 +263,16 @@ export function createFrontendApp({
 
   function logout() {
     state.manualLogout = true;
+    state.reconnecting = false;
     state.loggedOut = true;
+    state.forcedScreen = 'login';
     state.replacingSocket = false;
     state.credentials = null;
     state.auth = null;
     clearReconnect();
-    clearCredentials(storage);
+    clearKeepalive();
     disconnectSocket();
-    if (usernameInput) usernameInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-    if (rememberInput) rememberInput.checked = false;
-    setStatus('logged out');
-    setDetail('');
-    refreshUi();
+    showSavedLoginForm();
   }
 
   form?.addEventListener('submit', (event) => {
@@ -227,30 +281,52 @@ export function createFrontendApp({
       username: usernameInput?.value || '',
       password: passwordInput?.value || '',
       remember: Boolean(rememberInput?.checked),
+      autologin: Boolean(autologinInput?.checked),
     }).catch((error) => {
+      state.forcedScreen = 'login';
       setStatus('login failed');
-      setDetail(error?.message || 'Login failed');
-      refreshUi();
+      setWsStatus(error?.message || 'Login failed');
+      setScreen('login');
     });
   });
 
-  logoutButton?.addEventListener('click', () => {
+  rememberInput?.addEventListener('change', () => {
+    if (rememberInput.checked) return;
+    clearCredentials(storage);
+    if (usernameInput) usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (autologinInput) autologinInput.checked = false;
+  });
+
+  sessionLogoutButton?.addEventListener('click', () => {
     logout();
   });
 
   const savedCredentials = loadStoredCredentials(storage);
   if (savedCredentials) {
-    if (usernameInput) usernameInput.value = savedCredentials.username;
-    if (passwordInput) passwordInput.value = savedCredentials.password;
-    if (rememberInput) rememberInput.checked = true;
-    login(savedCredentials, { autoReconnect: false }).catch((error) => {
-      setStatus('auto-login failed');
-      setDetail(error?.message || 'Auto-login failed');
+    fillLoginForm(savedCredentials);
+    if (savedCredentials.autologin) {
+      state.forcedScreen = 'session';
+      setScreen('session');
+      setStatus('authenticating');
+      setWsStatus('authenticating');
+      login(savedCredentials, { autoReconnect: false }).catch((error) => {
+        state.forcedScreen = 'login';
+        setStatus('auto-login failed');
+        setWsStatus(error?.message || 'Auto-login failed');
+        setScreen('login');
+      });
+    } else {
+      state.forcedScreen = 'login';
+      setStatus('signed out');
+      setWsStatus('signed out');
       refreshUi();
-    });
+    }
   } else {
+    fillLoginForm({ username: '', password: '', remember: false, autologin: false });
+    state.forcedScreen = 'login';
     setStatus('signed out');
-    setDetail('');
+    setWsStatus('signed out');
     refreshUi();
   }
 

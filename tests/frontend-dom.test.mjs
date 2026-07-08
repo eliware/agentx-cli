@@ -30,25 +30,30 @@ class FakeDocument {
 }
 
 describe('frontend dom helpers', () => {
-  test('queries the expected controls and appends message lines', () => {
-    const messages = new FakeElement('ul');
+  test('queries the expected controls', () => {
     const document = new FakeDocument(new Map([
+      ['[data-login-screen]', new FakeElement('section')],
+      ['[data-session-screen]', new FakeElement('section')],
       ['[data-login-form]', new FakeElement('form')],
       ['[data-login-username]', new FakeElement('input')],
       ['[data-login-password]', new FakeElement('input')],
       ['[data-login-remember]', new FakeElement('input')],
+      ['[data-login-autologin]', new FakeElement('input')],
       ['[data-login-button]', new FakeElement('button')],
-      ['[data-logout-button]', new FakeElement('button')],
+      ['[data-session-logout-button]', new FakeElement('button')],
       ['[data-status]', new FakeElement('span')],
-      ['[data-detail]', new FakeElement('span')],
-      ['[data-messages]', messages],
-      ['[data-ws-state]', new FakeElement('span')],
+      ['[data-ws-status]', new FakeElement('span')],
     ]));
 
     const elements = queryFrontendElements(document);
-    expect(elements.form).not.toBeNull();
-    expect(elements.messagesEl).toBe(messages);
+    expect(elements.loginScreenEl).not.toBeNull();
+    expect(elements.sessionScreenEl).not.toBeNull();
+    expect(elements.autologinInput).not.toBeNull();
+    expect(elements.sessionLogoutButton).not.toBeNull();
+  });
 
+  test('appends message lines for compatibility', () => {
+    const messages = new FakeElement('ul');
     appendLine(messages, 'hello');
     expect(messages.children).toHaveLength(1);
     expect(messages.children[0].textContent).toBe('hello');

@@ -8,15 +8,16 @@ export function appendLine(listEl, text) {
 
 export function queryFrontendElements(document) {
   return {
+    loginScreenEl: document.querySelector('[data-login-screen]'),
+    sessionScreenEl: document.querySelector('[data-session-screen]'),
     form: document.querySelector('[data-login-form]'),
     usernameInput: document.querySelector('[data-login-username]'),
     passwordInput: document.querySelector('[data-login-password]'),
     rememberInput: document.querySelector('[data-login-remember]'),
+    autologinInput: document.querySelector('[data-login-autologin]'),
     loginButton: document.querySelector('[data-login-button]'),
-    logoutButton: document.querySelector('[data-logout-button]'),
+    sessionLogoutButton: document.querySelector('[data-session-logout-button]'),
     statusEl: document.querySelector('[data-status]'),
-    detailEl: document.querySelector('[data-detail]'),
-    messagesEl: document.querySelector('[data-messages]'),
-    wsStateEl: document.querySelector('[data-ws-state]'),
+    wsStatusEl: document.querySelector('[data-ws-status]'),
   };
 }

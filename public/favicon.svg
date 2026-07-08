@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AgentX favicon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#bg)"/>
+  <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="13.25" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+  <path d="M16 22h32c2.2 0 4 1.8 4 4v12c0 2.2-1.8 4-4 4H16c-2.2 0-4-1.8-4-4V26c0-2.2 1.8-4 4-4Z" fill="#0b1220" stroke="#334155" stroke-width="1.5"/>
+  <path d="M20 31.2l7.2-5.2 2.2 2.9-3.6 2.6 3.6 2.6-2.2 2.9L20 31.8z" fill="url(#glow)"/>
+  <rect x="31.5" y="33.5" width="11.5" height="2.5" rx="1.2" fill="url(#glow)"/>
+  <path d="M25 42.5h14" stroke="#22d3ee" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/>
+  <path d="M40.5 18.5l5 5-5 5" fill="none" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+</svg>

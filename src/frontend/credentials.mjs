@@ -20,6 +20,7 @@ export function loadStoredCredentials(storage = globalThis.localStorage) {
       username: String(parsed.username),
       password: String(parsed.password),
       remember: parsed.remember !== false,
+      autologin: Boolean(parsed.autologin),
     };
   } catch {
     return null;
@@ -33,6 +34,7 @@ export function saveCredentials(storage = globalThis.localStorage, credentials) 
     username: credentials.username,
     password: credentials.password,
     remember: true,
+    autologin: Boolean(credentials.autologin),
   }));
 }
 

@@ -22,7 +22,7 @@ class FakeStorage {
 describe('frontend credentials helpers', () => {
   test('stores, loads, and clears remembered credentials', () => {
     const storage = new FakeStorage();
-    const creds = { username: 'root', password: 'secret', remember: true };
+    const creds = { username: 'root', password: 'secret', remember: true, autologin: true };
 
     saveCredentials(storage, creds);
     expect(loadStoredCredentials(storage)).toEqual(creds);
@@ -40,7 +40,7 @@ describe('frontend credentials helpers', () => {
     expect(loadStoredCredentials(storage)).toBeNull();
 
     storage.setItem('agentx.gui.credentials', 'kept');
-    saveCredentials(storage, { username: 'root', password: 'secret', remember: false });
+    saveCredentials(storage, { username: 'root', password: 'secret', remember: false, autologin: true });
     expect(storage.getItem('agentx.gui.credentials')).toBe('kept');
   });
 });

@@ -4,53 +4,55 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>AgentX GUI</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/dist/app.bundle.css">
     <script type="module" src="/dist/app.bundle.mjs" defer></script>
   </head>
   <body>
     <main class="shell">
       <section class="panel">
-        <div class="header">
-          <h1>AgentX GUI</h1>
-          <p data-status>signed out</p>
-        </div>
-
-        <form class="login-form" data-login-form>
-          <label>
-            <span>Linux username</span>
-            <input data-login-username name="username" autocomplete="username" required>
-          </label>
-
-          <label>
-            <span>Linux password</span>
-            <input data-login-password name="password" type="password" autocomplete="current-password" required>
-          </label>
-
-          <label class="checkbox">
-            <input data-login-remember type="checkbox">
-            <span>Remember credentials and auto-login</span>
-          </label>
-
-          <div class="actions">
-            <button data-login-button type="submit">Login</button>
-            <button data-logout-button type="button">Logout</button>
+        <section data-login-screen hidden>
+          <div class="header">
+            <h1>AgentX GUI</h1>
+            <p data-status>signed out</p>
           </div>
-        </form>
 
-        <div class="meta">
-          <div>
-            <span class="label">WebSocket</span>
-            <span data-ws-state>idle</span>
-          </div>
-          <div>
-            <span class="label">Details</span>
-            <span data-detail>none</span>
-          </div>
-        </div>
+          <form class="login-form" data-login-form>
+            <label>
+              <span>Linux username</span>
+              <input data-login-username name="username" autocomplete="username" required>
+            </label>
 
-        <section class="messages">
-          <h2>Messages</h2>
-          <ul data-messages></ul>
+            <label>
+              <span>Linux password</span>
+              <input data-login-password name="password" type="password" autocomplete="current-password" required>
+            </label>
+
+            <label class="checkbox">
+              <input data-login-remember type="checkbox">
+              <span>Remember</span>
+            </label>
+
+            <label class="checkbox">
+              <input data-login-autologin type="checkbox">
+              <span>Autologin</span>
+            </label>
+
+            <div class="actions">
+              <button data-login-button type="submit">Login</button>
+            </div>
+          </form>
+        </section>
+
+        <section data-session-screen hidden>
+          <div class="header">
+            <h1>WebSocket</h1>
+            <p data-ws-status>disconnected</p>
+          </div>
+
+          <div class="actions session-actions">
+            <button data-session-logout-button type="button">Logout</button>
+          </div>
         </section>
       </section>
     </main>

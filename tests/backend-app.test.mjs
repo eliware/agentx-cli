@@ -45,7 +45,7 @@ describe('backend gui app', () => {
 
     const page = await fetch(`${baseUrl}/`);
     expect(page.status).toBe(200);
-    await expect(page.text()).resolves.toContain('<!doctype html>');
+    await expect(page.text()).resolves.toContain('<section data-login-screen hidden>');
   });
 
   test('logs in with linux credentials and opens a one-time websocket token', async () => {

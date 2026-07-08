@@ -50,6 +50,6 @@ button {
   color: white;
 }
 
-button[data-logout-button] {
+button[data-session-logout-button] {
   background: #334155;
 }
