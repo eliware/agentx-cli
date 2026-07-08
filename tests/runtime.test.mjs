@@ -1,6 +1,7 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test, jest } from '@jest/globals';
+import { fs as commonFs } from '@eliware/common';
 import { deleteOptional, isDirectInvocation, readJson, readOptionalText, writeText } from '../src/runtime.mjs';
-import { mkdtempSync, symlinkSync, rmSync, writeFileSync, unlinkSync, promises as fsPromises } from 'node:fs';
+import { mkdtempSync, symlinkSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -37,6 +38,51 @@ describe('runtime helpers', () => {
     }
   });
 
+
+
+  test('readOptionalText and deleteOptional propagate mocked non-ENOENT errors', async () => {
+    jest.resetModules();
+    await jest.unstable_mockModule('@eliware/common', () => ({
+      fs: {
+        promises: {
+          readFile: async () => { throw Object.assign(new Error('boom'), { code: 'EACCES' }); },
+          unlink: async () => { throw Object.assign(new Error('boom'), { code: 'EACCES' }); },
+          writeFile: async () => {},
+        },
+      },
+      path: () => '',
+    }));
+    const { readOptionalText: readOptionalTextMock, deleteOptional: deleteOptionalMock } = await import('../src/runtime.mjs');
+    await expect(readOptionalTextMock('/tmp/locked')).rejects.toThrow('boom');
+    await expect(deleteOptionalMock('/tmp/locked')).rejects.toThrow('boom');
+  });
+
+
+
+  test('readOptionalText and deleteOptional tolerate ENOENT errors', async () => {
+    const originalReadFile = commonFs.promises.readFile;
+    const originalUnlink = commonFs.promises.unlink;
+    commonFs.promises.readFile = async () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); };
+    commonFs.promises.unlink = async () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); };
+    try {
+      await expect(readOptionalText('/tmp/definitely-missing-agentx')).resolves.toBeNull();
+      await expect(deleteOptional('/tmp/definitely-missing-agentx')).resolves.toBeUndefined();
+    } finally {
+      commonFs.promises.readFile = originalReadFile;
+      commonFs.promises.unlink = originalUnlink;
+    }
+  });
+
+  test('readOptionalText propagates non-ENOENT errors', async () => {
+    const originalReadFile = commonFs.promises.readFile;
+    commonFs.promises.readFile = async () => { throw Object.assign(new Error('boom'), { code: 'EACCES' }); };
+    try {
+      await expect(readOptionalText('/tmp/locked')).rejects.toThrow('boom');
+    } finally {
+      commonFs.promises.readFile = originalReadFile;
+    }
+  });
+
   test('readJson, readOptionalText and deleteOptional handle success and failure cases', async () => {
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'agentx-runtime-'));
     const jsonFile = path.join(tmp, 'value.json');
@@ -49,12 +95,12 @@ describe('runtime helpers', () => {
     await deleteOptional(textFile);
     expect(() => unlinkSync(textFile)).toThrow();
 
-    const originalUnlink = fsPromises.unlink;
-    fsPromises.unlink = async () => { throw Object.assign(new Error('boom'), { code: 'EACCES' }); };
+    const originalUnlink = commonFs.promises.unlink;
+    commonFs.promises.unlink = async () => { throw Object.assign(new Error('boom'), { code: 'EACCES' }); };
     try {
       await expect(deleteOptional(textFile)).rejects.toThrow('boom');
     } finally {
-      fsPromises.unlink = originalUnlink;
+      commonFs.promises.unlink = originalUnlink;
       rmSync(tmp, { recursive: true, force: true });
     }
   });

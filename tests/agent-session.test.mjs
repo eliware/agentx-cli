@@ -20,6 +20,29 @@ describe('agent session helpers', () => {
     process.stdout.write = originalStdoutWrite;
   });
 
+
+  test('responseItemToTranscript covers the remaining item shapes', () => {
+    expect(responseItemToTranscript({ role: 'assistant', type: 'message', content: [{ type: 'input_text' }, { type: 'output_text' }, { type: 'refusal', refusal: '' }, { text: 'gamma' }] })).toBe('assistant: gamma');
+    expect(responseItemToTranscript({ type: 'message', content: [{ type: 'input_text', text: '' }, { type: 'output_text', text: '' }] })).toBe('');
+    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', input: '{not valid json' })).toBe('assistant shell call: {not valid json');
+    expect(responseItemToTranscript({ type: 'function_call', name: 'other_tool', input: 'abc' })).toBe('assistant tool call: other_tool(abc)');
+    expect(responseItemToTranscript({ type: 'function_call_output', output: null })).toBe('tool output: ');
+    expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'x'.repeat(200), stderr: 'y'.repeat(200), outcome: { type: 'exit', exit_code: 0 } }, 'ignored'], max_output_length: 10, status: 'completed' })).toContain('tool output shell_call_output:');
+    expect(responseItemToTranscript({ type: 'reasoning', summary: [] })).toBe('');
+    expect(responseItemToTranscript({ type: 'reasoning', summary: [{ type: 'output_text', text: 'plan' }] })).toBe('assistant reasoning summary: plan');
+    expect(responseItemToTranscript({ type: 'custom_call', foo: 'bar' })).toBe('assistant custom_call: {"type":"custom_call","foo":"bar"}');
+    expect(responseItemToTranscript({ type: 'custom_call_output', foo: 'bar' })).toBe('tool output custom_call_output: {"type":"custom_call_output","foo":"bar"}');
+    expect(responseItemToTranscript({ role: 'assistant' })).toBe('assistant: {"role":"assistant"}');
+    expect(responseItemToTranscript({ type: 'note', value: 1 })).toBe('note: {"type":"note","value":1}');
+    expect(responseItemToTranscript({})).toBe('item: {}');
+  });
+
+  test('handleToolCalls returns immediately when the response has no output array', async () => {
+    const openai = { responses: { create: async () => { throw new Error('unexpected retry'); } } };
+    const response = { id: 'resp-empty' };
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null)).resolves.toBe(response);
+  });
+
   test('status helpers fall back cleanly for undefined timing values', () => {
     expect(formatElapsedStatus(undefined)).toBe('0s');
     expect(formatElapsedStatus(61000)).toBe('1m 1s');
