@@ -6,7 +6,7 @@ import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
 import { clearSession, extractTextFromResponse, persistResponseState, readSessionState, sendMessage } from './agent-session.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
-import { createUsageTotals, addUsageTotals, formatUsageReport, formatTurnUsageReport } from './response.mjs';
+import { createUsageTotals, addUsageTotals, formatUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
 
@@ -29,14 +29,6 @@ function createReplInterface(cwd) {
 
 function printUsageReport(totals, { leadingNewline = false } = {}) {
   process.stdout.write(`${leadingNewline ? '\n' : ''}${formatSystemMessage(formatUsageReport(totals))}\n`);
-}
-
-function printTurnUsage(turnUsage) {
-  process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(turnUsage))}\n`);
-}
-
-function printCumulativeUsage(sessionUsage) {
-  process.stdout.write(`${formatSystemMessage(formatUsageReport(sessionUsage))}\n`);
 }
 
 function printRestoredSession(savedState) {
@@ -160,7 +152,6 @@ export async function runAgent({ promptPath, cwd }) {
 
       const requestMessage = buildRequestMessage({ pendingCliTranscript, cwdNote, message });
       cwdNote = '';
-      const turnUsage = createUsageTotals();
       const requestOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
       if (debugEnabled) {
         debugLog('OpenAI request:', JSON.stringify(requestOverride, null, 2));
@@ -168,8 +159,9 @@ export async function runAgent({ promptPath, cwd }) {
       let response;
       try {
         response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {
-          addUsageTotals(turnUsage, usage);
+          addUsageTotals(sessionUsage, usage);
           sessionUsage.turns += 1;
+          return sessionUsage;
         }, requestOverride, { liveStreaming: true });
       } catch (error) {
         if (error?.code === 'previous_response_not_found' && previousResponseId) {
@@ -177,8 +169,9 @@ export async function runAgent({ promptPath, cwd }) {
           previousResponseId = '';
           const retryOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
           response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage) => {
-            addUsageTotals(turnUsage, usage);
+            addUsageTotals(sessionUsage, usage);
             sessionUsage.turns += 1;
+            return sessionUsage;
           }, retryOverride, { liveStreaming: true });
         } else {
           throw error;
@@ -188,10 +181,7 @@ export async function runAgent({ promptPath, cwd }) {
       lastUserMessage = message;
       lastAssistantMessage = extractTextFromResponse(response);
       pendingCliTranscript = '';
-      addUsageTotals(sessionUsage, turnUsage);
       await saveState();
-      printTurnUsage(turnUsage);
-      printCumulativeUsage(sessionUsage);
     }
   } finally {
     rl.close();

@@ -2,7 +2,7 @@ import { extractTextFromResponse, extractUsage } from './response.mjs';
 import { runToolCall, toolOutputForCall } from './tool-dispatch.mjs';
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
-import { formatTurnUsageReport } from './usage.mjs';
+import { formatTurnUsageReport, formatUsageReport } from './usage.mjs';
 import { formatCommandMessage, formatSystemMessage } from './shell-display.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
@@ -178,11 +178,14 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 
   for (; ;) {
     const usage = extractUsage(current);
-    if (onResponseUsage) onResponseUsage(usage);
+    const cumulativeUsage = onResponseUsage ? onResponseUsage(usage) : null;
     const calls = (current?.output ?? []).filter((item) => isShellToolCall(item));
+    process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
+    if (cumulativeUsage) {
+      process.stdout.write(`${formatSystemMessage(formatUsageReport(cumulativeUsage))}\n`);
+    }
     if (calls.length === 0) return current;
 
-    process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
 
     const results = await Promise.all(calls.map(async (call) => ({
       call,

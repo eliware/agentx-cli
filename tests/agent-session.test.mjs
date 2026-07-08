@@ -133,10 +133,21 @@ describe('agent session helpers', () => {
     expect(usageCalls).toEqual([{ inputTokens: 3, cachedTokens: 1, outputTokens: 2 }]);
   });
 
-  test('handleToolCalls prints usage stats on tool retriggers', async () => {
+  test('handleToolCalls prints turn and cumulative usage after each response', async () => {
+    const cumulative = { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 };
     const openai = {
       responses: {
-        create: async () => ({ id: 'resp-next', output: [] }),
+        create: jest.fn()
+          .mockResolvedValueOnce({
+            id: 'resp-1',
+            output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf \"tool output\"'] } }],
+            usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 4 }, output_tokens: 6 },
+          })
+          .mockResolvedValueOnce({
+            id: 'resp-2',
+            output: [],
+            usage: { input_tokens: 8, input_tokens_details: { cached_tokens: 0 }, output_tokens: 2 },
+          }),
       },
     };
     const response = {
@@ -145,9 +156,18 @@ describe('agent session helpers', () => {
       usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 4 }, output_tokens: 6 },
     };
 
-    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }));
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', (usage) => {
+      cumulative.inputTokens += usage.inputTokens;
+      cumulative.cachedTokens += usage.cachedTokens;
+      cumulative.outputTokens += usage.outputTokens;
+      cumulative.turns += 1;
+      return { ...cumulative };
+    }, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed', max_output_length: null }));
 
-    expect(stdoutWrites.join('')).toContain('in=6 ($0.000), cache=4 ($0.000), out=6 ($0.000), sum=$0.000');
+    const output = stdoutWrites.join('');
+    expect(output).toContain('in=6 ($0.000), cache=4 ($0.000), out=6 ($0.000), sum=$0.000');
+    expect(output).toContain('in=8 ($0.000), cache=0 ($0.000), out=2 ($0.000), sum=$0.000');
+    expect(output).toContain('msgs=2');
   });
 
   test('handleToolCalls preserves request fields on tool continuations', async () => {
