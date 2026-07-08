@@ -21,8 +21,19 @@ function formatElapsedStatus(elapsedMs) {
   return `${totalSeconds}s`;
 }
 
+function stripStatusValue(value) {
+  if (value && typeof value === 'object' && 'value' in value) return String(value.value ?? '');
+  if (typeof value !== 'string') return String(value ?? '');
+  return value.replace(/^([a-z]+):\s+/, '').replace(/\[[0-9;]*m/g, '');
+}
+
 function formatTransactionCompletionMessage(summary) {
-  return JSON.stringify(summary);
+  return JSON.stringify({
+    time: String(summary?.time ?? ''),
+    reasoning: stripStatusValue(summary?.reasoning),
+    executing: stripStatusValue(summary?.executing),
+    writing: stripStatusValue(summary?.writing),
+  });
 }
 
 function formatSpinnerFrame() {
@@ -66,21 +77,28 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
     }
   }
 
-  function phaseSnapshot(name, label, now = Date.now()) {
+  function phaseSnapshot(name, now = Date.now()) {
     const phase = phases[name];
     const active = state === name;
     const elapsed = active ? Math.max(0, now - stateStartedAt) : phase.lastMs;
     const total = active ? phase.totalMs + elapsed : phase.totalMs;
-    const pair = `${label} ${formatElapsedStatus(elapsed)}/${formatElapsedStatus(total)}`;
-    return active ? `${GREEN}${pair}${RESET}` : pair;
+    return {
+      active,
+      value: `${formatElapsedStatus(elapsed)}/${formatElapsedStatus(total)}`,
+    };
+  }
+
+  function formatStatusField(name, snapshotValue) {
+    const field = `"${name}":"${snapshotValue.value}"`;
+    return snapshotValue.active ? `${GREEN}${field}${RESET}` : field;
   }
 
   function snapshot(now = Date.now()) {
     return {
       time: formatElapsedStatus(now - sessionStartedAt),
-      reasoning: phaseSnapshot('reasoning', 'reasoning', now),
-      executing: phaseSnapshot('executing', 'executing', now),
-      writing: phaseSnapshot('writing', 'writing', now),
+      reasoning: phaseSnapshot('reasoning', now),
+      executing: phaseSnapshot('executing', now),
+      writing: phaseSnapshot('writing', now),
     };
   }
 
@@ -94,7 +112,7 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
   function render() {
     if (!state || state === 'writing') return;
     const stats = snapshot();
-    writeLine(`[${stats.time}] {"time":"${stats.time}","reasoning":"${stats.reasoning}","executing":"${stats.executing}","writing":"${stats.writing}"}`);
+    writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('executing', stats.executing)},${formatStatusField('writing', stats.writing)}}`);
   }
 
   function transition(nextState, { renderNow = true } = {}) {
