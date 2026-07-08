@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './src/backend/app.mjs';
