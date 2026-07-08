@@ -8,7 +8,7 @@ function getStorage(storage) {
   }
 }
 
-function normalizeSessionState(state = {}) {
+export function normalizeSessionState(state = {}) {
   return {
     response_id: String(state.response_id ?? ''),
     usage: {
