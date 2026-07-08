@@ -117,17 +117,15 @@ describe('openai websocket helpers', () => {
       expect(logs).toContain('ws send: {"type":"response.create","model":"gpt-5.4-mini","input":[]}');
       expect(logs).toContain('ws recv: {"type":"response.completed"}');
       expect(logs.some((line) => line.startsWith('ws error: '))).toBe(true);
-      expect(logs.some((line) => line.includes('ws close code=1000 binary frame (3 bytes): hex=627965 base64=Ynll'))).toBe(true);
+      expect(logs).toContain('ws close code=1000: bye');
     } finally {
       console.log = originalConsoleLog;
     }
   });
 
-  test('formats binary websocket frames with length and encodings', () => {
+  test('formats websocket frames as decoded text', () => {
     const frame = formatOpenAIWebSocketFrame(Buffer.from('bye'), true, 'ws recv');
-    expect(frame).toContain('ws recv binary frame (3 bytes)');
-    expect(frame).toContain('hex=627965');
-    expect(frame).toContain('base64=Ynll');
+    expect(frame).toBe('ws recv: bye');
   });
 
   test('parses additional websocket payload shapes', () => {

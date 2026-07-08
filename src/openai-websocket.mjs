@@ -20,24 +20,8 @@ export function parseOpenAIWebSocketMessage(data, isBinary = false) {
   }
 }
 
-function toHexString(buffer) {
-  return Buffer.from(buffer).toString('hex');
-}
-
-function toBase64String(buffer) {
-  return Buffer.from(buffer).toString('base64');
-}
-
-function formatWebSocketBinaryFrame(data, label) {
-  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-  return `${label} binary frame (${buffer.length} bytes): hex=${toHexString(buffer)} base64=${toBase64String(buffer)}`;
-}
-
 export function formatOpenAIWebSocketFrame(data, isBinary = false, label = 'frame') {
-  if (typeof data === 'string') return `${label}: ${data}`;
-  if (Buffer.isBuffer(data) || data instanceof Uint8Array) return formatWebSocketBinaryFrame(data, label);
-  if (isBinary) return formatWebSocketBinaryFrame(String(data ?? ''), label);
-  return `${label}: ${String(data ?? '')}`;
+  return `${label}: ${toUtf8String(data, isBinary)}`;
 }
 
 function createWebSocketDebugLogger(debug) {
@@ -89,7 +73,7 @@ export function createOpenAIWebSocketClient(options) {
     onError(error, socket);
   });
   if (onClose) socket.on('close', (code, reason) => {
-    if (logDebug) logDebug(formatOpenAIWebSocketFrame(Buffer.isBuffer(reason) || reason instanceof Uint8Array ? reason : String(reason ?? ''), Buffer.isBuffer(reason) || reason instanceof Uint8Array, `ws close code=${code}`));
+    if (logDebug) logDebug(formatOpenAIWebSocketFrame(reason, Buffer.isBuffer(reason) || reason instanceof Uint8Array, `ws close code=${code}`));
     onClose(code, reason, socket);
   });
   if (onUpgrade) socket.on('upgrade', (response) => onUpgrade(response, socket));
