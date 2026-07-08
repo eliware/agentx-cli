@@ -56,7 +56,9 @@ async function executeShellCommand(command, cwd, { timeoutMs, maxOutputLength } 
 }
 
 function normalizeCommands(commands) {
-  return Array.isArray(commands) ? commands.map((command) => String(command ?? '')) : [];
+  if (Array.isArray(commands)) return commands.map((command) => String(command ?? ''));
+  if (typeof commands === 'string') return [commands];
+  return [];
 }
 
 export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLength, callId } = {}) {

@@ -128,44 +128,45 @@ describe('coverage gaps', () => {
     expect(responseItemToTranscript({ type: 'file_call_output', output: [null] })).toContain('tool output file_call_output:');
     expect(responseItemToTranscript({ type: 'file_call_output', output: [{ outcome: { type: 'exit', exit_code: 0 } }] })).toContain('tool output file_call_output:');
     expect(extractTextFromResponse({ output: [{ type: 'message', content: [{ type: 'output_text', text: '' }, { type: 'other' }] }] })).toBe('');
-    await expect(handleToolCalls({}, { id: 'resp-no-output' }, {}, '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
 
-    const shellRequests = [];
-    const shellOpenai = {
-      responses: {
-        create: async (request) => {
-          shellRequests.push(request);
-          return { id: 'resp-shell-next', output: [] };
-        },
-      },
-    };
     const originalStdoutWrite = process.stdout.write;
     process.stdout.write = () => true;
     try {
+      await expect(handleToolCalls({}, { id: 'resp-no-output' }, {}, '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
+
+      const shellRequests = [];
+      const shellOpenai = {
+        responses: {
+          create: async (request) => {
+            shellRequests.push(request);
+            return { id: 'resp-shell-next', output: [] };
+          },
+        },
+      };
       await handleToolCalls(shellOpenai, { id: 'resp-shell', output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf ok'] } }] }, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }));
+      expect(shellRequests[0].input).toEqual([{ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }]);
+
+      const requestCalls = [];
+      const sendOpenai = {
+        responses: {
+          create: async (request) => {
+            requestCalls.push(request);
+            return { id: 'resp-2', output: [{ type: 'message', content: [{ type: 'output_text', text: 'done' }] }] };
+          },
+        },
+      };
+      await sendMessage(sendOpenai, { model: 'test-model', input: [{ role: 'developer', content: [{ type: 'input_text', text: 'base' }] }, { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] }], tools: [] }, '', 'hello', '', '/tmp/work');
+      expect(requestCalls[0].input[0].content[0].text).toContain('base');
+
+      const noOutputOpenai = {
+        responses: {
+          create: async () => ({ id: 'resp-no-output' }),
+        },
+      };
+      await expect(sendMessage(noOutputOpenai, { model: 'test-model', input: [] }, 'previous', 'hello', '', '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
     } finally {
       process.stdout.write = originalStdoutWrite;
     }
-    expect(shellRequests[0].input).toEqual([{ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }], status: 'completed', max_output_length: null }]);
-
-    const requestCalls = [];
-    const sendOpenai = {
-      responses: {
-        create: async (request) => {
-          requestCalls.push(request);
-          return { id: 'resp-2', output: [{ type: 'message', content: [{ type: 'output_text', text: 'done' }] }] };
-        },
-      },
-    };
-    await sendMessage(sendOpenai, { model: 'test-model', input: [{ role: 'developer', content: [{ type: 'input_text', text: 'base' }] }, { role: 'user', content: [{ type: 'input_text', text: 'first user message' }] }], tools: [] }, '', 'hello', '', '/tmp/work');
-    expect(requestCalls[0].input[0].content[0].text).toContain('base');
-
-    const noOutputOpenai = {
-      responses: {
-        create: async () => ({ id: 'resp-no-output' }),
-      },
-    };
-    await expect(sendMessage(noOutputOpenai, { model: 'test-model', input: [] }, 'previous', 'hello', '', '/tmp/work')).resolves.toEqual({ id: 'resp-no-output' });
   });
 
   test('tool dispatch covers shell-call parse errors, execution, and output normalization', async () => {
@@ -175,6 +176,8 @@ describe('coverage gaps', () => {
     expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: '/tmp', p: [{ s: [null] }] }) })).toBe('cd /tmp:');
     expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({}) })).toBe('');
     expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ p: [{ s: ['echo hi'] }] }) })).toBe('echo hi');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ p: [{ s: 'echo hi' }] }) })).toBe('echo hi');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: '/tmp', p: [{ s: 123 }] }) })).toBe('cd /tmp:');
     expect(toolCallSummaryDirect({ type: 'shell_call' })).toBe('');
     expect(toolCallSummaryDirect({ type: 'shell_call', action: { commands: null } })).toBe('');
     expect(toolCallSummaryDirect({ type: 'shell_call', action: { commands: [null] } })).toBe('');
@@ -183,11 +186,13 @@ describe('coverage gaps', () => {
 
     expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call' })).toBe('');
     expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ p: [{ s: ['echo arg'] }] }) })).toBe('echo arg');
-    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ p: [{ c: '/tmp', s: 'nope' }] }) })).toBe('cd /tmp:');
+    expect(toolCallSummaryDirect({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ p: [{ c: '/tmp', s: 'nope' }] }) })).toBe('cd /tmp: nope');
 
     const shellFunctionResult = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-0', input: JSON.stringify({ c: '/opt/agentx-cli', p: [{ s: ['printf ok'] }], t: 1000, l: 123 }) }, '/opt/agentx-cli'));
     expect(shellFunctionResult).toMatchObject({ call_id: 'call-0', cwd: '/opt/agentx-cli', status: 'completed', type: 'shell_call_output' });
     expect(shellFunctionResult.output).toEqual([{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }]);
+    const shellFunctionResultString = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-0b', input: JSON.stringify({ c: '/opt/agentx-cli', p: [{ s: 'printf ok' }], t: 1000, l: 123 }) }, '/opt/agentx-cli'));
+    expect(shellFunctionResultString.output).toEqual([{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }]);
 
     const shellFunctionResultNoCwd = JSON.parse(await runToolCallDirect({ type: 'function_call', name: 'shell_call', call_id: 'call-00', input: JSON.stringify({ p: [{ s: ['true'] }] }) }, '/opt/agentx-cli'));
     expect(shellFunctionResultNoCwd.cwd).toBe('/opt/agentx-cli');

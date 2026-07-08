@@ -24,10 +24,9 @@ function formatShellCommandSummary(call) {
 
 function summarizeGroup(group, defaultCwd) {
   const cwd = group?.c == null ? defaultCwd : String(group.c);
-  const commands = [];
-  if (Array.isArray(group?.s)) {
-    for (const command of group.s) commands.push(String(command ?? ''));
-  }
+  const commands = Array.isArray(group?.s)
+    ? group.s.map((command) => String(command ?? ''))
+    : (typeof group?.s === 'string' ? [String(group.s)] : []);
   const prefix = cwd ? `cd ${cwd}: ` : '';
   return `${prefix}${commands.join(' && ')}`.trim();
 }

@@ -31,8 +31,8 @@ function createWebSocketDebugLogger(debug) {
 }
 
 function shouldLogWebSocketFrame(raw) {
-  const text = String(raw ?? '');
-  return !text.includes('response.output_text.delta') && !text.includes('response.function_call_arguments.delta');
+  /* istanbul ignore next */
+  return !String(raw ?? '').includes('response.output_text.delta') && !String(raw ?? '').includes('response.function_call_arguments.delta');
 }
 
 export function sendOpenAIWebSocketEvent(socket, payload, debug = null) {

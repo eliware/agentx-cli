@@ -127,9 +127,63 @@ describe('openai websocket helpers', () => {
     }
   });
 
+  test('logs websocket frames with a custom logger and alternate close/error payloads', () => {
+    const handlers = new Map();
+    const logs = [];
+    const customLogger = (line) => logs.push(line);
+
+    class FakeWebSocket {
+      constructor(url, options) {
+        this.url = url;
+        this.options = options;
+      }
+      on(event, handler) {
+        handlers.set(event, handler);
+      }
+      send(payload) {
+        this.sent = payload;
+      }
+      close(code, reason) {
+        this.closed = { code, reason };
+      }
+    }
+
+    const client = createOpenAIWebSocketClient({
+      apiKey: 'test-key',
+      url: 'wss://example.test',
+      WebSocketImpl: FakeWebSocket,
+      debugLogger: customLogger,
+      onMessage: jest.fn(),
+      onError: jest.fn(),
+      onClose: jest.fn(),
+    });
+
+    client.send({ type: 'ping' });
+    client.sendResponseCreate({ model: 'gpt-5.4-mini', input: [] });
+    handlers.get('message')(Buffer.from('{"type":"response.completed"}'), true);
+    handlers.get('message')('{"type":"response.output_text.delta","delta":"hidden"}', false);
+    handlers.get('message')(undefined, false);
+    handlers.get('error')({ message: 'boom' });
+    handlers.get('error')(42);
+    handlers.get('close')(1001, 'bye');
+    handlers.get('close')(1002, new Uint8Array(Buffer.from('zap')));
+
+    expect(client.socket.sent).toBe('{"type":"response.create","model":"gpt-5.4-mini","input":[]}');
+    expect(logs).toContain('ws send: {"type":"ping"}');
+    expect(logs).toContain('ws send: {"type":"response.create","model":"gpt-5.4-mini","input":[]}');
+    expect(logs).toContain('ws recv: {"type":"response.completed"}');
+    expect(logs).toContain('ws recv: ');
+    expect(logs.some((line) => line.includes('response.output_text.delta'))).toBe(false);
+    expect(logs).toContain('ws error: boom');
+    expect(logs).toContain('ws error: 42');
+    expect(logs).toContain('ws close code=1001: bye');
+    expect(logs).toContain('ws close code=1002: zap');
+  });
+
   test('formats websocket frames as decoded text', () => {
     const frame = formatOpenAIWebSocketFrame(Buffer.from('bye'), true, 'ws recv');
     expect(frame).toBe('ws recv: bye');
+    expect(formatOpenAIWebSocketFrame('hello')).toBe('frame: hello');
   });
 
   test('parses additional websocket payload shapes', () => {
