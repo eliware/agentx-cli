@@ -1,5 +1,4 @@
-import { buildInputMessage } from './prompt-builder.mjs';
-import { buildDeveloperText } from './prompt-text.mjs';
+import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { readJson } from './runtime.mjs';
 
 export function resolveAgentApiKey(env = process.env) {
@@ -45,22 +44,8 @@ export function buildRequestOverride(template, userMessage, agentsText, cwd, pre
     };
   }
 
-  const cloned = JSON.parse(JSON.stringify(template));
-  const developer = cloned?.input?.find?.((item) => item?.role === 'developer');
-  const developerContent = developer?.content?.[0];
-  if (developerContent?.type === 'input_text') {
-    developerContent.text = buildDeveloperText(cloned, agentsText, cwd);
-  }
-  const firstUser = cloned?.input?.find?.((item) => item?.role === 'user');
-  const firstContent = firstUser?.content?.[0];
-  if (firstContent?.type === 'input_text') {
-    const original = String(firstContent.text ?? '');
-    firstContent.text = original.includes('first user message')
-      ? original.replaceAll('first user message', userMessage)
-      : userMessage;
-  }
   return {
-    ...cloned,
+    ...applyFirstUserMessage(template, userMessage, agentsText, cwd),
     store: true,
   };
 }
