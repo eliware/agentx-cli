@@ -44,7 +44,7 @@
     },
     "dependencies": {
         "@eliware/common": "^1.1.4",
-        "@eliware/openai": "^1.1.2"
+        "openai": "^6.45.0"
     },
     "allowScripts": {
         "unrs-resolver@1.12.2": true

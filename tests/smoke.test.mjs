@@ -12,7 +12,7 @@ function makeLoader(tmp, openaiStub, readlineStub) {
   writeFileSync(loaderPath, `
     import { pathToFileURL } from 'node:url';
     export async function resolve(specifier, context, nextResolve) {
-      if (specifier === '@eliware/openai') {
+      if (specifier === 'openai') {
         return { url: pathToFileURL(${JSON.stringify(openaiStub)}).href, shortCircuit: true };
       }
       if (specifier === 'node:readline/promises') {
@@ -32,16 +32,18 @@ describe('CLI smoke test', () => {
 
     try {
       writeFileSync(openaiStub, `
-        export async function createOpenAI() {
-          return {
-            responses: {
-              create: async () => ({
-                id: 'resp-smoke',
-                output: [{ type: 'message', content: [{ type: 'output_text', text: 'smoke ok' }] }],
-                usage: { input_tokens: 4, input_tokens_details: { cached_tokens: 1 }, output_tokens: 2 },
-              }),
-            },
-          };
+        export default class OpenAI {
+          constructor() {
+            return {
+              responses: {
+                create: async () => ({
+                  id: 'resp-smoke',
+                  output: [{ type: 'message', content: [{ type: 'output_text', text: 'smoke ok' }] }],
+                  usage: { input_tokens: 4, input_tokens_details: { cached_tokens: 1 }, output_tokens: 2 },
+                }),
+              },
+            };
+          }
         }
       `);
       writeFileSync(readlineStub, `

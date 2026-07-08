@@ -27,6 +27,16 @@ function makeShellMock() {
   };
 }
 
+function makeOpenAIMock() {
+  return {
+    default: class OpenAI {
+      constructor() {
+        return { responses: {} };
+      }
+    },
+  };
+}
+
 describe('agent loop', () => {
   let cwd;
   let promptPath;
@@ -103,9 +113,7 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('@eliware/openai', () => ({
-      createOpenAI: jest.fn(async () => ({ responses: {} })),
-    }));
+    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -191,9 +199,7 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('@eliware/openai', () => ({
-      createOpenAI: jest.fn(async () => ({ responses: {} })),
-    }));
+    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -280,9 +286,7 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('@eliware/openai', () => ({
-      createOpenAI: jest.fn(async () => ({ responses: {} })),
-    }));
+    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -356,9 +360,7 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('@eliware/openai', () => ({
-      createOpenAI: jest.fn(async () => ({ responses: {} })),
-    }));
+    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({
@@ -405,9 +407,7 @@ describe('agent loop', () => {
       }),
     }));
 
-    await jest.unstable_mockModule('@eliware/openai', () => ({
-      createOpenAI: jest.fn(async () => ({ responses: {} })),
-    }));
+    await jest.unstable_mockModule('openai', () => makeOpenAIMock());
 
     await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
     await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({

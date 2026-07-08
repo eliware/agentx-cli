@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { log, registerHandlers, path } from '@eliware/common';
-import { createOpenAI } from '@eliware/openai';
+import OpenAI from 'openai';
 import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
 import { clearSession, extractTextFromResponse, persistResponseState, readSessionState, sendMessage } from './agent-session.mjs';
@@ -66,7 +66,7 @@ export async function runAgent({ promptPath, cwd }) {
     if (debugEnabled) console.log(...args);
   };
 
-  const openai = await createOpenAI(apiKey);
+  const openai = new OpenAI({ apiKey });
   const rl = createReplInterface(cwd);
   let previousResponseId = savedResponseId;
   let cwdNote = '';
