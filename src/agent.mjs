@@ -43,10 +43,24 @@ function getToolCallId(call) {
   return String(call?.call_id || call?.id || '').trim();
 }
 
+const INTERRUPTED_TOOL_OUTPUT_RETRY = `The previous transaction was interrupted while tool calls were in progress.
+
+The interrupted command may have completed successfully, failed, or only partially applied changes.
+
+Think carefully about the likely state before acting.
+- If the command is trivial and safe to repeat, you may run it again.
+- Otherwise, inspect the relevant system state first, determine whether the prior action succeeded or partially succeeded, and choose the safest next step.`;
+
+const INTERRUPTED_TOOL_OUTPUT_REQUEST = `The previous transaction was interrupted while tool calls were in progress.
+
+Stop all further tool calls.
+Do not retry the interrupted command.
+Ask the user what they want to do next.`;
+
 function buildInterruptedToolOutput(call, mode, cwd) {
   const message = mode === 'retry'
-    ? 'this transaction was interrupted and the user requests you decide if you want to try running this command again or do something else'
-    : 'this transaction was interrupted and the user requests you pause and wait for further instructions';
+    ? INTERRUPTED_TOOL_OUTPUT_RETRY
+    : INTERRUPTED_TOOL_OUTPUT_REQUEST;
 
   if (call?.type === 'shell_call') {
     return {
