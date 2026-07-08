@@ -22,7 +22,7 @@ function formatElapsedStatus(elapsedMs) {
 }
 
 function formatTransactionCompletionMessage(summary) {
-  return JSON.stringify({ 'transaction.completed': summary });
+  return JSON.stringify(summary);
 }
 
 function formatSpinnerFrame() {
@@ -66,21 +66,21 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
     }
   }
 
-  function phaseSnapshot(name, now = Date.now()) {
+  function phaseSnapshot(name, label, now = Date.now()) {
     const phase = phases[name];
     const active = state === name;
     const elapsed = active ? Math.max(0, now - stateStartedAt) : phase.lastMs;
     const total = active ? phase.totalMs + elapsed : phase.totalMs;
-    const pair = `${formatElapsedStatus(elapsed)}/${formatElapsedStatus(total)}`;
+    const pair = `${label} ${formatElapsedStatus(elapsed)}/${formatElapsedStatus(total)}`;
     return active ? `${GREEN}${pair}${RESET}` : pair;
   }
 
   function snapshot(now = Date.now()) {
     return {
       time: formatElapsedStatus(now - sessionStartedAt),
-      reason: phaseSnapshot('reasoning', now),
-      exec: phaseSnapshot('executing', now),
-      writing: phaseSnapshot('writing', now),
+      reasoning: phaseSnapshot('reasoning', 'reasoning', now),
+      executing: phaseSnapshot('executing', 'executing', now),
+      writing: phaseSnapshot('writing', 'writing', now),
     };
   }
 
@@ -94,7 +94,7 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
   function render() {
     if (!state || state === 'writing') return;
     const stats = snapshot();
-    writeLine(`[${stats.time}] {"time":"${stats.time}","reason":"${stats.reason}","exec":"${stats.exec}","writing":"${stats.writing}"}`);
+    writeLine(`[${stats.time}] {"time":"${stats.time}","reasoning":"${stats.reasoning}","executing":"${stats.executing}","writing":"${stats.writing}"}`);
   }
 
   function transition(nextState, { renderNow = true } = {}) {
@@ -331,7 +331,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     }
     if (calls.length === 0) {
       statusController?.clear();
-      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reason: '0s/0s', exec: '0s/0s', writing: '0s/0s' }))}\n`);
+      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', executing: '0s/0s', writing: '0s/0s' }))}\n`);
       return current;
     }
 

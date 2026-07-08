@@ -57,7 +57,7 @@ describe('agent session helpers', () => {
       const controller = createStatusLineController();
       controller.showReasoning();
       expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s"');
-      expect(stdoutWrites.join('')).toContain('[32m0s/0s[0m');
+      expect(stdoutWrites.join('')).toContain('\u001b[32mreasoning 0s/0s\u001b[0m');
     } finally {
       jest.useRealTimers();
     }
@@ -68,8 +68,8 @@ describe('agent session helpers', () => {
     try {
       const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'));
       controller.showReasoning();
-      expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s","reason":"[32m0s/0s[0m"');
-      expect(stdoutWrites.join('')).toContain('"exec":"0s/0s"');
+      expect(stdoutWrites.join('')).toContain('[0s] {\"time\":\"0s\",\"reasoning\":\"\u001b[32mreasoning 0s/0s\u001b[0m\"');
+      expect(stdoutWrites.join('')).toContain('\"executing\":\"executing 0s/0s\"');
 
       jest.setSystemTime(Date.parse('2026-07-08T00:00:01Z'));
       controller.refresh();
@@ -83,7 +83,7 @@ describe('agent session helpers', () => {
   });
 
   test('transaction completion message formats elapsed time', () => {
-    expect(formatTransactionCompletionMessage({ time: '9s', reason: '2s/2s', exec: '1s/1s', writing: '3s/3s' })).toBe('{"transaction.completed":{"time":"9s","reason":"2s/2s","exec":"1s/1s","writing":"3s/3s"}}');
+    expect(formatTransactionCompletionMessage({ time: '9s', reasoning: '2s/2s', executing: '1s/1s', writing: '3s/3s' })).toBe('{\"time\":\"9s\",\"reasoning\":\"2s/2s\",\"executing\":\"1s/1s\",\"writing\":\"3s/3s\"}');
   });
 
   test('createStreamedResponse uses default stream options when omitted', async () => {
@@ -465,7 +465,7 @@ describe('agent session helpers', () => {
 
       const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-      expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s","reason":"[32m0s/0s[0m"');
+      expect(stdoutWrites.join('')).toContain('[0s] {\"time\":\"0s\",\"reasoning\":\"\u001b[32mreasoning 0s/0s\u001b[0m\",\"executing\":\"executing 0s/0s\"');
 
       await jest.advanceTimersByTimeAsync(1000);
       expect(stdoutWrites.join('')).toContain('[1s] {"time":"1s"');
@@ -476,7 +476,7 @@ describe('agent session helpers', () => {
 
       const output = stdoutWrites.join('');
       expect(output).toContain('Hi');
-      expect(output).toContain('[94m{"transaction.completed":');
+      expect(output).toContain('\u001b[94m{\"time\":');
     } finally {
       jest.useRealTimers();
     }
@@ -516,14 +516,14 @@ describe('agent session helpers', () => {
 
     const pending = handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s","reason":"0s/0s","exec":"[32m0s/0s[0m"');
+    expect(stdoutWrites.join('')).toContain('[0s] {\"time\":\"0s\",\"reasoning\":\"reasoning 0s/0s\",\"executing\":\"\u001b[32mexecuting 0s/0s\u001b[0m\"');
 
     await new Promise((resolve) => setTimeout(resolve, 70));
 
     await pending;
     const output = stdoutWrites.join('');
-    expect(output).toContain('[32m0s/0s[0m');
-    expect(output).toContain('[94m{"transaction.completed":');
+    expect(output).toContain('\u001b[32mexecuting 0s/0s\u001b[0m');
+    expect(output).toContain('\u001b[94m{\"time\":');
   });
 
   test('handleToolCalls processes shell_call function calls', async () => {
