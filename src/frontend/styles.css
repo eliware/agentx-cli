@@ -1,3 +1,385 @@
-@import './styles/root.css';
-@import './styles/layout.css';
-@import './styles/forms.css';
+:root {
+  color-scheme: dark;
+  --bg: #07111f;
+  --panel: rgba(11, 19, 32, 0.88);
+  --panel-2: rgba(16, 27, 46, 0.95);
+  --border: rgba(148, 163, 184, 0.16);
+  --text: #e5eefb;
+  --muted: #8ea3c7;
+  --accent: #67e8f9;
+  --accent-2: #a78bfa;
+  --good: #34d399;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  --radius: 20px;
+  --radius-sm: 14px;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(103, 232, 249, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(167, 139, 250, 0.1), transparent 26%),
+    linear-gradient(180deg, #040916 0%, #07111f 40%, #050814 100%);
+  color: var(--text);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-screen,
+.workspace-screen {
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.login-screen {
+  min-height: calc(100vh - 48px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(340px, 440px);
+  gap: 24px;
+  align-items: center;
+}
+
+.hero-card,
+.login-card,
+.panel,
+.transcript-panel,
+.composer,
+.banner {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.hero-card,
+.login-card {
+  border-radius: var(--radius);
+  padding: 28px;
+}
+
+.hero-card h1,
+.topbar h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 4rem);
+  letter-spacing: -0.04em;
+}
+
+.lede {
+  max-width: 54ch;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 16px 0 0;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+}
+
+.status-row,
+.topbar__actions,
+.transcript-head,
+.composer-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.status-pill,
+.banner {
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+
+.status-pill {
+  background: rgba(103, 232, 249, 0.14);
+  border: 1px solid rgba(103, 232, 249, 0.2);
+}
+
+.status-pill--dim {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: var(--muted);
+}
+
+.login-card {
+  display: grid;
+  gap: 16px;
+}
+
+.login-card label,
+.composer textarea,
+.panel,
+.transcript-panel {
+  color: var(--text);
+}
+
+.login-card label {
+  display: grid;
+  gap: 8px;
+}
+
+.login-card input,
+.composer textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(5, 10, 18, 0.72);
+  color: var(--text);
+}
+
+.checkbox-row {
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.primary,
+.ghost {
+  padding: 12px 18px;
+  border-radius: 999px;
+  transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
+}
+
+.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #08111f;
+  font-weight: 700;
+}
+
+.ghost {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.primary:hover,
+.ghost:hover {
+  transform: translateY(-1px);
+}
+
+.workspace-screen {
+  display: grid;
+  gap: 18px;
+}
+
+.topbar,
+.banner,
+.workspace-grid,
+.composer-shell {
+  width: 100%;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+
+.banner {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.2);
+  color: #c8fae5;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.sidebar {
+  display: grid;
+  gap: 18px;
+}
+
+.panel,
+.transcript-panel {
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.panel h2,
+.transcript-panel h2 {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.kv:last-child {
+  border-bottom: 0;
+}
+
+.kv span,
+.subhead,
+.meta-list,
+.summary,
+.inspector {
+  color: var(--muted);
+}
+
+.meta-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.inspector {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.82rem;
+}
+
+.transcript-panel {
+  display: grid;
+  gap: 14px;
+  min-height: 680px;
+}
+
+.summary {
+  min-height: 54px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.transcript {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  overflow: auto;
+  max-height: 62vh;
+  padding-right: 4px;
+}
+
+.chat-item {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(8, 13, 24, 0.72);
+  padding: 14px 16px;
+}
+
+.chat-item--user {
+  background: rgba(103, 232, 249, 0.08);
+  border-color: rgba(103, 232, 249, 0.18);
+}
+
+.chat-item--assistant {
+  background: rgba(167, 139, 250, 0.08);
+  border-color: rgba(167, 139, 250, 0.18);
+}
+
+.chat-item--tool {
+  background: rgba(16, 27, 46, 0.95);
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+.chat-item__header {
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 10px;
+}
+
+.chat-item__body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.5;
+  font-size: 0.94rem;
+}
+
+.composer-shell {
+  position: sticky;
+  bottom: 18px;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.shell-mode {
+  align-self: stretch;
+  font-size: 1.2rem;
+}
+
+.composer textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+@media (max-width: 1120px) {
+  .login-screen,
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .composer {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-mode {
+    display: none;
+  }
+}

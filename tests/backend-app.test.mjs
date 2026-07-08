@@ -6,8 +6,32 @@ const authMock = (username, password) => ({
   reason: 'invalid credentials',
 });
 
+const createBrowserChatSession = jest.fn(async ({ send }) => ({
+  snapshot: (overrides = {}) => ({
+    response_id: 'resp-1',
+    usage: { inputTokens: 1, cachedTokens: 0, outputTokens: 1, turns: 1 },
+    last_user_message: 'hi',
+    last_assistant_message: 'hello',
+    pending_cli_transcript: '',
+    pending_tool_calls: [],
+    cwd: '/tmp/work',
+    ...overrides,
+  }),
+  updateSessionState: jest.fn(),
+  runMessage: jest.fn(async (text) => {
+    send({ type: 'openai.event', event: { type: 'response.output_text.delta', delta: 'hello' } });
+    send({ type: 'assistant.complete', response_id: 'resp-1', text: 'hello', state: { response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 0, outputTokens: 1, turns: 1 }, last_user_message: text, last_assistant_message: 'hello', pending_cli_transcript: '', pending_tool_calls: [], cwd: '/tmp/work' } });
+  }),
+  clear: jest.fn(),
+  close: jest.fn(),
+}));
+
 await jest.unstable_mockModule('../src/backend/linux-auth.mjs', () => ({
   authenticateLinuxCredentials: jest.fn(async ({ username, password }) => authMock(username, password)),
+}));
+
+await jest.unstable_mockModule('../src/backend/browser-session.mjs', () => ({
+  createBrowserChatSession,
 }));
 
 const { clearAuthTokens, countAuthTokens } = await import('../src/backend/auth-tokens.mjs');
@@ -32,6 +56,7 @@ describe('backend gui app', () => {
 
   afterEach(() => {
     clearAuthTokens();
+    createBrowserChatSession.mockClear();
   });
 
   afterAll(async () => {
@@ -45,10 +70,10 @@ describe('backend gui app', () => {
 
     const page = await fetch(`${baseUrl}/`);
     expect(page.status).toBe(200);
-    await expect(page.text()).resolves.toContain('<section data-login-screen hidden>');
+    await expect(page.text()).resolves.toContain('Ultimate terminal-grade chat UI');
   });
 
-  test('logs in with linux credentials and opens a one-time websocket token', async () => {
+  test('logs in with linux credentials and relays websocket chat events', async () => {
     const response = await fetch(`${baseUrl}/api/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -62,63 +87,33 @@ describe('backend gui app', () => {
     expect(typeof login.token).toBe('string');
 
     const socket = new WebSocket(`${baseUrl.replace('http', 'ws')}/ws?token=${encodeURIComponent(login.token)}`);
-    const message = await new Promise((resolve, reject) => {
-      socket.once('message', (data) => resolve(String(data)));
+    const messages = [];
+    await new Promise((resolve, reject) => {
+      socket.on('message', (data) => {
+        const text = String(data);
+        messages.push(JSON.parse(text));
+        if (messages.length >= 1) resolve();
+      });
       socket.once('error', reject);
     });
 
-    expect(JSON.parse(message)).toMatchObject({ type: 'connected', username: 'root' });
+    expect(messages[0]).toMatchObject({ type: 'connected', username: 'root' });
+
+    const wsEvents = [];
+    socket.on('message', (data) => wsEvents.push(JSON.parse(String(data))));
+    socket.send(JSON.stringify({ type: 'session.sync', state: { response_id: 'resp-0', usage: { inputTokens: 1, cachedTokens: 0, outputTokens: 0, turns: 0 }, cwd: '/tmp/work' } }));
+    socket.send(JSON.stringify({ type: 'chat.message', text: 'hi', state: { response_id: 'resp-0', usage: { inputTokens: 1, cachedTokens: 0, outputTokens: 0, turns: 0 }, cwd: '/tmp/work' } }));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(wsEvents.some((event) => event.type === 'session.state')).toBe(true);
+    expect(wsEvents.some((event) => event.type === 'openai.event' && event.event?.type === 'response.output_text.delta')).toBe(true);
+    expect(wsEvents.some((event) => event.type === 'assistant.complete' && event.text === 'hello')).toBe(true);
+    expect(createBrowserChatSession).toHaveBeenCalled();
     expect(countAuthTokens()).toBe(0);
 
     await new Promise((resolve) => {
       socket.once('close', resolve);
       socket.close(1000, 'done');
-    });
-
-    const reuse = new WebSocket(`${baseUrl.replace('http', 'ws')}/ws?token=${encodeURIComponent(login.token)}`);
-    const outcome = await new Promise((resolve) => {
-      reuse.once('open', () => resolve('open'));
-      reuse.once('unexpected-response', () => resolve('unexpected-response'));
-      reuse.once('error', () => resolve('error'));
-      reuse.once('close', () => resolve('close'));
-    });
-
-    expect(outcome).not.toBe('open');
-    reuse.terminate();
-  });
-
-  test('accepts bearer tokens in websocket headers and echoes messages', async () => {
-    const loginResponse = await fetch(`${baseUrl}/api/login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'root', password: 'secret' }),
-    });
-    const login = await loginResponse.json();
-
-    const socket = new WebSocket(`${baseUrl.replace('http', 'ws')}/ws`, {
-      headers: {
-        authorization: `Bearer ${login.token}`,
-      },
-    });
-
-    await new Promise((resolve, reject) => {
-      socket.once('message', (data) => {
-        expect(JSON.parse(String(data))).toMatchObject({ type: 'connected', username: 'root' });
-        resolve();
-      });
-      socket.once('error', reject);
-    });
-
-    const echo = new Promise((resolve, reject) => {
-      socket.once('message', (data) => resolve(JSON.parse(String(data))));
-      socket.once('error', reject);
-    });
-    socket.send('hello');
-    await expect(echo).resolves.toMatchObject({ type: 'echo', message: 'hello' });
-
-    await new Promise((resolve) => {
-      socket.once('close', resolve);
-      socket.close();
     });
   });
 

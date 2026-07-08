@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { consumeAuthToken, issueAuthToken, parseBearerToken } from './auth-tokens.mjs';
 import { authenticateLinuxCredentials } from './linux-auth.mjs';
+import { createBrowserChatSession } from './browser-session.mjs';
+import { promptPath } from '../runtime.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const publicDir = path.join(rootDir, 'public');
@@ -118,16 +120,102 @@ export function attachWebSocketServer(server) {
   });
 
   wss.on('connection', (socket, req) => {
-    socket.send(JSON.stringify({
+    let session = null;
+    let sessionReady = null;
+    let queue = Promise.resolve();
+    const auth = req?.agentxAuth || null;
+
+    const send = (payload) => {
+      if (socket.readyState !== 1) return;
+      try {
+        socket.send(JSON.stringify(payload));
+      } catch {
+        // ignore
+      }
+    };
+
+    const ensureSession = async () => {
+      if (session) return session;
+      if (!sessionReady) {
+        sessionReady = createBrowserChatSession({
+          promptPath,
+          cwd: process.cwd(),
+          send,
+        });
+      }
+      session = await sessionReady;
+      send({
+        type: 'session.state',
+        state: session.snapshot({ cwd: process.cwd() }),
+      });
+      return session;
+    };
+
+    send({
       type: 'connected',
-      username: req?.agentxAuth?.username || null,
-    }));
+      username: auth?.username || null,
+    });
 
     socket.on('message', (message) => {
-      socket.send(JSON.stringify({
-        type: 'echo',
-        message: message.toString(),
-      }));
+      queue = queue.then(async () => {
+        let payload = null;
+        try {
+          payload = JSON.parse(String(message));
+        } catch {
+          send({ type: 'error', error: 'Invalid JSON message' });
+          return;
+        }
+
+        if (payload?.type === 'ping') {
+          send({ type: 'pong' });
+          return;
+        }
+
+        if (payload?.type === 'session.sync') {
+          const active = await ensureSession();
+          active.updateSessionState(payload.state || {});
+          send({ type: 'session.state', state: active.snapshot() });
+          return;
+        }
+
+        if (payload?.type === 'session.clear') {
+          const active = await ensureSession();
+          active.clear();
+          return;
+        }
+
+        if (payload?.type === 'chat.message') {
+          const active = await ensureSession();
+          const text = String(payload.text || '').trim();
+          if (!text) return;
+          send({ type: 'chat.ack', text });
+          try {
+            await active.runMessage(text, payload.state || null);
+          } catch (error) {
+            send({
+              type: 'error',
+              error: error?.message || String(error),
+              code: error?.code || null,
+            });
+          }
+          return;
+        }
+      }).catch((error) => {
+        send({ type: 'error', error: error?.message || String(error) });
+      });
+    });
+
+    socket.on('close', () => {
+      if (session) session.close();
+      session = null;
+      sessionReady = null;
+      queue = Promise.resolve();
+    });
+
+    socket.on('error', () => {
+      if (session) session.close();
+      session = null;
+      sessionReady = null;
     });
   });
 
