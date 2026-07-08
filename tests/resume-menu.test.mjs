@@ -113,6 +113,44 @@ describe('resume menu', () => {
   });
 
 
+
+  test('auto-detects interactive mode when JEST and CI markers are absent', async () => {
+    const originalJestWorkerId = process.env.JEST_WORKER_ID;
+    const originalCi = process.env.CI;
+    delete process.env.JEST_WORKER_ID;
+    delete process.env.CI;
+
+    const { input, output } = makeIO();
+    const prompt = promptResumeMenu({ response_id: 'resp-auto' }, { input, output });
+    process.nextTick(() => input.emit('keypress', '', { name: 'enter' }));
+
+    try {
+      await expect(prompt).resolves.toBe('interrupt-retry');
+      expect(input.setRawMode).toHaveBeenCalledWith(true);
+      expect(output.write.mock.calls.some(([chunk]) => String(chunk).includes('Session resp-auto has pending tool calls.'))).toBe(true);
+    } finally {
+      if (originalJestWorkerId === undefined) delete process.env.JEST_WORKER_ID;
+      else process.env.JEST_WORKER_ID = originalJestWorkerId;
+      if (originalCi === undefined) delete process.env.CI;
+      else process.env.CI = originalCi;
+    }
+  });
+
+  test('falls back to non-interactive mode when tty support is missing', async () => {
+    const originalJestWorkerId = process.env.JEST_WORKER_ID;
+    const originalCi = process.env.CI;
+    delete process.env.JEST_WORKER_ID;
+    delete process.env.CI;
+
+    try {
+      await expect(promptResumeMenu({ response_id: 'resp-fallback' }, { input: { isTTY: false }, output: {} })).resolves.toBe('interrupt-retry');
+    } finally {
+      if (originalJestWorkerId === undefined) delete process.env.JEST_WORKER_ID;
+      else process.env.JEST_WORKER_ID = originalJestWorkerId;
+      if (originalCi === undefined) delete process.env.CI;
+      else process.env.CI = originalCi;
+    }
+  });
   test('defaults to the first option when input is not interactive', async () => {
     await expect(promptResumeMenu({ response_id: 'resp-5' }, { input: {}, output: {} })).resolves.toBe('interrupt-retry');
   });

@@ -82,6 +82,35 @@ describe('agent session helpers', () => {
     }
   });
 
+  test('formatTransactionCompletionMessage handles missing summary fields and non-string status values', () => {
+    expect(formatTransactionCompletionMessage()).toBe('{"time":"","reasoning":"","executing":"","writing":""}');
+    expect(formatTransactionCompletionMessage({
+      time: 42,
+      reasoning: { value: '1s/2s' },
+      executing: { value: undefined },
+      writing: null,
+    })).toBe('{"time":"42","reasoning":"1s/2s","executing":"","writing":""}');
+  });
+
+  test('status line controller covers repeated transitions, refresh before start, and updateExecuting states', () => {
+    jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
+    try {
+      const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'));
+      controller.refresh();
+      controller.updateExecuting();
+      controller.showReasoning();
+      controller.showReasoning();
+      controller.showExecuting();
+      controller.updateExecuting();
+      controller.beginWriting();
+      controller.refresh();
+      expect(stdoutWrites.join('')).toContain('{"time":"0s"');
+      expect(stdoutWrites.join('')).toContain('[32m"executing":"0s/0s"[0m');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('transaction completion message serializes timing values as plain strings', () => {
     expect(formatTransactionCompletionMessage({
       time: '30s',

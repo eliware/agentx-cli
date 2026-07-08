@@ -71,13 +71,11 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
     if (!state) return;
     const elapsed = Math.max(0, now - stateStartedAt);
     const phase = phases[state];
-    if (phase) {
-      phase.lastMs = elapsed;
-      phase.totalMs += elapsed;
-    }
+    phase.lastMs = elapsed;
+    phase.totalMs += elapsed;
   }
 
-  function phaseSnapshot(name, now = Date.now()) {
+  function phaseSnapshot(name, now) {
     const phase = phases[name];
     const active = state === name;
     const elapsed = active ? Math.max(0, now - stateStartedAt) : phase.lastMs;
@@ -118,7 +116,7 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
   function transition(nextState, { renderNow = true } = {}) {
     const now = Date.now();
     if (state === nextState) {
-      if (renderNow) render();
+      render();
       return;
     }
     finalizeActive(now);
@@ -130,7 +128,7 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
       return;
     }
     startTimer();
-    if (renderNow) render();
+    render();
   }
 
   return {
