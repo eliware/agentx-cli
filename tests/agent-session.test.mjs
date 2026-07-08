@@ -48,8 +48,7 @@ describe('agent session helpers', () => {
   test('status helpers fall back cleanly for undefined timing values', () => {
     expect(formatElapsedStatus(undefined)).toBe('0s');
     expect(formatElapsedStatus(61000)).toBe('1m 1s');
-    expect(formatSpinnerFrame(undefined)).toBe('|');
-    expect(formatSpinnerFrame(250)).toBe('/');
+    expect(formatSpinnerFrame(undefined)).toBe('');
   });
 
   test('status line controller uses the default session start time when omitted', () => {
@@ -57,41 +56,34 @@ describe('agent session helpers', () => {
     try {
       const controller = createStatusLineController();
       controller.showReasoning();
-      expect(stdoutWrites.join('')).toContain('[0s]');
+      expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s"');
+      expect(stdoutWrites.join('')).toContain('[32m0s/0s[0m');
     } finally {
       jest.useRealTimers();
     }
   });
 
-  test('status line controller handles idle, executing, and unchanged refreshes', () => {
+  test('status line controller renders JSON stats and highlights the active state', () => {
     jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
     try {
       const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'));
-      controller.refresh();
-      expect(stdoutWrites.join('')).toBe('');
-
-      controller.updateExecuting(1, 2);
-      expect(stdoutWrites.join('')).toBe('');
-
       controller.showReasoning();
-      const before = stdoutWrites.length;
-      controller.refresh();
-      expect(stdoutWrites.length).toBe(before);
+      expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s","reason":"[32m0s/0s[0m"');
+      expect(stdoutWrites.join('')).toContain('"exec":"0s/0s"');
 
-      controller.showExecuting(1, 2);
-      expect(stdoutWrites.join('')).toContain('[0s]');
-      expect(stdoutWrites.join('')).toContain('Executing 1 of 2... 0s');
+      jest.setSystemTime(Date.parse('2026-07-08T00:00:01Z'));
       controller.refresh();
-      expect(stdoutWrites.join('')).toContain('[0s]');
-      expect(stdoutWrites.join('')).toContain('Executing 1 of 2... 0s');
+      expect(stdoutWrites.join('')).toContain('[1s] {"time":"1s"');
+
+      controller.beginWriting();
+      expect(stdoutWrites.join('')).not.toContain('Reasoning');
     } finally {
       jest.useRealTimers();
     }
   });
 
   test('transaction completion message formats elapsed time', () => {
-    expect(formatTransactionCompletionMessage(9000)).toBe('Transaction completed in 9s.');
-    expect(formatTransactionCompletionMessage(61000)).toBe('Transaction completed in 1m 1s.');
+    expect(formatTransactionCompletionMessage({ time: '9s', reason: '2s/2s', exec: '1s/1s', writing: '3s/3s' })).toBe('{"transaction.completed":{"time":"9s","reason":"2s/2s","exec":"1s/1s","writing":"3s/3s"}}');
   });
 
   test('createStreamedResponse uses default stream options when omitted', async () => {
@@ -394,8 +386,8 @@ describe('agent session helpers', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].handlers).toBe(true);
     expect(stdoutWrites.join('')).toContain('Hi there');
-    expect(stdoutWrites.join('')).toContain('\u001b[32m{"p":[{"s":["echo ');
-    expect(stdoutWrites.join('')).toContain('\u001b[32mlive"]}]}');
+    expect(stdoutWrites.join('')).toContain('[32m{"p":[{"s":["echo ');
+    expect(stdoutWrites.join('')).toContain('[32mlive"]}]}');
     expect(stdoutWrites.join('')).toContain('\n');
     expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
     expect(stdoutWrites.join('')).not.toContain('response.output_item.done');
@@ -454,7 +446,7 @@ describe('agent session helpers', () => {
     expect(stdoutWrites.join('')).not.toContain('done\n\n');
   });
 
-  test('sendMessage shows a reasoning spinner until the first streamed delta and formats long waits as minutes', async () => {
+  test('sendMessage shows live stats until the first streamed delta and formats long waits as minutes', async () => {
     jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
     try {
       const template = { model: 'test-model', input: [], tools: [] };
@@ -473,21 +465,18 @@ describe('agent session helpers', () => {
 
       const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-      expect(stdoutWrites.join('')).toContain('[0s] | Reasoning... 0s');
+      expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s","reason":"[32m0s/0s[0m"');
 
-      await jest.advanceTimersByTimeAsync(250);
-      expect(stdoutWrites.join('')).toContain('[0s] / Reasoning... 0s');
-
-      jest.setSystemTime(Date.parse('2026-07-08T00:01:00Z'));
-      await jest.advanceTimersByTimeAsync(250);
-      expect(stdoutWrites.join('')).toContain('1m 0s');
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(stdoutWrites.join('')).toContain('[1s] {"time":"1s"');
 
       handlers.onTextDelta('Hi');
       resolveResponse({ id: 'resp-live', output: [] });
       await pending;
 
-      expect(stdoutWrites.join('')).toContain('Hi');
-      expect(stdoutWrites.join('')).toContain('\r');
+      const output = stdoutWrites.join('');
+      expect(output).toContain('Hi');
+      expect(output).toContain('[94m{"transaction.completed":');
     } finally {
       jest.useRealTimers();
     }
@@ -527,14 +516,14 @@ describe('agent session helpers', () => {
 
     const pending = handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('[0s] | Executing 0 of 2... 0s');
+    expect(stdoutWrites.join('')).toContain('[0s] {"time":"0s","reason":"0s/0s","exec":"[32m0s/0s[0m"');
 
     await new Promise((resolve) => setTimeout(resolve, 70));
-    expect(stdoutWrites.join('')).toContain('[0s] | Executing 1 of 2... 0s');
 
     await pending;
-    expect(stdoutWrites.join('')).toContain('[0s] | Executing 2 of 2... 0s');
-    expect(stdoutWrites.join('')).toContain('[0s] | Reasoning... 0s');
+    const output = stdoutWrites.join('');
+    expect(output).toContain('[32m0s/0s[0m');
+    expect(output).toContain('[94m{"transaction.completed":');
   });
 
   test('handleToolCalls processes shell_call function calls', async () => {
@@ -597,8 +586,8 @@ describe('agent session helpers', () => {
     await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
 
     expect(maxActive).toBe(2);
-    expect(stdoutWrites.join('')).not.toContain('\u001b[32mone\u001b[0m\n');
-    expect(stdoutWrites.join('')).not.toContain('\u001b[32mtwo\u001b[0m\n');
+    expect(stdoutWrites.join('')).not.toContain('[32mone[0m\n');
+    expect(stdoutWrites.join('')).not.toContain('[32mtwo[0m\n');
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0].input.map((item) => item.call_id)).toEqual(['call-1', 'call-2']);
   });

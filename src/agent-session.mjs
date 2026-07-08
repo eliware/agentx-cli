@@ -8,10 +8,11 @@ import { formatCommandMessage, formatInfoMessage, formatSystemMessage } from './
 
 const SHELL_OUTPUT_PREVIEW = 120;
 const STATUS_UPDATE_INTERVAL_MS = 250;
-const STATUS_SPINNER_FRAMES = ['|', '/', '-', '\\'];
+const GREEN = '\u001b[32m';
+const RESET = '\u001b[0m';
 
 function formatElapsedStatus(elapsedMs) {
-  const totalSeconds = Math.max(0, Math.floor(Number(elapsedMs ?? 0) / 1000));
+  const totalSeconds = Math.max(0, Math.round(Number(elapsedMs ?? 0) / 1000));
   if (totalSeconds >= 60) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -20,24 +21,28 @@ function formatElapsedStatus(elapsedMs) {
   return `${totalSeconds}s`;
 }
 
-function formatSpinnerFrame(elapsedMs) {
-  const frame = Math.floor(Math.max(0, Number(elapsedMs ?? 0)) / STATUS_UPDATE_INTERVAL_MS) % STATUS_SPINNER_FRAMES.length;
-  return STATUS_SPINNER_FRAMES[frame];
+function formatTransactionCompletionMessage(summary) {
+  return JSON.stringify({ 'transaction.completed': summary });
 }
 
-function formatTransactionCompletionMessage(elapsedMs) {
-  return `Transaction completed in ${formatElapsedStatus(elapsedMs)}.`;
+function formatSpinnerFrame() {
+  return '';
 }
 
 function createStatusLineController(sessionStartedAt = Date.now()) {
   let timer = null;
-  let startedAt = 0;
   let lastRendered = '';
   let state = null;
+  let stateStartedAt = 0;
+  const phases = {
+    reasoning: { lastMs: 0, totalMs: 0 },
+    executing: { lastMs: 0, totalMs: 0 },
+    writing: { lastMs: 0, totalMs: 0 },
+  };
 
   function clearRenderedLine() {
     if (!lastRendered) return;
-    process.stdout.write(`\r${' '.repeat(lastRendered.length)}\r`);
+    process.stdout.write('\r\x1b[2K');
     lastRendered = '';
   }
 
@@ -46,49 +51,97 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
     timer = null;
   }
 
-  function render() {
-    if (!state) return;
-    const elapsedMs = Date.now() - startedAt;
-    const spinner = formatSpinnerFrame(elapsedMs);
-    const elapsed = formatElapsedStatus(elapsedMs);
-    const totalElapsed = formatElapsedStatus(Date.now() - sessionStartedAt);
-    const text = state.type === 'executing'
-      ? `[${totalElapsed}] ${spinner} Executing ${state.done} of ${state.total}... ${elapsed}`
-      : `[${totalElapsed}] ${spinner} Reasoning... ${elapsed}`;
+  function startTimer() {
+    if (timer) return;
+    timer = setInterval(render, STATUS_UPDATE_INTERVAL_MS);
+  }
 
+  function finalizeActive(now = Date.now()) {
+    if (!state) return;
+    const elapsed = Math.max(0, now - stateStartedAt);
+    const phase = phases[state];
+    if (phase) {
+      phase.lastMs = elapsed;
+      phase.totalMs += elapsed;
+    }
+  }
+
+  function phaseSnapshot(name, now = Date.now()) {
+    const phase = phases[name];
+    const active = state === name;
+    const elapsed = active ? Math.max(0, now - stateStartedAt) : phase.lastMs;
+    const total = active ? phase.totalMs + elapsed : phase.totalMs;
+    const pair = `${formatElapsedStatus(elapsed)}/${formatElapsedStatus(total)}`;
+    return active ? `${GREEN}${pair}${RESET}` : pair;
+  }
+
+  function snapshot(now = Date.now()) {
+    return {
+      time: formatElapsedStatus(now - sessionStartedAt),
+      reason: phaseSnapshot('reasoning', now),
+      exec: phaseSnapshot('executing', now),
+      writing: phaseSnapshot('writing', now),
+    };
+  }
+
+  function writeLine(text) {
     if (text === lastRendered) return;
     clearRenderedLine();
     process.stdout.write(text);
     lastRendered = text;
   }
 
-  function start(nextState) {
-    stopTimer();
+  function render() {
+    if (!state || state === 'writing') return;
+    const stats = snapshot();
+    writeLine(`[${stats.time}] {"time":"${stats.time}","reason":"${stats.reason}","exec":"${stats.exec}","writing":"${stats.writing}"}`);
+  }
+
+  function transition(nextState, { renderNow = true } = {}) {
+    const now = Date.now();
+    if (state === nextState) {
+      if (renderNow) render();
+      return;
+    }
+    finalizeActive(now);
     state = nextState;
-    startedAt = Date.now();
-    render();
-    timer = setInterval(render, STATUS_UPDATE_INTERVAL_MS);
+    stateStartedAt = now;
+    if (nextState === 'writing') {
+      stopTimer();
+      clearRenderedLine();
+      return;
+    }
+    startTimer();
+    if (renderNow) render();
   }
 
   return {
     showReasoning() {
-      start({ type: 'reasoning' });
+      transition('reasoning');
     },
     showExecuting(done, total) {
-      start({ type: 'executing', done, total });
+      transition('executing');
+      render();
     },
     updateExecuting(done, total) {
-      if (!state || state.type !== 'executing') return;
-      state = { type: 'executing', done, total };
+      if (state !== 'executing') return;
       render();
+    },
+    beginWriting() {
+      transition('writing', { renderNow: false });
+    },
+    snapshot() {
+      return snapshot();
     },
     refresh() {
       render();
     },
     clear() {
+      finalizeActive();
+      state = null;
+      stateStartedAt = 0;
       stopTimer();
       clearRenderedLine();
-      state = null;
     },
   };
 }
@@ -200,7 +253,7 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
   const markOutput = () => {
     if (sawOutput) return;
     sawOutput = true;
-    statusController?.clear();
+    statusController?.beginWriting();
   };
 
   return {
@@ -278,7 +331,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     }
     if (calls.length === 0) {
       statusController?.clear();
-      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(Date.now() - sessionStartedAt))}\n`);
+      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reason: '0s/0s', exec: '0s/0s', writing: '0s/0s' }))}\n`);
       return current;
     }
 
