@@ -1,5 +1,7 @@
 # Examples
 
+These examples work the same after a global install or a local repo run.
+
 ## Ask a question
 
 ```text

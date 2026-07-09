@@ -1,6 +1,6 @@
 # Session state
 
-AgentX stores session state in `.agentx_responseid` in the current working directory.
+AgentX stores session state in `.agentx_responseid` in the current working directory, whether you launched it from a global install or from the repository.
 
 ## Saved data
 

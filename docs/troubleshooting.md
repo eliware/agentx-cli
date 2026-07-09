@@ -2,8 +2,8 @@
 
 ## AgentX does not start
 
-Check that you are running the entrypoint directly and that `agentx_api_key` or `AGENTX_API_KEY` is set in your shell environment.
-If you want a guided local setup, run `agentx-setup` to edit `.env` and inspect the GUI service.
+Check that `agentx_api_key` or `AGENTX_API_KEY` is set in your shell environment. If you installed the package globally, make sure your npm global bin directory is on PATH so `agentx` and `agentx-setup` can be found.
+If you want a guided setup, run `agentx-setup` to edit `.env` and inspect the GUI service.
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
 
@@ -11,7 +11,7 @@ If the WebSocket connection closes or hits the service limit, AgentX will reconn
 
 ## Missing API key
 
-AgentX stops at startup if neither environment variable is set. Export one before launching the CLI.
+AgentX stops at startup if neither environment variable is set. Export one before launching the CLI, or run `agentx-setup` to save it locally.
 
 ## prompt.json cannot be read
 
@@ -24,7 +24,7 @@ That means there is no `AGENTS.md` in the current directory or any parent direct
 ## Web GUI looks broken
 
 That is expected for now. The browser UI is still a proof of concept and many flows are incomplete or fail.
-Use the CLI if you want the more reliable path.
+Use the CLI if you want the more reliable path. The GUI path is mainly for repository-local use.
 
 ## Shell command output looks missing
 

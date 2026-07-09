@@ -3,6 +3,7 @@
 ## @eliware/agentx-cli [![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli)[![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE)[![build status](https://github.com/eliware/agentx-cli/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx-cli/actions)
 
 `agentx` is a lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.
+If you just want to use it, install the published package globally, run `agentx-setup` once, and then start `agentx`.
 A browser-based web GUI is also included, but it is only a proof of concept and still rough.
 A separate `agentx-setup` helper can edit `.env` values and manage the GUI service on Linux.
 
@@ -46,19 +47,28 @@ It is designed to feel shell-like:
 
 ## Usage
 
-Start the agent from the repository root or from any working directory:
+If you just want to use AgentX, install the published package globally:
 
 ```bash
-node agentx.mjs
+npm install -g @eliware/agentx-cli
 ```
 
-If you have a symlink installed, you can also run:
+Then run the setup helper once:
+
+```bash
+agentx-setup
+```
+
+That will help you set your API key and, on Linux, install or repair the GUI service if you want it.
+After that, start the chat client with:
 
 ```bash
 agentx
 ```
 
-To try the experimental web GUI:
+If you are working from the repository itself, you can also run `node agentx.mjs` instead of the global binary.
+
+To try the experimental web GUI from the repository:
 
 ```bash
 npm run start:gui
@@ -108,7 +118,7 @@ If `AGENTS.md` is missing, the app prints a notice and continues with a fallback
 
 ## Docs
 
-User-facing docs live in [`docs/`](./docs):
+User-facing docs live in [`docs/`](./docs). Start with [Quickstart](./docs/quickstart.md) if you just want to use AgentX.
 
 - [Quickstart](./docs/quickstart.md)
 - [Command reference](./docs/commands.md)
@@ -118,6 +128,8 @@ User-facing docs live in [`docs/`](./docs):
 - [Troubleshooting](./docs/troubleshooting.md)
 
 ## Development
+
+This section is for contributors working from the repository. If you just want to use AgentX, use [Usage](#usage) and [Quickstart](./docs/quickstart.md).
 
 - Main entrypoint: [`agentx.mjs`](./agentx.mjs)
 - Setup entrypoint: [`agentx-setup.mjs`](./agentx-setup.mjs)
@@ -149,7 +161,7 @@ The tests cover:
 
 ## Environment
 
-Set your OpenAI key in the shell environment, or in a local `.env` file if you prefer:
+Set your OpenAI key in the shell environment, or let `agentx-setup` write it for you after the global install:
 
 ```bash
 export agentx_api_key="your-key-here"

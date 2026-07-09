@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.2.5 - setup testability and cross-platform cleanup
+
+- Refactored the `agentx-setup` interactive flow to accept injected stdin/stdout streams instead of relying on process globals.
+- Cleaned up setup rendering and service install/repair helpers around a shared install root.
+- Reworked the setup-flow tests to use a fake terminal, which removed brittle TTY and stdout monkeypatching.
+- Noted the repository expectation that tests stay cross-platform friendly on Linux, Windows, and GitHub Actions.
+
 ## 1.2.4 - frontend and setup robustness fixes
 
 - Hardened the frontend storage, DOM, transcript, and view helpers for missing browser APIs and empty state inputs.

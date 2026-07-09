@@ -1,6 +1,6 @@
 # Command reference
 
-AgentX supports shell-like commands in the terminal.
+AgentX supports shell-like commands in the terminal, whether you launched it from a global install or from the repository.
 
 ## Internal commands
 
