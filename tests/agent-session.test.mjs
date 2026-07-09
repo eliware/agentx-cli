@@ -24,7 +24,6 @@ describe('agent session helpers', () => {
   test('responseItemToTranscript covers the remaining item shapes', () => {
     expect(responseItemToTranscript({ role: 'assistant', type: 'message', content: [{ type: 'input_text' }, { type: 'output_text' }, { type: 'refusal', refusal: '' }, { text: 'gamma' }] })).toBe('assistant: gamma');
     expect(responseItemToTranscript({ type: 'message', content: [{ type: 'input_text', text: '' }, { type: 'output_text', text: '' }] })).toBe('');
-    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', input: '{not valid json' })).toBe('assistant shell call: {not valid json');
     expect(responseItemToTranscript({ type: 'function_call', name: 'other_tool', input: 'abc' })).toBe('assistant tool call: other_tool(abc)');
     expect(responseItemToTranscript({ type: 'function_call', name: 'other_tool' })).toBe('assistant tool call: other_tool()');
     expect(responseItemToTranscript({ type: 'message', content: undefined })).toBe('');
@@ -403,7 +402,7 @@ describe('agent session helpers', () => {
             { type: 'response.function_call_arguments.delta', delta: 'live"]}]}'},
             { raw: '{"type":"response.function_call_arguments.delta","delta":"live\\"]}]}"}', json: { type: 'response.function_call_arguments.delta', delta: 'live"]}]}' } },
           );
-          handlers?.onItemDone({ type: 'function_call', name: 'shell_call', call_id: 'call-1', arguments: '{"p":[{"s":["echo live"]}]}' });
+          handlers?.onItemDone({ type: 'shell_call', call_id: 'call-1', action: { commands: ['echo live'] } });
           handlers?.onItemDone({ type: 'reasoning', summary: [] });
           handlers?.onItemDone({ type: 'reasoning', summary: [{ type: 'input_text', text: 'thinking' }] });
           handlers?.onEvent?.(
@@ -560,35 +559,7 @@ describe('agent session helpers', () => {
     expect(output).toContain('\u001b[94m{\"time\":');
   });
 
-  test('handleToolCalls processes shell_call function calls', async () => {
-    const createCalls = [];
-    const openai = {
-      responses: {
-        create: async (request) => {
-          createCalls.push(request);
-          return { id: 'resp-next', output: [] };
-        },
-      },
-    };
-    const response = {
-      id: 'resp-1',
-      output: [{ type: 'function_call', call_id: 'call-1', name: 'shell_call', input: JSON.stringify({ c: '/tmp/work', p: [{ s: ['printf hi'] }] }) }],
-    };
-
-    const runToolCallFn = async (call) => {
-      expect(call.type).toBe('function_call');
-      expect(call.name).toBe('shell_call');
-      return JSON.stringify({ call_id: call.call_id, cwd: '/tmp/work', status: 'completed', groups: [] });
-    };
-
-    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
-
-    expect(createCalls).toHaveLength(1);
-    expect(createCalls[0].input).toHaveLength(1);
-    expect(createCalls[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'call-1' });
-  });
-
-  test('handleToolCalls runs multiple tool calls in parallel and preserves output order', async () => {
+  test('handleToolCalls runs multiple tool calls sequentially and preserves output order', async () => {
     const createCalls = [];
     const openai = {
       responses: {
@@ -619,7 +590,7 @@ describe('agent session helpers', () => {
 
     await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
 
-    expect(maxActive).toBe(2);
+    expect(maxActive).toBe(1);
     expect(stdoutWrites.join('')).not.toContain('[32mone[0m\n');
     expect(stdoutWrites.join('')).not.toContain('[32mtwo[0m\n');
     expect(createCalls).toHaveLength(1);
@@ -639,22 +610,6 @@ describe('agent session helpers', () => {
 
   test('formatUsageSummary renders usage stats', () => {
     expect(formatUsageSummary({ usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } })).toBe('{"in":"1 ($0.000)","cache":"1 ($0.000)","out":"3 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}');
-  });
-
-  test('responseItemToTranscript formats shell_call function call inputs', () => {
-    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', input: JSON.stringify({ c: '/tmp/work', p: [{ s: ['printf hi'] }] }) })).toBe('assistant shell call: {"c":"/tmp/work","p":[{"s":["printf hi"]}]}');
-  });
-
-  test('responseItemToTranscript formats shell_call function call arguments fields', () => {
-    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', arguments: JSON.stringify({ c: '/tmp/work', p: [{ s: ['printf hi'] }] }) })).toBe('assistant shell call: {"c":"/tmp/work","p":[{"s":["printf hi"]}]}');
-  });
-
-  test('responseItemToTranscript falls back to an empty shell_call preview when no payload is present', () => {
-    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call' })).toBe('assistant shell call: {}');
-  });
-
-  test('responseItemToTranscript falls back to raw shell_call arguments when JSON parsing fails', () => {
-    expect(responseItemToTranscript({ type: 'function_call', name: 'shell_call', arguments: '{not valid json' })).toBe('assistant shell call: {not valid json');
   });
 
   test('responseItemToTranscript formats message content, tool calls, and outputs', () => {

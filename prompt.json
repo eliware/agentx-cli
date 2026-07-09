@@ -38,65 +38,17 @@
   ],
   "tools": [
     {
-      "type": "function",
-      "name": "shell_call",
-      "description": "Run shell cmds in parallel groups.",
-      "strict": false,
-      "parameters": {
-        "type": "object",
-        "description": "Tool args.",
-        "required": [
-          "p"
-        ],
-        "properties": {
-          "c": {
-            "type": "string",
-            "description": "Optional default cwd for all command groups; falls back to the current cwd."
-          },
-          "p": {
-            "type": "array",
-            "description": "Parallel command groups; commands inside each group run sequentially.",
-            "items": {
-              "type": "object",
-              "description": "Sequential command list.",
-              "required": [
-                "s"
-              ],
-              "properties": {
-                "c": {
-                  "type": "string",
-                  "description": "Group cwd override."
-                },
-                "s": {
-                  "type": "array",
-                  "description": "Run these commands in order.",
-                  "items": {
-                    "type": "string",
-                    "description": "Shell cmd."
-                  }
-                },
-                "t": {
-                  "type": "integer",
-                  "description": "Timeout ms for this group."
-                },
-                "l": {
-                  "type": "integer",
-                  "description": "Max output chars for this group."
-                }
-              },
-              "additionalProperties": false
-            }
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
       "type": "web_search",
       "user_location": {
         "type": "approximate"
       },
-      "search_context_size": "low"
+      "search_context_size": "medium"
+    },
+    {
+      "type": "shell",
+      "environment": {
+        "type": "local"
+      }
     }
   ],
   "store": true,

@@ -200,13 +200,7 @@ function shellOutputPreview(item) {
 }
 
 function isShellToolCall(item) {
-  return item?.type === 'shell_call' || (item?.type === 'function_call' && item?.name === 'shell_call');
-}
-
-function shellFunctionCallPreview(item) {
-  const raw = String(item?.input ?? item?.arguments ?? '{}');
-  if (raw.includes('not valid json')) return raw;
-  return compactJson(JSON.parse(raw));
+  return item?.type === 'shell_call';
 }
 
 export function responseItemToTranscript(item) {
@@ -219,9 +213,6 @@ export function responseItemToTranscript(item) {
   }
 
   if (item.type === 'function_call') {
-    if (item.name === 'shell_call') {
-      return `assistant shell call: ${shellFunctionCallPreview(item)}`;
-    }
     return `assistant tool call: ${item.name || 'function'}(${item.arguments || item.input || ''})`;
   }
 
@@ -262,6 +253,10 @@ function isFunctionCallArgumentsDeltaEvent(event) {
   return event?.type === 'response.function_call_arguments.delta';
 }
 
+function isShellCallCommandDeltaEvent(event) {
+  return event?.type === 'response.shell_call_command.delta';
+}
+
 function createLiveResponseHandlers({ liveStreaming, statusController }) {
   let sawOutput = false;
   let streamedText = '';
@@ -282,12 +277,13 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
           statusController?.clear();
           return;
         }
-        if (!isFunctionCallArgumentsDeltaEvent(event)) return;
-        markOutput();
-        const delta = String(event?.delta ?? '');
-        if (delta) {
-          streamedText += delta;
-          process.stdout.write(formatCommandMessage(delta));
+        if (isFunctionCallArgumentsDeltaEvent(event) || isShellCallCommandDeltaEvent(event)) {
+          markOutput();
+          const delta = String(event?.delta ?? '');
+          if (delta) {
+            streamedText += delta;
+            process.stdout.write(formatCommandMessage(delta));
+          }
         }
       },
       onTextDelta(delta) {
@@ -353,25 +349,17 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 
     isFirstResponse = false;
     statusController?.showExecuting(0, calls.length);
+    const outputs = [];
     let completed = 0;
-    let results;
     try {
-      results = await Promise.all(calls.map(async (call, callIndex) => {
-        try {
-          const output = await runToolCallFn(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length });
-          return { call, output };
-        } finally {
-          completed += 1;
-          statusController?.updateExecuting(completed, calls.length);
-        }
-      }));
+      for (const [callIndex, call] of calls.entries()) {
+        const output = await runToolCallFn(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length });
+        outputs.push(toolOutputForCall(call, output));
+        completed += 1;
+        statusController?.updateExecuting(completed, calls.length);
+      }
     } finally {
       statusController?.clear();
-    }
-
-    const outputs = [];
-    for (const { call, output } of results) {
-      outputs.push(toolOutputForCall(call, output));
     }
 
     const request = {

@@ -100,9 +100,7 @@ export function createTranscriptController({ document = globalThis.document, tra
   }
 
   function beginToolEntry(callId, call) {
-    const title = call?.name === 'shell_call' || call?.type === 'shell_call'
-      ? 'shell_call'
-      : call?.name || call?.type || 'tool';
+    const title = call?.type === 'shell_call' ? 'shell_call' : call?.name || call?.type || 'tool';
     const node = ensureToolEntry(callId, title);
     if (!node) return;
     node.body.textContent = safeJson({ call, status: 'running' });

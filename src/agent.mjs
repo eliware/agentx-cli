@@ -66,7 +66,6 @@ function buildInterruptedToolOutput(call, mode, cwd) {
     return {
       type: 'shell_call_output',
       call_id: getToolCallId(call),
-      cwd,
       status: 'completed',
       output: [{ stdout: message, stderr: '', outcome: { type: 'exit', exit_code: 0 } }],
     };

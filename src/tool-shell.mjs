@@ -76,126 +76,32 @@ function normalizeCommands(commands) {
   return [];
 }
 
-function createStreamingCollector(maxOutputLength) {
-  const max = normalizeLimit(maxOutputLength);
-  const textParts = [];
-  let totalLength = 0;
-  let truncated = false;
-  const stdoutDecoder = new StringDecoder('utf8');
-  const stderrDecoder = new StringDecoder('utf8');
-
-  function appendText(text) {
-    if (!text || truncated) return;
-    if (totalLength >= max) {
-      truncated = true;
-      return;
-    }
-    const remaining = max - totalLength;
-    const part = text.length <= remaining ? text : text.slice(0, remaining);
-    if (!part) {
-      truncated = true;
-      return;
-    }
-    textParts.push(part);
-    totalLength += part.length;
-    if (part.length < text.length) truncated = true;
-  }
-
-  function handleChunk(chunk, writer, decoder) {
-    if (!chunk || !chunk.length) return;
-    writer?.(chunk);
-    appendText(decoder.write(chunk));
-  }
-
-  function finalize() {
-    appendText(stdoutDecoder.end());
-    appendText(stderrDecoder.end());
-    return truncateText(textParts.join(''), maxOutputLength);
-  }
-
-  return {
-    handleStdout(chunk, writer) {
-      handleChunk(chunk, writer, stdoutDecoder);
-    },
-    handleStderr(chunk, writer) {
-      handleChunk(chunk, writer, stderrDecoder);
-    },
-    finalize,
-  };
+function normalizeSteps(steps, defaultCwd = '', fallbackTimeoutMs = null, fallbackMaxOutputLength = null) {
+  if (!Array.isArray(steps)) return [];
+  return steps.map((step) => ({
+    command: String(step?.command ?? ''),
+    cwd: step?.cwd == null ? String(defaultCwd ?? '') : String(step.cwd),
+    timeoutMs: step?.timeoutMs ?? fallbackTimeoutMs,
+    maxOutputLength: step?.maxOutputLength ?? fallbackMaxOutputLength,
+  }));
 }
 
-async function executeShellCommandStream(command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr, platform = process.platform } = {}) {
-  const collector = createStreamingCollector(maxOutputLength);
-  const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
-
-  return await new Promise((resolve) => {
-    const launchers = getLaunchPlan(command, platform);
-    let current = 0;
-    let completed = false;
-    let timer = null;
-    let child = null;
-    let stderrFallback = '';
-
-    const finish = (outcome) => {
-      if (completed) return;
-      completed = true;
-      if (timer) clearTimeout(timer);
-      resolve(makeShellCommandOutput({
-        stdout: collector.finalize(),
-        stderr: stderrFallback,
-        outcome,
-        maxOutputLength,
-      }));
-    };
-
-    const startNext = () => {
-      if (current >= launchers.length) {
-        finish({ type: 'exit', exit_code: 1 });
-        return;
-      }
-
-      const plan = launchers[current++];
-      child = spawn(plan.file, plan.args, {
-        cwd,
-        env: process.env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true,
-      });
-      timer = setTimeout(() => {
-        child?.kill('SIGTERM');
-      }, timeout);
-
-      child.stdout?.on('data', (chunk) => collector.handleStdout(chunk, writeStdout));
-      child.stderr?.on('data', (chunk) => collector.handleStderr(chunk, writeStderr));
-      child.on('error', (error) => {
-        if (completed) return;
-        if (isMissingLauncherError(error)) {
-          if (timer) clearTimeout(timer);
-          startNext();
-          return;
-        }
-        stderrFallback = error?.message || String(error);
-        finish({ type: 'exit', exit_code: 1 });
-      });
-      child.on('close', (code) => {
-        if (completed) return;
-        if (timer) clearTimeout(timer);
-        finish({ type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 });
-      });
-    };
-
-    startNext();
-  });
-}
-
-export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLength, callId } = {}) {
+export async function runShellCommandSequence(steps, { callId, defaultCwd = '' } = {}) {
+  const normalizedSteps = normalizeSteps(steps, defaultCwd);
   const output = [];
-  const commandList = normalizeCommands(commands);
   let status = 'completed';
+  let maxOutputLength = null;
 
-  for (const command of commandList) {
-    const chunk = await executeWithLaunchers(command, cwd, { timeoutMs, maxOutputLength });
+  for (const step of normalizedSteps) {
+    const chunk = await executeWithLaunchers(step.command, step.cwd, {
+      timeoutMs: step.timeoutMs,
+      maxOutputLength: step.maxOutputLength,
+    });
     output.push(chunk);
+    const stepLimit = Number(step.maxOutputLength);
+    if (Number.isFinite(stepLimit) && stepLimit > 0) {
+      maxOutputLength = maxOutputLength == null ? stepLimit : Math.max(maxOutputLength, stepLimit);
+    }
     if (chunk.outcome?.type === 'timeout') {
       status = 'incomplete';
       break;
@@ -205,48 +111,24 @@ export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLeng
   return {
     type: 'shell_call_output',
     call_id: callId || '',
-    output,
-    max_output_length: Number.isFinite(Number(maxOutputLength)) ? Number(maxOutputLength) : null,
     status,
-  };
-}
-
-function normalizeGroup(group, defaultCwd) {
-  return {
-    cwd: String(group?.c ?? defaultCwd ?? ''),
-    commands: normalizeCommands(group?.s),
-    timeoutMs: group?.t,
-    maxOutputLength: group?.l,
-  };
-}
-
-function normalizeGroups(groups, defaultCwd) {
-  return Array.isArray(groups) ? groups.map((group) => normalizeGroup(group, defaultCwd)) : [];
-}
-
-export async function runShellCommandGroups(groups, cwd, { callId, defaultCwd } = {}) {
-  const resolvedDefaultCwd = String(defaultCwd ?? cwd ?? '');
-  const normalizedGroups = normalizeGroups(groups, resolvedDefaultCwd);
-  const results = await Promise.all(
-    normalizedGroups.map(async (group) => runShellCommands(group.commands, group.cwd || resolvedDefaultCwd, { timeoutMs: group.timeoutMs, maxOutputLength: group.maxOutputLength })),
-  );
-  const output = results.flatMap((result) => Array.isArray(result?.output) ? result.output : []);
-  const maxOutputLength = normalizedGroups.length > 0
-    ? Math.max(...normalizedGroups.map((group) => Number(group.maxOutputLength)).filter((value) => Number.isFinite(value) && value > 0))
-    : null;
-
-  return {
-    type: 'shell_call_output',
-    call_id: callId || '',
-    cwd: resolvedDefaultCwd,
-    status: results.some((group) => group.status === 'incomplete') ? 'incomplete' : 'completed',
     output,
-    max_output_length: Number.isFinite(maxOutputLength) ? maxOutputLength : null,
+    max_output_length: maxOutputLength,
   };
+}
+
+export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLength, callId } = {}) {
+  const steps = normalizeCommands(commands).map((command) => ({
+    command,
+    cwd,
+    timeoutMs,
+    maxOutputLength,
+  }));
+  return await runShellCommandSequence(steps, { callId, defaultCwd: cwd });
 }
 
 export async function shellExec(command, cwd) {
-  const result = await executeShellCommandStream(command, cwd, {
+  const result = await executeWithLaunchers(command, cwd, {
     maxOutputLength: MAX_TOOL_OUTPUT,
     writeStdout: (chunk) => process.stdout.write(chunk),
     writeStderr: (chunk) => process.stderr.write(chunk),

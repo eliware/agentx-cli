@@ -5,7 +5,7 @@ import { toolOutputForCall, runToolCall } from '../tool-dispatch.mjs';
 import { readAgentsFromCwdAndParents } from '../shell-agents.mjs';
 
 function isShellToolCall(item) {
-  return item?.type === 'shell_call' || (item?.type === 'function_call' && item?.name === 'shell_call');
+  return item?.type === 'shell_call';
 }
 
 function normalizeUsageTotals(usage) {

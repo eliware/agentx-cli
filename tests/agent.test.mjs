@@ -118,7 +118,7 @@ describe('agent loop', () => {
       await streamOptions.onResponseState({
         response: { id: 'resp-first' },
         usage: { inputTokens: 4, cachedTokens: 1, outputTokens: 2 },
-        pendingToolCalls: [{ type: 'function_call', name: 'shell_call', call_id: 'call-1', input: '{"p":[{"s":["npm test"]}]}' }],
+        pendingToolCalls: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['npm test'] } }],
       });
       return {
         id: 'resp-complete',
@@ -182,7 +182,7 @@ describe('agent loop', () => {
       last_user_message: 'please do something',
       last_assistant_message: '',
       pending_cli_transcript: '',
-      pending_tool_calls: [{ type: 'function_call', name: 'shell_call', call_id: 'call-1', input: '{"p":[{"s":["echo resume"]}]}' }],
+      pending_tool_calls: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['echo resume'] } }],
     }));
     const extractTextFromResponse = jest.fn(() => 'final assistant');
     const handleToolCalls = jest.fn(async (_openai, response, _baseRequest, _cwd, _onResponseUsage, _runToolCallFn, streamOptions) => {
@@ -285,7 +285,7 @@ Ask the user what they want to do next.`,
       last_user_message: 'please do something',
       last_assistant_message: '',
       pending_cli_transcript: '',
-      pending_tool_calls: [{ type: 'function_call', name: 'shell_call', call_id: 'call-1', input: '{"p":[{"s":["echo resume"]}]}' }],
+      pending_tool_calls: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['echo resume'] } }],
     }));
     const extractTextFromResponse = jest.fn(() => 'final assistant');
     const handleToolCalls = jest.fn(async (_openai, response, _baseRequest, _cwd, _onResponseUsage, runToolCallFn, streamOptions) => {
@@ -293,7 +293,7 @@ Ask the user what they want to do next.`,
       expect(response.output).toHaveLength(1);
       expect(streamOptions.skipInitialUsageAccounting).toBe(true);
       const output = await runToolCallFn(response.output[0], cwd, { isFirstResponse: false, currentResponse: response });
-      expect(String(typeof output === 'string' ? output : JSON.stringify(output))).toContain(expectedMessage);
+      expect(output.output[0].stdout).toContain(expectedMessage);
       return {
         id: 'resp-complete',
         output: [{ type: 'message', content: [{ type: 'output_text', text: 'done' }] }],

@@ -1,45 +1,13 @@
-import { runShellCommandGroups, runShellCommands } from './tool-shell.mjs';
+import { runShellCommands } from './tool-shell.mjs';
 
-function isShellFunctionCall(call) {
-  return call?.type === 'function_call' && call?.name === 'shell_call';
+function normalizeCommandList(commands) {
+  if (Array.isArray(commands)) return commands.map((command) => String(command ?? ''));
+  if (typeof commands === 'string') return [commands];
+  return [];
 }
 
-function getShellCommands(call) {
-  const commands = call?.action?.commands;
-  if (!Array.isArray(commands)) return [];
-  return commands.map((command) => String(command ?? ''));
-}
-
-function formatShellCommandSummary(call) {
-  const commands = getShellCommands(call);
-  return commands.length > 0 ? commands.join(' && ') : '';
-}
-
-function summarizeGroup(group, defaultCwd) {
-  const cwd = group?.c == null ? defaultCwd : String(group.c);
-  const commands = Array.isArray(group?.s)
-    ? group.s.map((command) => String(command ?? ''))
-    : (typeof group?.s === 'string' ? [String(group.s)] : []);
-  const prefix = cwd ? `cd ${cwd}: ` : '';
-  return `${prefix}${commands.join(' && ')}`.trim();
-}
-
-function summarizeShellFunctionCall(call) {
-  let raw = call?.input;
-  if (raw == null) raw = call?.arguments;
-  if (raw == null) return '';
-
-  let input = {};
-  try {
-    input = JSON.parse(String(raw));
-  } catch {
-    return String(raw).trim();
-  }
-
-  const defaultCwd = String(input?.c ?? '');
-  const groups = Array.isArray(input?.p) ? input.p : [];
-  const parts = groups.map((group) => summarizeGroup(group, defaultCwd)).filter(Boolean);
-  return parts.length > 0 ? parts.join(' || ') : '';
+function summarizeShellCommands(commands) {
+  return normalizeCommandList(commands).filter((command) => command !== '').join(' && ');
 }
 
 function normalizeShellOutput(call, output) {
@@ -59,52 +27,33 @@ function normalizeFunctionOutput(call, output) {
   };
 }
 
-function parseShellFunctionInput(call) {
-  let raw = call?.input;
-  if (raw == null) raw = call?.arguments;
-  if (raw == null) return {};
-
-  try {
-    return JSON.parse(String(raw));
-  } catch (error) {
-    return { __parseError: String(error?.message ?? error) };
-  }
+function parseShellActionCommands(call) {
+  const commands = call?.action?.commands;
+  return Array.isArray(commands) || typeof commands === 'string' ? commands : [];
 }
 
 export async function runToolCall(call, cwd) {
-  if (isShellFunctionCall(call)) {
-    const input = parseShellFunctionInput(call);
-    if (input?.__parseError) {
-      return JSON.stringify({ error: 'invalid shell_call input', details: input.__parseError });
-    }
-
-    const defaultCwd = String(input?.c ?? cwd ?? '');
-    const groups = Array.isArray(input?.p) ? input.p : [];
-    const result = await runShellCommandGroups(groups, cwd, { callId: call?.call_id || call?.id || '', defaultCwd });
-    return JSON.stringify(result);
-  }
-
   if (call?.type === 'shell_call') {
-    const commands = getShellCommands(call);
-    return await runShellCommands(commands, cwd, { timeoutMs: call?.action?.timeout_ms, maxOutputLength: call?.action?.max_output_length, callId: call?.call_id || call?.id || '' });
+    return await runShellCommands(parseShellActionCommands(call), cwd, {
+      timeoutMs: call?.action?.timeout_ms,
+      maxOutputLength: call?.action?.max_output_length,
+      callId: call?.call_id || call?.id || '',
+    });
   }
 
   return `ERROR: unsupported tool ${call?.name || call?.type}`;
 }
 
 export function toolCallSummary(call, output) {
-  if (isShellFunctionCall(call)) {
-    return summarizeShellFunctionCall(call);
-  }
   if (call?.type === 'shell_call') {
-    return formatShellCommandSummary(call);
+    return summarizeShellCommands(call?.action?.commands);
   }
   return `${call?.name || call?.type || 'tool'}... OK!`;
 }
 
 export function toolOutputForCall(call, output) {
-  if (isShellFunctionCall(call) || call?.type === 'function_call') return normalizeFunctionOutput(call, output);
   if (call?.type === 'shell_call') return normalizeShellOutput(call, output);
+  if (call?.type === 'function_call') return normalizeFunctionOutput(call, output);
   return {
     type: 'function_call_output',
     call_id: call?.call_id || '',
