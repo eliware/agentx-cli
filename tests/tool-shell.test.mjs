@@ -56,7 +56,22 @@ describe('tool shell', () => {
   test('shellExec streams and returns command output', async () => {
     if (process.platform === 'win32') return;
     const tmp = makeTempDir('agentx-shell-');
-    const output = await shellExec('echo hello', tmp);
-    expect(output).toContain('hello');
+    const originalStdoutWrite = process.stdout.write;
+    const originalStderrWrite = process.stderr.write;
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    process.stdout.write = (chunk) => { stdoutChunks.push(String(chunk)); return true; };
+    process.stderr.write = (chunk) => { stderrChunks.push(String(chunk)); return true; };
+
+    try {
+      const output = await shellExec("node -e \"process.stdout.write('hello'); process.stderr.write('oops')\"", tmp);
+      expect(output).toMatchObject({ stdout: 'hello', stderr: 'oops', outcome: { type: 'exit', exit_code: 0 } });
+      expect(stdoutChunks.join('')).toContain('hello');
+      expect(stderrChunks.join('')).toContain('oops');
+    } finally {
+      process.stdout.write = originalStdoutWrite;
+      process.stderr.write = originalStderrWrite;
+      cleanupTempDir(tmp);
+    }
   });
 });

@@ -11,9 +11,15 @@ describe('tool dispatch', () => {
       expect(shellResult.output).toEqual([{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }]);
 
       expect(await runToolCall({ type: 'shell_call', call_id: 'call-2', action: { commands: ['node -e "process.stdout.write(\'ok\')"'] } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: 'call-2', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] });
+      expect(await runToolCall({ type: 'shell_call', id: 'call-3', action: { commands: 'node -e "process.stdout.write(\'ok\')"' } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: 'call-3', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] });
+      expect(await runToolCall({ type: 'shell_call', action: { commands: 'node -e "process.stdout.write(\'ok\')"' } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: '', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] });
+      expect(await runToolCall({ type: 'shell_call', call_id: 'call-empty', action: {} }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: 'call-empty', output: [] });
       expect(toolCallSummary({ type: 'shell_call', action: { commands: ['node -e "process.stdout.write(\'ok\')"'] } }, null)).toBe('node -e "process.stdout.write(\'ok\')"');
+      expect(toolCallSummary({ type: 'shell_call', action: { commands: ['first', '', null] } }, null)).toBe('first');
+      expect(toolCallSummary({ type: 'shell_call', action: {} }, null)).toBe('');
       expect(await runToolCall({ type: 'weird' }, tmp)).toBe('ERROR: unsupported tool weird');
       expect(await runToolCall({ name: 'unknown', arguments: '{}' }, tmp)).toBe('ERROR: unsupported tool unknown');
+      expect(toolOutputForCall({ type: 'shell_call', call_id: 'call-shell', action: {} }, { type: 'shell_call_output', call_id: 'present', output: [] })).toEqual({ type: 'shell_call_output', call_id: 'present', output: [] });
     } finally {
       cleanupTempDir(tmp);
     }

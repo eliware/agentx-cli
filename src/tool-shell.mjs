@@ -1,10 +1,8 @@
-import { execFile, spawn } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
-import { MAX_TOOL_OUTPUT, truncateToolOutput } from './tool-output.mjs';
+import { MAX_TOOL_OUTPUT } from './tool-output.mjs';
 import { getShellLaunchers, isMissingLauncherError } from './platform.mjs';
 
-const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 30_000;
 const OUTPUT_TRUNCATION_NOTE = '\n[output truncated]';
 
@@ -29,9 +27,6 @@ function makeShellCommandOutput({ stdout = '', stderr = '', outcome, maxOutputLe
   };
 }
 
-function isTimeoutError(error) {
-  return Boolean(error?.killed && error?.signal === 'SIGTERM');
-}
 
 function getLaunchPlan(command, platform = process.platform) {
   return getShellLaunchers(platform).map((launcher) => ({
@@ -40,29 +35,95 @@ function getLaunchPlan(command, platform = process.platform) {
   }));
 }
 
-async function executeWithLaunchers(command, cwd, { timeoutMs, maxOutputLength, platform = process.platform } = {}) {
-  const maxBuffer = normalizeLimit(maxOutputLength);
-  const options = {
-    cwd,
-    maxBuffer,
-    timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS,
-  };
+function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(plan.file, [...plan.args, command], {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
 
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
+    let stdout = '';
+    let stderr = '';
+    let finished = false;
+    let timedOut = false;
+    let timer = null;
+
+    const finalizeChunk = (chunk, channel) => {
+      if (!chunk) return;
+      if (channel === 'stdout') {
+        stdout = truncateText(`${stdout}${chunk}`, maxOutputLength);
+        writeStdout?.(chunk);
+      } else {
+        stderr = truncateText(`${stderr}${chunk}`, maxOutputLength);
+        writeStderr?.(chunk);
+      }
+    };
+
+    const flushStream = (channel) => {
+      const decoder = channel === 'stdout' ? stdoutDecoder : stderrDecoder;
+      const chunk = decoder.end();
+      finalizeChunk(chunk, channel);
+    };
+
+    const done = (result) => {
+      if (finished) return;
+      finished = true;
+      if (timer) clearTimeout(timer);
+      resolve(result);
+    };
+
+    child.on('error', (error) => {
+      if (finished) return;
+      if (timer) clearTimeout(timer);
+      if (isMissingLauncherError(error)) {
+        reject(error);
+        return;
+      }
+      const message = error?.message || 'Unable to execute shell command';
+      done(makeShellCommandOutput({ stdout, stderr: stderr || message, outcome: { type: 'exit', exit_code: 1 }, maxOutputLength }));
+    });
+
+    child.stdout?.on('data', (chunk) => {
+      finalizeChunk(stdoutDecoder.write(chunk), 'stdout');
+    });
+
+    child.stderr?.on('data', (chunk) => {
+      finalizeChunk(stderrDecoder.write(chunk), 'stderr');
+    });
+
+    child.on('close', (code, signal) => {
+      flushStream('stdout');
+      flushStream('stderr');
+      const outcome = timedOut
+        ? { type: 'timeout' }
+        : (signal
+          ? { type: 'exit', exit_code: 1 }
+          : { type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 });
+      done(makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength }));
+    });
+
+    const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
+    if (timeout > 0) {
+      timer = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, timeout);
+    }
+  });
+}
+
+async function executeWithLaunchers(command, cwd, { timeoutMs, maxOutputLength, platform = process.platform, writeStdout, writeStderr } = {}) {
   let lastError = null;
   for (const plan of getLaunchPlan(command, platform)) {
     try {
-      const { stdout = '', stderr = '' } = await execFileAsync(plan.file, plan.args, options);
-      return makeShellCommandOutput({ stdout, stderr, outcome: { type: 'exit', exit_code: 0 }, maxOutputLength });
+      return await runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr });
     } catch (error) {
       lastError = error;
       if (isMissingLauncherError(error)) continue;
-      const stdout = error?.stdout ?? '';
-      let stderr = error?.stderr ?? '';
-      if (!stdout && !stderr && error?.message) stderr = error.message;
-      const outcome = isTimeoutError(error)
-        ? { type: 'timeout' }
-        : { type: 'exit', exit_code: Number.isFinite(error?.code) ? Number(error.code) : 1 };
-      return makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength });
+      const stderr = error?.message || 'Unable to execute shell command';
+      return makeShellCommandOutput({ stdout: '', stderr, outcome: { type: 'exit', exit_code: 1 }, maxOutputLength });
     }
   }
 
@@ -133,7 +194,7 @@ export async function shellExec(command, cwd) {
     writeStdout: (chunk) => process.stdout.write(chunk),
     writeStderr: (chunk) => process.stderr.write(chunk),
   });
-  return truncateToolOutput(result.stdout);
+  return result;
 }
 
 export { getShellLaunchers };

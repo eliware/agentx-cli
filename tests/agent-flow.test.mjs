@@ -40,6 +40,17 @@ describe('agent flow helpers', () => {
     }
   });
 
+  test('loadPromptTemplate returns parsed JSON when the prompt file is valid', async () => {
+    const tmp = makeTempDir('agentx-prompt-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      writeFileSync(promptPath, JSON.stringify({ input: [] }));
+      await expect(loadPromptTemplate(promptPath)).resolves.toEqual({ input: [] });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
   test('loadPromptTemplate falls back to stringified errors when no message is available', async () => {
     jest.resetModules();
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
@@ -59,6 +70,14 @@ describe('agent flow helpers', () => {
   test('appendCliTranscript and buildRequestMessage handle missing optional context', () => {
     expect(appendCliTranscript('', 'pwd')).toBe('> pwd');
     expect(buildRequestMessage({ message: 'hello' })).toBe('hello');
+  });
+
+  test('appendCliTranscript formats shell output objects and plain values', () => {
+    expect(appendCliTranscript('', 'pwd', { stdout: 'out\n', stderr: 'err\n' })).toBe('> pwd\nout\n\nstderr:\nerr');
+    expect(appendCliTranscript('', 'pwd', { stderr: 'err\n' })).toBe('> pwd\nerr');
+    expect(appendCliTranscript('', 'pwd', { stdout: 'out\n' })).toBe('> pwd\nout');
+    expect(appendCliTranscript('', 'pwd', ['a', 'b'])).toBe('> pwd\na,b');
+    expect(appendCliTranscript('', 'pwd', 42)).toBe('> pwd\n42');
   });
 
   test('buildRequestOverride applies first-turn prompt updates and resume requests', () => {
