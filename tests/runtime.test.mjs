@@ -14,12 +14,13 @@ describe('runtime helpers', () => {
     if (process.platform === 'win32') return;
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'agentx-link-'));
     const link = path.join(tmp, 'agentx');
-    symlinkSync('/opt/agentx-cli/agentx.mjs', link);
+    const moduleUrl = new URL('../agentx.mjs', import.meta.url).href;
+    symlinkSync(new URL(moduleUrl), link);
     const originalArgv1 = process.argv[1];
 
     try {
       process.argv[1] = link;
-      expect(isDirectInvocation(new URL('file:///opt/agentx-cli/agentx.mjs').href)).toBe(true);
+      expect(isDirectInvocation(moduleUrl)).toBe(true);
     } finally {
       process.argv[1] = originalArgv1;
       rmSync(tmp, { recursive: true, force: true });
@@ -33,7 +34,7 @@ describe('runtime helpers', () => {
       process.argv[1] = undefined;
       expect(isDirectInvocation()).toBe(false);
       process.argv[1] = '/tmp/definitely-not-real-agentx';
-      expect(isDirectInvocation(new URL('file:///opt/agentx-cli/agentx.mjs').href)).toBe(false);
+      expect(isDirectInvocation(new URL('../agentx.mjs', import.meta.url).href)).toBe(false);
     } finally {
       process.argv[1] = originalArgv1;
     }

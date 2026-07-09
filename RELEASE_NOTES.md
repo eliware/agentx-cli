@@ -1,5 +1,9 @@
 # AgentX Release Notes
 
+## 1.2.3 - GitHub Actions publish test fix
+
+- Updated the runtime test to use the checkout path instead of a local /opt path so the new GitHub Actions workflow can run `npm test` and publish to npm successfully.
+
 ## 1.2.2 - setup workflow and release automation
 
 - Added the new `agentx-setup` interactive setup tool for editing `.env` values and managing the GUI service.
