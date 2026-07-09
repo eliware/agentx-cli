@@ -32,6 +32,6 @@ export function formatQuickHelp(version = getPackageVersion()) {
     'Flags:',
     '  --help, -h, -?   show this help',
     '  --version, -v    print the package version',
-    '  --debug          print raw websocket send/receive logs',
+    '  --debug          print raw websocket logs and suppress live status lines',
   ].join('\n');
 }

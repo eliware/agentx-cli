@@ -40,7 +40,7 @@ function formatSpinnerFrame() {
   return '';
 }
 
-function createStatusLineController(sessionStartedAt = Date.now()) {
+function createStatusLineController(sessionStartedAt = Date.now(), { quiet = false } = {}) {
   let timer = null;
   let lastRendered = '';
   let state = null;
@@ -52,7 +52,7 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
   };
 
   function clearRenderedLine() {
-    if (!lastRendered) return;
+    if (quiet || !lastRendered) return;
     process.stdout.write('\r\x1b[2K');
     lastRendered = '';
   }
@@ -63,7 +63,7 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
   }
 
   function startTimer() {
-    if (timer) return;
+    if (quiet || timer) return;
     timer = setInterval(render, STATUS_UPDATE_INTERVAL_MS);
   }
 
@@ -108,7 +108,7 @@ function createStatusLineController(sessionStartedAt = Date.now()) {
   }
 
   function render() {
-    if (!state || state === 'writing') return;
+    if (quiet || !state || state === 'writing') return;
     const stats = snapshot();
     writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('executing', stats.executing)},${formatStatusField('writing', stats.writing)}}`);
   }
@@ -322,7 +322,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   let current = response;
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
-  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt) : null);
+  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput) }) : null);
   const onResponseState = streamOptions?.onResponseState;
   const skipInitialUsageAccounting = Boolean(streamOptions?.skipInitialUsageAccounting);
   let isFirstResponse = true;
@@ -375,7 +375,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null, streamOptions = {}) {
   const baseRequest = JSON.parse(JSON.stringify(template));
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
-  const statusController = streamOptions?.statusController || createStatusLineController(sessionStartedAt);
+  const statusController = streamOptions?.statusController || createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput) });
   const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
       ...baseRequest,

@@ -157,6 +157,7 @@ describe('agent loop', () => {
 
     expect(persistResponseState.mock.calls.some(([, state]) => state.response_id === 'resp-first' && state.pending_tool_calls.length === 1)).toBe(true);
     expect(persistResponseState.mock.calls.some(([, state]) => state.response_id === 'resp-complete' && state.pending_tool_calls.length === 0)).toBe(true);
+    expect(sendMessage.mock.calls.every(([, , , , , , , , streamOptions]) => streamOptions?.suppressStatusOutput === true)).toBe(true);
   });
 
   test('resumes interrupted tool execution when the user confirms', async () => {

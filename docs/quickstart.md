@@ -42,7 +42,7 @@ Use that to edit `.env` values and manage the GUI service on Linux.
 
 - `agentx --help` or `agentx -h` shows quick help
 - `agentx --version` or `agentx -v` prints the package version
-- `agentx --debug` prints raw websocket send and receive logs
+- `agentx --debug` prints raw websocket logs and suppresses live status lines
 
 ## Before you begin
 

@@ -177,6 +177,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             sessionStartedAt: Date.now(),
             skipInitialUsageAccounting: true,
             onResponseState: persistResponseSnapshot,
+            suppressStatusOutput: debugEnabled,
           },
         );
         previousResponseId = resumedResponse?.id || previousResponseId;
@@ -281,7 +282,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             sessionUsage.turns += 1;
           }
           return sessionUsage;
-        }, requestOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot });
+        }, requestOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, suppressStatusOutput: debugEnabled });
       } catch (error) {
         if (error?.code === 'previous_response_not_found' && previousResponseId) {
           process.stdout.write(`${formatSystemMessage('Previous response not found; starting a new chain')}\n`);
@@ -293,7 +294,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot });
+          }, retryOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, suppressStatusOutput: debugEnabled });
         } else {
           throw error;
         }

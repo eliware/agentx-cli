@@ -81,6 +81,20 @@ describe('agent session helpers', () => {
     }
   });
 
+  test('status line controller suppresses live renders when quiet', () => {
+    const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'), { quiet: true });
+    controller.showReasoning();
+    controller.showExecuting();
+    controller.updateExecuting();
+    controller.refresh();
+    controller.beginWriting();
+    controller.clear();
+
+    expect(stdoutWrites.join('')).toBe('');
+  });
+
+
+
   test('formatTransactionCompletionMessage handles missing summary fields and non-string status values', () => {
     expect(formatTransactionCompletionMessage()).toBe('{"time":"","reasoning":"","executing":"","writing":""}');
     expect(formatTransactionCompletionMessage({
