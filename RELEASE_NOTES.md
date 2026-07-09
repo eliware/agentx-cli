@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.2.6 - live web search status and debug cleanup
+
+- Suppressed live status lines while `--debug` is enabled so raw websocket output stays readable.
+- Added live web search event handling with paused/resumed status updates and pink web-search progress/completion lines.
+- Updated CLI help and docs to describe the new debug behavior.
+- Bumped GitHub Actions workflow actions to the latest checkout and setup-node major versions.
+- Expanded regression coverage for debug quiet mode and web-search live streaming.
+
 ## 1.2.5 - setup testability and cross-platform cleanup
 
 - Refactored the `agentx-setup` interactive flow to accept injected stdin/stdout streams instead of relying on process globals.
