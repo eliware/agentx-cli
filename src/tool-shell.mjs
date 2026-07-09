@@ -37,9 +37,10 @@ function getLaunchPlan(command, platform = process.platform) {
 
 function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(plan.file, [...plan.args, command], {
+    const child = spawn(plan.file, plan.args, {
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     const stdoutDecoder = new StringDecoder('utf8');
