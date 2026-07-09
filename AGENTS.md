@@ -14,6 +14,7 @@
 - The web GUI is a proof-of-concept only; expect broken and incomplete flows, and keep CLI behavior as the source of truth.
 - The `agentx-setup` helper may install, repair, or remove the `agentx-gui.service` unit on Linux.
 - When editing files, keep the behavior aligned with the current tests and update tests when behavior changes.
+- Tests are expected to pass cleanly on Linux, Windows, and GitHub Actions; keep the entire repository cross-platform friendly and avoid platform-specific assumptions.
 
 ## Tooling
 - Use `npm test` to verify changes; it runs coverage by default.

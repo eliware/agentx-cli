@@ -11,6 +11,7 @@ const DEFAULT_HOST = '0.0.0.0';
 const SERVICE_NAME = 'agentx-gui.service';
 const SERVICE_TEMPLATE_NAME = 'agentx-gui.service';
 const SYSTEMD_UNIT_PATH = '/usr/lib/systemd/system/agentx-gui.service';
+const INSTALL_ROOT = '/opt/agentx-cli';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = path.join(rootDir, '.env');
@@ -178,8 +179,7 @@ export function validatePort(value) {
   return { ok: true, value: String(number) };
 }
 
-export function detectSystemdAvailability({ platform = process.platform } = {}) {
-  if (platform !== 'linux') return false;
+export function detectSystemdAvailability() {
   if (!existsSync('/run/systemd/system')) return false;
   const result = spawnSync('systemctl', ['--version'], { encoding: 'utf8' });
   return !result.error && result.status === 0;
@@ -201,12 +201,13 @@ function readServiceText(root = rootDir) {
   return readFile(path.join(root, SERVICE_TEMPLATE_NAME), 'utf8');
 }
 
-export async function buildServiceUnit(root = rootDir) {
-  const template = await readServiceText(root);
-  return template.split('/opt/agentx-cli').join(root);
+export async function buildServiceUnit(root = INSTALL_ROOT) {
+  const templateRoot = root === INSTALL_ROOT ? rootDir : root;
+  const template = await readServiceText(templateRoot);
+  return template.split(INSTALL_ROOT).join(root);
 }
 
-export async function writeServiceUnit(root = rootDir, targetPath = SYSTEMD_UNIT_PATH) {
+export async function writeServiceUnit(root = INSTALL_ROOT, targetPath = SYSTEMD_UNIT_PATH) {
   const unitText = await buildServiceUnit(root);
   await mkdir(path.dirname(targetPath), { recursive: true });
   await writeFile(targetPath, unitText, 'utf8');
@@ -229,13 +230,13 @@ export function getSetupRootDir() {
   return rootDir;
 }
 
-export async function ensureServiceInstalled(root = rootDir, targetPath = SYSTEMD_UNIT_PATH) {
+export async function ensureServiceInstalled(root = INSTALL_ROOT, targetPath = SYSTEMD_UNIT_PATH) {
   const unitText = await writeServiceUnit(root, targetPath);
   runSystemctl(['daemon-reload']);
   return unitText;
 }
 
-export async function repairService(root = rootDir, targetPath = SYSTEMD_UNIT_PATH) {
+export async function repairService(root = INSTALL_ROOT, targetPath = SYSTEMD_UNIT_PATH) {
   return ensureServiceInstalled(root, targetPath);
 }
 
@@ -543,10 +544,10 @@ export async function runSetup({ cwd = process.cwd() } = {}) {
       } else if (selected.id === 'port') {
         message = await editPort(rl, envState);
       } else if (selected.id === 'install') {
-        await ensureServiceInstalled(rootDir, SYSTEMD_UNIT_PATH);
+        await ensureServiceInstalled();
         message = actionMessage('Service installed and daemon reloaded');
       } else if (selected.id === 'repair') {
-        await repairService(rootDir, SYSTEMD_UNIT_PATH);
+        await repairService();
         message = actionMessage('Service repaired and daemon reloaded');
       } else if (selected.id === 'uninstall') {
         await uninstallService(SYSTEMD_UNIT_PATH);
