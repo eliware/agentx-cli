@@ -130,16 +130,18 @@ function installSystemctlMock({
   return state;
 }
 
-function setTTY(stdinTTY, stdoutTTY) {
-  const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
-  const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
-  Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: stdinTTY });
-  Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: stdoutTTY });
-  return () => {
-    if (stdinDescriptor) Object.defineProperty(process.stdin, 'isTTY', stdinDescriptor);
-    else delete process.stdin.isTTY;
-    if (stdoutDescriptor) Object.defineProperty(process.stdout, 'isTTY', stdoutDescriptor);
-    else delete process.stdout.isTTY;
+function makeTerminal({ stdinTTY = true, stdoutTTY = true } = {}) {
+  const writes = [];
+  return {
+    writes,
+    stdin: { isTTY: stdinTTY },
+    stdout: {
+      isTTY: stdoutTTY,
+      write: (chunk) => {
+        writes.push(String(chunk));
+        return true;
+      },
+    },
   };
 }
 
@@ -171,33 +173,15 @@ afterEach(() => {
 describe('runSetup', () => {
   test('prints the non-interactive warning and exits early', async () => {
     installSystemctlMock({ versionOk: false });
-    const restoreTTY = setTTY(false, false);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal({ stdinTTY: false, stdoutTTY: false });
 
-    try {
-      await runSetup();
-      expect(createInterface).not.toHaveBeenCalled();
-      expect(writes.join('')).toContain('AgentX setup requires an interactive terminal.');
-    } finally {
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
+    expect(createInterface).not.toHaveBeenCalled();
+    expect(terminal.writes.join('')).toContain('AgentX setup requires an interactive terminal.');
   });
 
-
   test('renders the no-systemd screen when systemd is unavailable', async () => {
-    const restoreTTY = setTTY(true, true);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal();
     fileMap.delete('/run/systemd/system');
     installSystemctlMock({ versionOk: false });
     createInterface.mockReturnValue({
@@ -205,32 +189,20 @@ describe('runSetup', () => {
       close: jest.fn(),
     });
 
-    try {
-      await runSetup();
-      expect(writes.join('')).toContain('Systemd: unavailable');
-      expect(writes.join('')).toContain('Run npm run start:gui to launch the web UI manually.');
-    } finally {
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
+    expect(terminal.writes.join('')).toContain('Systemd: unavailable');
+    expect(terminal.writes.join('')).toContain('Run npm run start:gui to launch the web UI manually.');
   });
 
   test('drops cached env reads after writes when the file becomes temporarily unavailable', async () => {
     fileMap.set('/run/systemd/system', 'present');
     installSystemctlMock({ running: false, enabled: false });
-    const restoreTTY = setTTY(true, true);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal();
     let failReads = 3;
     readFile.mockImplementation(async (filePath) => {
       if (filePath === path.join(process.cwd(), '.env') && failReads > 0) {
         failReads -= 1;
-        const error = makeMissingError(filePath);
-        throw error;
+        throw makeMissingError(filePath);
       }
       if (!fileMap.has(filePath)) throw makeMissingError(filePath);
       const value = fileMap.get(filePath);
@@ -243,25 +215,14 @@ describe('runSetup', () => {
       close: jest.fn(),
     });
 
-    try {
-      await runSetup();
-      expect(writes.join('')).toContain('API key saved.');
-      expect(writes.join('')).toContain('HOST saved.');
-      expect(writes.join('')).toContain('PORT saved.');
-    } finally {
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
+    expect(terminal.writes.join('')).toContain('API key saved.');
+    expect(terminal.writes.join('')).toContain('HOST saved.');
+    expect(terminal.writes.join('')).toContain('PORT saved.');
   });
 
   test('uses default HOST and PORT values when the env file is blank', async () => {
-    const restoreTTY = setTTY(true, true);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal();
     installSystemctlMock({ versionOk: false });
     const questions = ['host', '', 'port', '', 'quit'];
     createInterface.mockReturnValue({
@@ -269,25 +230,14 @@ describe('runSetup', () => {
       close: jest.fn(),
     });
 
-    try {
-      await runSetup();
-      expect(writes.join('')).toContain('HOST: 0.0.0.0');
-      expect(writes.join('')).toContain('PORT: 3100');
-    } finally {
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
+    expect(terminal.writes.join('')).toContain('HOST: 0.0.0.0');
+    expect(terminal.writes.join('')).toContain('PORT: 3100');
   });
 
   test('uses saved HOST and PORT values when the user presses Enter', async () => {
     fileMap.set(path.join(process.cwd(), '.env'), 'AGENTX_API_KEY=\nHOST=10.9.8.7\nPORT=4555\n');
-    const restoreTTY = setTTY(true, true);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal();
     installSystemctlMock({ versionOk: false });
     const questions = ['host', '', 'port', '', 'quit'];
     createInterface.mockReturnValue({
@@ -295,25 +245,14 @@ describe('runSetup', () => {
       close: jest.fn(),
     });
 
-    try {
-      await runSetup();
-      expect(writes.join('')).toContain('HOST: 10.9.8.7');
-      expect(writes.join('')).toContain('PORT: 4555');
-    } finally {
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
+    expect(terminal.writes.join('')).toContain('HOST: 10.9.8.7');
+    expect(terminal.writes.join('')).toContain('PORT: 4555');
   });
 
   test('drops the post-write PORT cache when the env file disappears', async () => {
     installSystemctlMock({ versionOk: false });
-    const restoreTTY = setTTY(true, true);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal();
     let failReads = 2;
     readFile.mockImplementation(async (filePath) => {
       if (filePath === path.join(process.cwd(), '.env') && failReads > 0) {
@@ -331,25 +270,14 @@ describe('runSetup', () => {
       close: jest.fn(),
     });
 
-    try {
-      await runSetup();
-      expect(writes.join('')).toContain('PORT saved.');
-    } finally {
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
+    expect(terminal.writes.join('')).toContain('PORT saved.');
   });
 
   test('reaches the status menu guard with a non-status selection before quitting', async () => {
     fileMap.set('/run/systemd/system', 'present');
     installSystemctlMock({ running: false, enabled: false });
-    const restoreTTY = setTTY(true, true);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal();
 
     const originalFind = Array.prototype.find;
     let hijackOnce = true;
@@ -367,27 +295,16 @@ describe('runSetup', () => {
       close: jest.fn(),
     });
 
-    try {
-      await runSetup();
-      expect(findSpy).toHaveBeenCalled();
-      expect(writes.join('')).not.toContain('Unknown option.');
-    } finally {
-      findSpy.mockRestore();
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
+    expect(findSpy).toHaveBeenCalled();
+    expect(terminal.writes.join('')).not.toContain('Unknown option.');
+    findSpy.mockRestore();
   });
 
   test('walks the interactive setup flow and exercises menu branches', async () => {
     fileMap.set('/run/systemd/system', 'present');
     const state = installSystemctlMock({ running: false, enabled: false });
-    const restoreTTY = setTTY(true, true);
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
+    const terminal = makeTerminal();
 
     const questions = [
       'bogus',
@@ -417,35 +334,30 @@ describe('runSetup', () => {
       close: jest.fn(),
     });
 
-    try {
-      await runSetup();
+    await runSetup({ stdin: terminal.stdin, stdout: terminal.stdout });
 
-      expect(writes.join('')).toContain('Unknown option.');
-      expect(writes.join('')).toContain('API key is required.');
-      expect(writes.join('')).toContain('HOST must be an IP address');
-      expect(writes.join('')).toContain('PORT must be a number between 1 and 65535.');
-      expect(writes.join('')).toContain('API key saved.');
-      expect(writes.join('')).toContain('HOST saved.');
-      expect(writes.join('')).toContain('PORT saved.');
-      expect(writes.join('')).toContain('Service installed and daemon reloaded.');
-      expect(writes.join('')).toContain('Service repaired and daemon reloaded.');
-      expect(writes.join('')).toContain('Service started.');
-      expect(writes.join('')).toContain('Service restarted.');
-      expect(writes.join('')).toContain('Service enabled.');
-      expect(writes.join('')).toContain('Service disabled.');
-      expect(writes.join('')).toContain('Service stopped.');
-      expect(writes.join('')).toContain('Service uninstalled.');
-      expect(writes.join('')).toContain('Service: inactive / dead / disabled / error');
-      expect(createInterface).toHaveBeenCalled();
-      expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('AGENTX_API_KEY=new-api-key');
-      expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('HOST=10.1.2.3');
-      expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('PORT=3201');
-      expect(fileMap.has('/usr/lib/systemd/system/agentx-gui.service')).toBe(false);
-      expect(state.running).toBe(false);
-      expect(state.enabled).toBe(false);
-    } finally {
-      process.stdout.write = originalWrite;
-      restoreTTY();
-    }
+    expect(terminal.writes.join('')).toContain('Unknown option.');
+    expect(terminal.writes.join('')).toContain('API key is required.');
+    expect(terminal.writes.join('')).toContain('HOST must be an IP address');
+    expect(terminal.writes.join('')).toContain('PORT must be a number between 1 and 65535.');
+    expect(terminal.writes.join('')).toContain('API key saved.');
+    expect(terminal.writes.join('')).toContain('HOST saved.');
+    expect(terminal.writes.join('')).toContain('PORT saved.');
+    expect(terminal.writes.join('')).toContain('Service installed and daemon reloaded.');
+    expect(terminal.writes.join('')).toContain('Service repaired and daemon reloaded.');
+    expect(terminal.writes.join('')).toContain('Service started.');
+    expect(terminal.writes.join('')).toContain('Service restarted.');
+    expect(terminal.writes.join('')).toContain('Service enabled.');
+    expect(terminal.writes.join('')).toContain('Service disabled.');
+    expect(terminal.writes.join('')).toContain('Service stopped.');
+    expect(terminal.writes.join('')).toContain('Service uninstalled.');
+    expect(terminal.writes.join('')).toContain('Service: inactive / dead / disabled / error');
+    expect(createInterface).toHaveBeenCalled();
+    expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('AGENTX_API_KEY=new-api-key');
+    expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('HOST=10.1.2.3');
+    expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('PORT=3201');
+    expect(fileMap.has('/usr/lib/systemd/system/agentx-gui.service')).toBe(false);
+    expect(state.running).toBe(false);
+    expect(state.enabled).toBe(false);
   });
 });

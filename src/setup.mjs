@@ -412,26 +412,26 @@ function buildMenuEntries({ values, systemdAvailable, serviceStatus }) {
   return entries;
 }
 
-function renderScreen({ values, systemdAvailable, serviceStatus, message }) {
-  process.stdout.write('\x1b[2J\x1b[H');
-  process.stdout.write('AgentX setup\n');
-  process.stdout.write(`Root: ${rootDir}\n`);
-  process.stdout.write(`.env: ${envPath}\n`);
-  process.stdout.write(`API key: ${values.AGENTX_API_KEY ? 'set' : 'blank'}\n`);
-  process.stdout.write(`HOST: ${values.HOST || DEFAULT_HOST}\n`);
-  process.stdout.write(`PORT: ${values.PORT || DEFAULT_PORT}\n`);
-  process.stdout.write(`Systemd: ${systemdAvailable ? 'available' : 'unavailable'}\n`);
+function renderScreen({ values, systemdAvailable, serviceStatus, message, stdout = process.stdout }) {
+  stdout.write('\x1b[2J\x1b[H');
+  stdout.write('AgentX setup\n');
+  stdout.write(`Root: ${rootDir}\n`);
+  stdout.write(`.env: ${envPath}\n`);
+  stdout.write(`API key: ${values.AGENTX_API_KEY ? 'set' : 'blank'}\n`);
+  stdout.write(`HOST: ${values.HOST || DEFAULT_HOST}\n`);
+  stdout.write(`PORT: ${values.PORT || DEFAULT_PORT}\n`);
+  stdout.write(`Systemd: ${systemdAvailable ? 'available' : 'unavailable'}\n`);
   if (!systemdAvailable) {
-    process.stdout.write('Run npm run start:gui to launch the web UI manually.\n');
+    stdout.write('Run npm run start:gui to launch the web UI manually.\n');
   } else if (serviceStatus.installed) {
-    process.stdout.write(`Service: ${serviceStatus.running ? 'running' : 'stopped'} / ${serviceStatus.enabled ? 'enabled' : 'disabled'}\n`);
+    stdout.write(`Service: ${serviceStatus.running ? 'running' : 'stopped'} / ${serviceStatus.enabled ? 'enabled' : 'disabled'}\n`);
   } else {
-    process.stdout.write('Service: not installed\n');
+    stdout.write('Service: not installed\n');
   }
   if (message) {
-    process.stdout.write(`\n${message}\n`);
+    stdout.write(`\n${message}\n`);
   }
-  process.stdout.write('\n');
+  stdout.write('\n');
 }
 
 async function ask(rl, prompt) {
@@ -442,55 +442,55 @@ async function pause(rl) {
   await rl.question('Press Enter to continue...');
 }
 
-async function editApiKey(rl, envState) {
+async function editApiKey(rl, envState, stdout = process.stdout) {
   while (true) {
     const prompt = `API key [${formatMaybeBlank(envState.values.AGENTX_API_KEY)}]: `;
     const input = (await ask(rl, prompt)).trim();
     const nextValue = input || envState.values.AGENTX_API_KEY;
     if (!nextValue) {
-      process.stdout.write('API key is required.\n');
+      stdout.write('API key is required.\n');
       continue;
     }
     envState.values.AGENTX_API_KEY = nextValue;
     await writeEnvState(envState.filePath, envState.values, envState.text);
     envState.text = await readOptionalText(envState.filePath) || '';
-    process.stdout.write('API key saved.\n');
+    stdout.write('API key saved.\n');
     return 'API key saved.';
   }
 }
 
-async function editHost(rl, envState) {
+async function editHost(rl, envState, stdout = process.stdout) {
   while (true) {
     const prompt = `HOST [${envState.values.HOST || DEFAULT_HOST}]: `;
     const input = (await ask(rl, prompt)).trim();
     const candidate = input || envState.values.HOST || DEFAULT_HOST;
     const check = validateHost(candidate);
     if (!check.ok) {
-      process.stdout.write(`${check.message}\n`);
+      stdout.write(`${check.message}\n`);
       continue;
     }
     envState.values.HOST = check.value;
     await writeEnvState(envState.filePath, envState.values, envState.text);
     envState.text = await readOptionalText(envState.filePath) || '';
-    process.stdout.write('HOST saved.\n');
+    stdout.write('HOST saved.\n');
     return 'HOST saved.';
   }
 }
 
-async function editPort(rl, envState) {
+async function editPort(rl, envState, stdout = process.stdout) {
   while (true) {
     const prompt = `PORT [${envState.values.PORT || DEFAULT_PORT}]: `;
     const input = (await ask(rl, prompt)).trim();
     const candidate = input || envState.values.PORT || String(DEFAULT_PORT);
     const check = validatePort(candidate);
     if (!check.ok) {
-      process.stdout.write(`${check.message}\n`);
+      stdout.write(`${check.message}\n`);
       continue;
     }
     envState.values.PORT = check.value;
     await writeEnvState(envState.filePath, envState.values, envState.text);
     envState.text = await readOptionalText(envState.filePath) || '';
-    process.stdout.write('PORT saved.\n');
+    stdout.write('PORT saved.\n');
     return 'PORT saved.';
   }
 }
@@ -499,30 +499,30 @@ function actionMessage(label) {
   return `${label}.`;
 }
 
-async function handleStatus() {
+async function handleStatus(stdout = process.stdout) {
   const status = await readServiceStatus();
-  process.stdout.write(`${formatServiceStatusSummary(status)}\n`);
+  stdout.write(`${formatServiceStatusSummary(status)}\n`);
 }
 
-export async function runSetup({ cwd = process.cwd() } = {}) {
+export async function runSetup({ cwd = process.cwd(), stdin = process.stdin, stdout = process.stdout } = {}) {
   const systemdAvailable = detectSystemdAvailability();
   const envState = await readEnvState(envPath);
   let message = '';
 
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    process.stdout.write('AgentX setup requires an interactive terminal.\n');
+  if (!stdin?.isTTY || !stdout?.isTTY) {
+    stdout.write('AgentX setup requires an interactive terminal.\n');
     return;
   }
 
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const rl = createInterface({ input: stdin, output: stdout });
   try {
     while (true) {
       const serviceStatus = systemdAvailable ? await readServiceStatus() : { installed: false, running: false, enabled: false };
       const entries = buildMenuEntries({ values: envState.values, systemdAvailable, serviceStatus });
 
-      renderScreen({ values: envState.values, systemdAvailable, serviceStatus, message });
+      renderScreen({ values: envState.values, systemdAvailable, serviceStatus, message, stdout });
       entries.forEach((entry, index) => {
-        process.stdout.write(`${index + 1}. ${entry.label}\n`);
+        stdout.write(`${index + 1}. ${entry.label}\n`);
       });
 
       const choice = (await ask(rl, '\nChoose an option: ')).trim().toLowerCase();
@@ -538,11 +538,11 @@ export async function runSetup({ cwd = process.cwd() } = {}) {
         break;
       }
       if (selected.id === 'api') {
-        message = await editApiKey(rl, envState);
+        message = await editApiKey(rl, envState, stdout);
       } else if (selected.id === 'host') {
-        message = await editHost(rl, envState);
+        message = await editHost(rl, envState, stdout);
       } else if (selected.id === 'port') {
-        message = await editPort(rl, envState);
+        message = await editPort(rl, envState, stdout);
       } else if (selected.id === 'install') {
         await ensureServiceInstalled();
         message = actionMessage('Service installed and daemon reloaded');
@@ -568,8 +568,8 @@ export async function runSetup({ cwd = process.cwd() } = {}) {
         await disableService();
         message = actionMessage('Service disabled');
       } else if (selected.id === 'status') {
-        process.stdout.write('\x1b[2J\x1b[H');
-        await handleStatus();
+        stdout.write('\x1b[2J\x1b[H');
+        await handleStatus(stdout);
         await pause(rl);
         message = '';
       }
