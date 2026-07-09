@@ -9,6 +9,7 @@ import { formatCommandMessage, formatInfoMessage, formatSystemMessage } from './
 const SHELL_OUTPUT_PREVIEW = 120;
 const STATUS_UPDATE_INTERVAL_MS = 250;
 const GREEN = '\u001b[32m';
+const PINK = '\u001b[95m';
 const RESET = '\u001b[0m';
 
 function formatElapsedStatus(elapsedMs) {
@@ -45,6 +46,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   let lastRendered = '';
   let state = null;
   let stateStartedAt = 0;
+  let paused = false;
   const phases = {
     reasoning: { lastMs: 0, totalMs: 0 },
     executing: { lastMs: 0, totalMs: 0 },
@@ -63,7 +65,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   }
 
   function startTimer() {
-    if (quiet || timer) return;
+    if (quiet || timer || paused) return;
     timer = setInterval(render, STATUS_UPDATE_INTERVAL_MS);
   }
 
@@ -108,7 +110,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   }
 
   function render() {
-    if (quiet || !state || state === 'writing') return;
+    if (quiet || paused || !state || state === 'writing') return;
     const stats = snapshot();
     writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('executing', stats.executing)},${formatStatusField('writing', stats.writing)}}`);
   }
@@ -116,7 +118,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   function transition(nextState, { renderNow = true } = {}) {
     const now = Date.now();
     if (state === nextState) {
-      render();
+      if (!paused && renderNow) render();
       return;
     }
     finalizeActive(now);
@@ -127,24 +129,37 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
       clearRenderedLine();
       return;
     }
+    if (paused) return;
     startTimer();
-    render();
+    if (renderNow) render();
   }
 
   return {
-    showReasoning() {
-      transition('reasoning');
+    showReasoning(options = {}) {
+      transition('reasoning', options);
     },
-    showExecuting(done, total) {
-      transition('executing');
-      render();
+    showExecuting(done, total, options = {}) {
+      transition('executing', options);
     },
     updateExecuting(done, total) {
-      if (state !== 'executing') return;
+      if (state !== 'executing' || paused) return;
       render();
     },
-    beginWriting() {
-      transition('writing', { renderNow: false });
+    beginWriting(options = {}) {
+      transition('writing', options);
+    },
+    pause() {
+      paused = true;
+      stopTimer();
+      clearRenderedLine();
+    },
+    resume() {
+      if (!paused) return;
+      paused = false;
+      if (state && state !== 'writing') {
+        startTimer();
+        render();
+      }
     },
     snapshot() {
       return snapshot();
@@ -156,6 +171,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
       finalizeActive();
       state = null;
       stateStartedAt = 0;
+      paused = false;
       stopTimer();
       clearRenderedLine();
     },
@@ -257,6 +273,31 @@ function isShellCallCommandDeltaEvent(event) {
   return event?.type === 'response.shell_call_command.delta';
 }
 
+function isWebSearchEvent(event) {
+  return typeof event?.type === 'string' && event.type.startsWith('response.web_search_call.');
+}
+
+function colorizePink(text) {
+  return `${PINK}${text}${RESET}`;
+}
+
+function webSearchStatusLine(stage) {
+  return colorizePink(JSON.stringify({ web_search: stage }));
+}
+
+function webSearchCompletionLine(item) {
+  const queries = Array.isArray(item?.action?.queries) ? item.action.queries.filter(Boolean).map(String) : [];
+  const sources = Array.isArray(item?.action?.sources)
+    ? item.action.sources.map((source) => String(source?.url ?? source)).filter(Boolean)
+    : [];
+  if (queries.length === 0 && sources.length === 0) return '';
+  return colorizePink(JSON.stringify({
+    web_search: 'complete',
+    queries,
+    sources,
+  }, null, 2));
+}
+
 function createLiveResponseHandlers({ liveStreaming, statusController }) {
   let sawOutput = false;
   let streamedText = '';
@@ -265,6 +306,22 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
     if (sawOutput) return;
     sawOutput = true;
     statusController?.beginWriting();
+  };
+
+  const startWebSearch = (stage) => {
+    if (!statusController) return;
+    statusController.showExecuting(0, 0, { renderNow: false });
+    statusController.pause();
+    process.stdout.write(`${webSearchStatusLine(stage)}\n`);
+  };
+
+  const finishWebSearch = (item) => {
+    if (!statusController) return;
+    const completionLine = webSearchCompletionLine(item);
+    if (!completionLine) return;
+    statusController.showReasoning({ renderNow: false });
+    process.stdout.write(`${completionLine}\n`);
+    statusController.resume();
   };
 
   return {
@@ -276,6 +333,19 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
         if (isResponseCompletedEvent(event, message?.raw)) {
           statusController?.clear();
           return;
+        }
+        if (isWebSearchEvent(event)) {
+          if (event.type.endsWith('.in_progress')) {
+            startWebSearch('in_progress');
+            return;
+          }
+          if (event.type.endsWith('.searching')) {
+            process.stdout.write(`${webSearchStatusLine('searching')}\n`);
+            return;
+          }
+          if (event.type.endsWith('.completed')) {
+            return;
+          }
         }
         if (isFunctionCallArgumentsDeltaEvent(event) || isShellCallCommandDeltaEvent(event)) {
           markOutput();
@@ -293,6 +363,10 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
         process.stdout.write(text);
       },
       onItemDone(item) {
+        if (item?.type === 'web_search_call') {
+          finishWebSearch(item);
+          return;
+        }
         if (isShellToolCall(item)) {
           markOutput();
           streamedText += '\n';

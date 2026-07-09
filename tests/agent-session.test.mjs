@@ -460,6 +460,65 @@ describe('agent session helpers', () => {
     expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
   });
 
+  test('sendMessage pauses live status during web search events and resumes reasoning after completion', async () => {
+    jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
+    try {
+      const template = { model: 'test-model', input: [], tools: [] };
+      let handlers;
+      let resolveResponse;
+      const openai = {
+        responses: {
+          create: async (_request, nextHandlers) => {
+            handlers = nextHandlers;
+            return await new Promise((resolve) => {
+              resolveResponse = resolve;
+            });
+          },
+        },
+      };
+
+      const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+      expect(stdoutWrites.join('')).toContain('{"time":"0s"');
+
+      handlers.onEvent({ type: 'response.web_search_call.in_progress' }, { raw: '{"type":"response.web_search_call.in_progress"}' });
+      handlers.onEvent({ type: 'response.web_search_call.searching' }, { raw: '{"type":"response.web_search_call.searching"}' });
+
+      const writeCount = stdoutWrites.length;
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(stdoutWrites.length).toBe(writeCount);
+
+      handlers.onItemDone({
+        type: 'web_search_call',
+        action: {
+          queries: ['alpha'],
+          sources: [{ type: 'url', url: 'https://example.com' }],
+        },
+      });
+
+      const output = stdoutWrites.join('');
+      expect(output).toContain('[95m{"web_search":"in_progress"}[0m');
+      expect(output).toContain('[95m{"web_search":"searching"}[0m');
+      expect(output).toContain('\u001b[95m{\n  "web_search": "complete",');
+      expect(output).toContain(`"queries": [
+    "alpha"
+  ]`);
+      expect(output).toContain(`"sources": [
+    "https://example.com"
+  ]`);
+      expect(output).toContain('[32m"reasoning":"0s/0s"[0m');
+
+      const beforeBlank = stdoutWrites.length;
+      handlers.onItemDone({ type: 'web_search_call', action: { queries: [], sources: [] } });
+      expect(stdoutWrites.length).toBe(beforeBlank);
+
+      resolveResponse({ id: 'resp-live', output: [] });
+      await pending;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('sendMessage appends a newline after live streamed text when needed', async () => {
     const template = { model: 'test-model', input: [], tools: [] };
     const openai = {
