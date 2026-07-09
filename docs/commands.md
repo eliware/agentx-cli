@@ -22,7 +22,7 @@ Example:
 
 The output is stored and prepended to the next AI request.
 
-This is separate from AgentX's internal `shell_call` tool, which the model uses for its own shell work and may group commands internally.
+This is separate from AgentX's internal `shell_call` tool, which the model uses for its own shell work and may run multiple commands in sequence internally.
 
 ## Chat messages
 

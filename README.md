@@ -37,7 +37,7 @@ It is designed to feel shell-like:
 - `AGENTS.md` support from the current working directory
 - Current working directory shown in the prompt
 - Internal session persistence with `previous_response_id`
-- Built-in `shell_call` tool with parallel command groups
+- Built-in `shell_call` tool with sequential command steps
 - Server-side Responses API compaction for long-running sessions
 - Concise terminal output for tool calls
 - Sorted path completion, with quoted suggestions for paths containing spaces

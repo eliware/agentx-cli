@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.2.1 - shell runtime and frontend cleanup
+
+- Reworked shell execution around streaming launcher processes and sequential command steps inside each `shell_call`.
+- Simplified shell/tool dispatch for the current structured `shell_call` shape and updated live event handling.
+- Split the browser frontend into focused transcript, view, and style modules.
+- Expanded regression coverage for the new shell, transcript, and frontend helpers.
+
 ## 1.2.0 - Web GUI proof of concept
 
 - Added a browser-based web GUI and local Express/WebSocket server mode for AgentX.
