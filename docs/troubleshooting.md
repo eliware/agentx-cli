@@ -3,6 +3,7 @@
 ## AgentX does not start
 
 Check that you are running the entrypoint directly and that `agentx_api_key` or `AGENTX_API_KEY` is set in your shell environment.
+If you want a guided local setup, run `agentx-setup` to edit `.env` and inspect the GUI service.
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
 

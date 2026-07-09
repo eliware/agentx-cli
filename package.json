@@ -1,7 +1,7 @@
 {
     "name": "@eliware/agentx-cli",
     "type": "module",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "A lightweight terminal chat agent with an experimental web GUI.",
     "main": "agentx.mjs",
     "scripts": {

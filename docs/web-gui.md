@@ -4,6 +4,7 @@ AgentX includes a browser UI served by `agentx-gui.mjs` and `npm run start:gui`.
 It uses a local Express server plus a WebSocket connection for live chat updates.
 
 This GUI is only a proof of concept right now. A lot of things are broken, some flows are incomplete, and the CLI remains the primary supported interface.
+If you need local configuration or service management, use `agentx-setup`.
 
 ## Start it
 

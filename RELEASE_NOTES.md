@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.2.2 - setup workflow and release automation
+
+- Added the new `agentx-setup` interactive setup tool for editing `.env` values and managing the GUI service.
+- Added systemd service install, repair, uninstall, start/stop, enable/disable, and status helpers for `agentx-gui.service`.
+- Updated package metadata for the `agentx-cli` name, npm bin entry, and published file list.
+- Added a tag-triggered GitHub Actions publish workflow and expanded setup regression coverage.
+
 ## 1.2.1 - shell runtime and frontend cleanup
 
 - Reworked shell execution around streaming launcher processes and sequential command steps inside each `shell_call`.

@@ -2,14 +2,17 @@
 
 ## Project
 - This repository contains `AgentX`, a lightweight terminal chat agent.
-- The entrypoint is [`agentx.mjs`](./agentx.mjs), which wires into the implementation under [`src/`](./src).
+- The main CLI entrypoint is [`agentx.mjs`](./agentx.mjs), which wires into the implementation under [`src/`](./src).
+- The setup entrypoint is [`agentx-setup.mjs`](./agentx-setup.mjs), which configures `.env` and the Linux GUI service.
 
 ## Working Rules
 - Prefer small, focused changes.
 - Keep the codebase ESM-only.
 - Preserve the interactive CLI behavior unless the user asks otherwise.
 - The launchers load `.env` when present, but the app still reads `agentx_api_key` / `AGENTX_API_KEY` from the environment.
+- Use `agentx-setup` for local setup tasks instead of hand-editing service files when possible.
 - The web GUI is a proof-of-concept only; expect broken and incomplete flows, and keep CLI behavior as the source of truth.
+- The `agentx-setup` helper may install, repair, or remove the `agentx-gui.service` unit on Linux.
 - When editing files, keep the behavior aligned with the current tests and update tests when behavior changes.
 
 ## Tooling

@@ -1,9 +1,10 @@
 # [![eliware.org](https://eliware.org/logos/brand.png)](https://discord.gg/M6aTR9eTwN)
 
-## @eliware/agentx [![npm version](https://img.shields.io/npm/v/@eliware/agentx.svg)](https://www.npmjs.com/package/@eliware/agentx)[![license](https://img.shields.io/github/license/eliware/agentx.svg)](LICENSE)[![build status](https://github.com/eliware/agentx/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx/actions)
+## @eliware/agentx-cli [![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli)[![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE)[![build status](https://github.com/eliware/agentx-cli/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx-cli/actions)
 
 `agentx` is a lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.
 A browser-based web GUI is also included, but it is only a proof of concept and still rough.
+A separate `agentx-setup` helper can edit `.env` values and manage the GUI service on Linux.
 
 It is designed to feel shell-like:
 - waits for your first message before calling OpenAI
@@ -12,7 +13,7 @@ It is designed to feel shell-like:
 - supports tab completion for local files and folders
 - remembers the last response id, usage counters, last user/assistant messages, pending shell transcript, and pending tool calls in `.agentx_responseid`
 - can prompt to resume interrupted tool execution on startup
-- can be launched directly from `agentx.mjs`, through a symlink like `/usr/bin/agentx`, or from an installed `agentx` bin on your PATH
+- can be launched directly from `agentx.mjs`, through a symlink like `/usr/bin/agentx`, or from installed `agentx` / `agentx-setup` bins on your PATH
 - includes an experimental browser GUI, but it is still a proof of concept and many flows are broken or incomplete
 - includes quick CLI flags for help, version, and debug logging
 - prints friendly startup errors for missing config or API keys
@@ -119,9 +120,10 @@ User-facing docs live in [`docs/`](./docs):
 ## Development
 
 - Main entrypoint: [`agentx.mjs`](./agentx.mjs)
+- Setup entrypoint: [`agentx-setup.mjs`](./agentx-setup.mjs)
 - Web GUI entrypoint: [`agentx-gui.mjs`](./agentx-gui.mjs)
 - Implementation modules: [`src/`](./src)
-- Package installs expose the `agentx` CLI via `bin`
+- Package installs expose the `agentx` and `agentx-setup` CLIs via `bin`
 - Launch the app locally:
 
   ```bash
@@ -156,6 +158,14 @@ export agentx_api_key="your-key-here"
 
 AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
 The launchers also load `.env` when present.
+
+If you want a guided local setup flow, run:
+
+```bash
+agentx-setup
+```
+
+That helper can edit `.env` values and manage the Linux GUI service.
 
 ## License
 

@@ -2,6 +2,7 @@
 
 AgentX is a terminal chat agent built on the OpenAI Responses API over WebSocket transport.
 It also includes an experimental web GUI, but that is still a proof of concept and a lot of things are broken or incomplete.
+A separate `agentx-setup` helper can edit `.env` values and manage the Linux GUI service.
 
 ## Start the CLI
 
@@ -25,6 +26,14 @@ npm run start:gui
 
 Then open the local port it prints, usually `http://localhost:3100`.
 Use the CLI if you want the more reliable path; the GUI is still rough.
+
+## Optional: run the setup helper
+
+```bash
+agentx-setup
+```
+
+Use that to edit `.env` values and manage the GUI service on Linux.
 
 ## Quick flags
 

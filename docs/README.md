@@ -1,6 +1,6 @@
 # AgentX CLI docs
 
-This folder contains user-facing documentation for the AgentX terminal chat agent and its experimental web GUI.
+This folder contains user-facing documentation for the AgentX terminal chat agent, its optional setup helper, and its experimental web GUI.
 
 ## Docs
 
