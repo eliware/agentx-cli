@@ -9,7 +9,8 @@
         "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --coverage --detectOpenHandles --silent --runInBand",
         "start:gui": "node agentx-gui.mjs",
         "build": "webpack --config webpack.config.mjs --mode production",
-        "build:dev": "webpack --config webpack.config.mjs --mode development"
+        "build:dev": "webpack --config webpack.config.mjs --mode development",
+        "setup": "node agentx-setup.mjs"
     },
     "repository": {
         "type": "git",
@@ -62,6 +63,7 @@
         "unrs-resolver@1.12.2": true
     },
     "bin": {
-        "agentx": "./agentx.mjs"
+        "agentx": "./agentx.mjs",
+        "agentx-setup": "./agentx-setup.mjs"
     }
 }
