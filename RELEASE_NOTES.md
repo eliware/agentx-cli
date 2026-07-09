@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.2.4 - frontend and setup robustness fixes
+
+- Hardened the frontend storage, DOM, transcript, and view helpers for missing browser APIs and empty state inputs.
+- Simplified credential and session storage loading so invalid or absent storage cleanly returns null.
+- Exposed additional setup internals and tightened the setup entrypoint behavior.
+- Expanded regression coverage for auth tokens, setup flow, and frontend edge cases.
+
 ## 1.2.3 - GitHub Actions publish test fix
 
 - Updated the runtime test to use the checkout path instead of a local /opt path so the new GitHub Actions workflow can run `npm test` and publish to npm successfully.
