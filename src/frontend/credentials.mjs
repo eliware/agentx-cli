@@ -1,11 +1,7 @@
 const STORAGE_KEY = 'agentx.gui.credentials';
 
 function getStorage(storage) {
-  try {
-    return storage ?? null;
-  } catch {
-    return null;
-  }
+  return storage ?? null;
 }
 
 export function loadStoredCredentials(storage = globalThis.localStorage) {

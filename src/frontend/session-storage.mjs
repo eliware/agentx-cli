@@ -1,11 +1,7 @@
 const SESSION_STORAGE_KEY = 'agentx.gui.session';
 
 function getStorage(storage) {
-  try {
-    return storage ?? null;
-  } catch {
-    return null;
-  }
+  return storage ?? null;
 }
 
 export function normalizeSessionState(state = {}) {

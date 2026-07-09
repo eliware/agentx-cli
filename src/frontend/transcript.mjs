@@ -55,7 +55,7 @@ export function createTranscriptController({ document = globalThis.document, tra
     return node;
   }
 
-  function ensureToolEntry(callId, title = 'Tool call') {
+  function ensureToolEntry(callId, title) {
     if (state.toolEntries.has(callId)) return state.toolEntries.get(callId);
     if (!transcriptEl) return null;
     const node = makeTranscriptNode(document, 'tool', title, '');

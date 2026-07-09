@@ -586,9 +586,11 @@ export const setupPaths = {
 };
 
 export const setupInternals = {
+  formatMaybeBlank,
   parseEnvLines,
   serializeEnvValue,
   updateEnvText,
+  readServiceText,
   buildMenuEntries,
   extractLastUsefulLogLine,
   parseSystemctlProperties,

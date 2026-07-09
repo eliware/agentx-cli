@@ -73,4 +73,35 @@ describe('frontend view helpers', () => {
     expect(ui.sessionListEl.children).toHaveLength(4);
     expect(ui.inspectorEl.textContent).toContain('resp-1');
   });
+
+  test('handles missing ui elements and seeded session lists', () => {
+    expect(formatUsage(null)).toBe('0 in / 0 out / 0 turns');
+    expect(formatUsage({ usage: {} })).toBe('0 in / 0 out / 0 turns');
+
+    expect(() => fillLoginForm({}, { username: 'root', password: 'secret', remember: true, autologin: true })).not.toThrow();
+
+    const loginUi = {
+      usernameInput: new FakeElement('input'),
+      passwordInput: new FakeElement('input'),
+      rememberInput: new FakeElement('input'),
+      autologinInput: new FakeElement('input'),
+    };
+    fillLoginForm(loginUi, {});
+    expect(loginUi.usernameInput.value).toBe('');
+    expect(loginUi.passwordInput.value).toBe('');
+    expect(loginUi.rememberInput.checked).toBe(false);
+    expect(loginUi.autologinInput.checked).toBe(false);
+
+    expect(() => setScreen({}, 'login')).not.toThrow();
+    expect(syncStatus({}, { loggedOut: true, authenticated: false, socketState: 'idle' })).toBe('signed out');
+
+    const ui = {
+      sessionListEl: new FakeElement('ul'),
+    };
+    ui.sessionListEl.ownerDocument = new FakeDocument();
+    ui.sessionListEl.appendChild(new FakeElement('li'));
+
+    renderHeader(ui, { response_id: '', usage: {}, cwd: '' }, null);
+    expect(ui.sessionListEl.children).toHaveLength(1);
+  });
 });

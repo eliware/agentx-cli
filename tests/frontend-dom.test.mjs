@@ -52,10 +52,47 @@ describe('frontend dom helpers', () => {
     expect(elements.sessionLogoutButton).not.toBeNull();
   });
 
-  test('appends message lines for compatibility', () => {
-    const messages = new FakeElement('ul');
+  test('appends message lines with createElement when available', () => {
+    const messages = new FakeElement('ul', {
+      createElement: (tagName) => new FakeElement(tagName),
+    });
+
     appendLine(messages, 'hello');
+
     expect(messages.children).toHaveLength(1);
+    expect(messages.children[0].tagName).toBe('LI');
     expect(messages.children[0].textContent).toBe('hello');
+  });
+
+  test('does nothing when the list element is missing', () => {
+    expect(() => appendLine(null, 'hello')).not.toThrow();
+  });
+
+  test('uses the global document when the element has no ownerDocument', () => {
+    const previousDocument = globalThis.document;
+    globalThis.document = {
+      createElement: (tagName) => new FakeElement(tagName),
+    };
+
+    try {
+      const messages = new FakeElement('ul', null);
+
+      appendLine(messages, 'global');
+
+      expect(messages.children).toHaveLength(1);
+      expect(messages.children[0].tagName).toBe('LI');
+      expect(messages.children[0].textContent).toBe('global');
+    } finally {
+      globalThis.document = previousDocument;
+    }
+  });
+
+  test('falls back to a plain object when createElement is unavailable', () => {
+    const messages = new FakeElement('ul', {});
+
+    appendLine(messages, 'fallback');
+
+    expect(messages.children).toHaveLength(1);
+    expect(messages.children[0]).toEqual({ textContent: 'fallback' });
   });
 });
