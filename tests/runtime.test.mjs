@@ -1,7 +1,7 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { fs as commonFs } from '@eliware/common';
 import { deleteOptional, isDirectInvocation, readJson, readOptionalText, writeText } from '../src/runtime.mjs';
-import { mkdtempSync, symlinkSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, symlinkSync, rmSync, unlinkSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 

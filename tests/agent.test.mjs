@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
-import { EventEmitter } from 'node:events';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

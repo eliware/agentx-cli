@@ -1,6 +1,5 @@
 import { clearCredentials, loadStoredCredentials, saveCredentials } from './credentials.mjs';
 import { clearStoredSession, loadStoredSession, normalizeSessionState, saveStoredSession } from './session-storage.mjs';
-import { makeStatusText } from './status.mjs';
 import { buildWebSocketUrl } from './websocket.mjs';
 import { queryFrontendElements } from './dom.mjs';
 import { createTranscriptController } from './transcript.mjs';

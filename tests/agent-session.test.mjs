@@ -67,8 +67,8 @@ describe('agent session helpers', () => {
     try {
       const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'));
       controller.showReasoning();
-      expect(stdoutWrites.join('')).toContain('{\"time\":\"0s\",\u001b[32m"reasoning":"0s/0s"\u001b[0m');
-      expect(stdoutWrites.join('')).toContain('\"executing\":\"0s/0s\"');
+      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('"executing":"0s/0s"');
 
       jest.setSystemTime(Date.parse('2026-07-08T00:00:01Z'));
       controller.refresh();
@@ -130,7 +130,7 @@ describe('agent session helpers', () => {
       reasoning: { active: false, value: '1s/13s' },
       executing: { active: false, value: '5s/6s' },
       writing: { active: false, value: '1s/12s' },
-    })).toBe('{\"time\":\"30s\",\"reasoning\":\"1s/13s\",\"executing\":\"5s/6s\",\"writing\":\"1s/12s\"}');
+    })).toBe('{"time":"30s","reasoning":"1s/13s","executing":"5s/6s","writing":"1s/12s"}');
   });
 
   test('createStreamedResponse uses default stream options when omitted', async () => {
@@ -267,7 +267,7 @@ describe('agent session helpers', () => {
         create: jest.fn()
           .mockResolvedValueOnce({
             id: 'resp-1',
-            output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf \"tool output\"'] } }],
+            output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf "tool output"'] } }],
             usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 4 }, output_tokens: 6 },
           })
           .mockResolvedValueOnce({
@@ -279,7 +279,7 @@ describe('agent session helpers', () => {
     };
     const response = {
       id: 'resp-usage',
-      output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf \"tool output\"'] } }],
+      output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf "tool output"'] } }],
       usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 4 }, output_tokens: 6 },
     };
 
@@ -571,7 +571,7 @@ describe('agent session helpers', () => {
 
       const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-      expect(stdoutWrites.join('')).toContain('{\"time\":\"0s\",\u001b[32m"reasoning":"0s/0s"\u001b[0m,\"executing\":\"0s/0s\"');
+      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[0m,"executing":"0s/0s"');
 
       await jest.advanceTimersByTimeAsync(1000);
       expect(stdoutWrites.join('')).toContain('{"time":"1s"');
@@ -582,7 +582,7 @@ describe('agent session helpers', () => {
 
       const output = stdoutWrites.join('');
       expect(output).toContain('Hi');
-      expect(output).toContain('\u001b[94m{\"time\":');
+      expect(output).toContain('\u001b[94m{"time":');
     } finally {
       jest.useRealTimers();
     }
@@ -622,14 +622,14 @@ describe('agent session helpers', () => {
 
     const pending = handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('{\"time\":\"0s\",\"reasoning\":\"0s/0s\",\u001b[32m"executing":"0s/0s"\u001b[0m');
+    expect(stdoutWrites.join('')).toContain('{"time":"0s","reasoning":"0s/0s",\u001b[32m"executing":"0s/0s"\u001b[0m');
 
     await new Promise((resolve) => setTimeout(resolve, 70));
 
     await pending;
     const output = stdoutWrites.join('');
     expect(output).toContain('\u001b[32m"executing":"0s/0s"\u001b[0m');
-    expect(output).toContain('\u001b[94m{\"time\":');
+    expect(output).toContain('\u001b[94m{"time":');
   });
 
   test('handleToolCalls runs multiple tool calls sequentially and preserves output order', async () => {

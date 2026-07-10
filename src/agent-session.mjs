@@ -141,7 +141,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     showExecuting(done, total, options = {}) {
       transition('executing', options);
     },
-    updateExecuting(done, total) {
+    updateExecuting(_done, _total) {
       if (state !== 'executing' || paused) return;
       render();
     },

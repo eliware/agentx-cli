@@ -44,7 +44,7 @@ export async function runToolCall(call, cwd) {
   return `ERROR: unsupported tool ${call?.name || call?.type}`;
 }
 
-export function toolCallSummary(call, output) {
+export function toolCallSummary(call, _output) {
   if (call?.type === 'shell_call') {
     return summarizeShellCommands(call?.action?.commands);
   }

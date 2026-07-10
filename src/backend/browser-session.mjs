@@ -45,15 +45,6 @@ function normalizeSessionState(state = {}) {
   };
 }
 
-function safeSocketSend(socket, payload) {
-  if (!socket || socket.readyState !== 1) return;
-  try {
-    socket.send(JSON.stringify(payload));
-  } catch {
-    // Ignore send failures; socket close handling will clean up.
-  }
-}
-
 function mergeHandlers(baseHandlers = {}, extraHandlers = {}) {
   return {
     ...baseHandlers,

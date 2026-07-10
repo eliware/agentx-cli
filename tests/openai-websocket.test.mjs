@@ -111,7 +111,10 @@ describe('openai websocket helpers', () => {
       client.sendResponseCreate({ model: 'gpt-5.4-mini', input: [] });
       handlers.get('message')('{"type":"response.completed"}', false);
       handlers.get('message')('{"type":"response.output_text.delta","delta":"hidden"}', false);
-      handlers.get('message')('{"type":"response.function_call_arguments.delta","delta":"{\"p\":[{\"s\":[\"echo hi\"]}]}"}', false);
+      handlers.get('message')(JSON.stringify({
+        type: 'response.function_call_arguments.delta',
+        delta: JSON.stringify({ p: [{ s: ['echo hi'] }] }),
+      }), false);
       handlers.get('error')(new Error('boom'));
       handlers.get('close')(1000, Buffer.from('bye'));
 

@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import { clearCredentials, clearStoredSession, createFrontendApp, loadStoredCredentials, loadStoredSession, saveCredentials, saveStoredSession } from '../src/frontend/app.mjs';
+import { createFrontendApp, loadStoredCredentials, loadStoredSession, saveCredentials, saveStoredSession } from '../src/frontend/app.mjs';
 
 class FakeElement {
   constructor(tagName = 'div', ownerDocument = null) {

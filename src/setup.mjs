@@ -78,7 +78,7 @@ function parseEnvLines(text) {
 function serializeEnvValue(value) {
   const text = String(value ?? '');
   if (!text) return '';
-  if (/^[A-Za-z0-9_\-.:\/]+$/.test(text)) return text;
+  if (/^[A-Za-z0-9_\-.:/]+$/.test(text)) return text;
   return `"${text.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 }
 
@@ -504,7 +504,7 @@ async function handleStatus(stdout = process.stdout) {
   stdout.write(`${formatServiceStatusSummary(status)}\n`);
 }
 
-export async function runSetup({ cwd = process.cwd(), stdin = process.stdin, stdout = process.stdout } = {}) {
+export async function runSetup({ cwd: _cwd = process.cwd(), stdin = process.stdin, stdout = process.stdout } = {}) {
   const systemdAvailable = detectSystemdAvailability();
   const envState = await readEnvState(envPath);
   let message = '';

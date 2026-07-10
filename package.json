@@ -6,6 +6,7 @@
     "main": "agentx.mjs",
     "scripts": {
         "start": "node agentx.mjs",
+        "lint": "npx oxlint .",
         "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --coverage --detectOpenHandles --silent --runInBand",
         "start:gui": "node agentx-gui.mjs",
         "build": "webpack --config webpack.config.mjs --mode production",
@@ -36,6 +37,7 @@
         "css-loader": "^7.1.4",
         "jest": "^30.0.4",
         "mini-css-extract-plugin": "^2.10.2",
+        "oxlint": "^1.73.0",
         "webpack": "^5.108.4",
         "webpack-cli": "^7.2.1"
     },

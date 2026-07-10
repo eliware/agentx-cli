@@ -57,7 +57,7 @@ Stop all further tool calls.
 Do not retry the interrupted command.
 Ask the user what they want to do next.`;
 
-function buildInterruptedToolOutput(call, mode, cwd) {
+function buildInterruptedToolOutput(call, mode) {
   const message = mode === 'retry'
     ? INTERRUPTED_TOOL_OUTPUT_RETRY
     : INTERRUPTED_TOOL_OUTPUT_REQUEST;
@@ -77,7 +77,7 @@ function buildInterruptedToolOutput(call, mode, cwd) {
 function createResumeToolCallRunner(mode, pendingCallIds = new Set()) {
   return async (call, cwd) => {
     if (pendingCallIds.has(getToolCallId(call))) {
-      return buildInterruptedToolOutput(call, mode, cwd);
+      return buildInterruptedToolOutput(call, mode);
     }
     const { runToolCall } = await import('./tool-dispatch.mjs');
     return await runToolCall(call, cwd);
