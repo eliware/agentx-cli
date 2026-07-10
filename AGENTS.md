@@ -17,7 +17,7 @@
 - Tests are expected to pass cleanly on Linux, Windows, and GitHub Actions; keep the entire repository cross-platform friendly and avoid platform-specific assumptions.
 
 ## Tooling
-- Use `npm test` to verify changes; it runs coverage by default.
+- Use `npm run lint` for a fast static check and `npm test` to verify changes; `npm test` runs coverage by default.
 - When working on coverage gaps, inspect `coverage/coverage-final.json` (or the generated coverage report) first so you are debugging real misses instead of guessing.
 - Keep runtime output concise and purposeful.
 - If you add a new module under `src/`, give it a single responsibility.

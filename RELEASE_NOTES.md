@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.2.7 - lint tooling and cleanup
+
+- Added an `npm run lint` command powered by `oxlint` and updated package metadata.
+- Cleaned up unused imports, parameters, and helper code to satisfy the new lint pass.
+- Adjusted setup, tool-dispatch, and frontend code paths for the cleanup.
+- Updated regression tests to match the streamlined output and websocket payload handling.
+
 ## 1.2.6 - live web search status and debug cleanup
 
 - Suppressed live status lines while `--debug` is enabled so raw websocket output stays readable.

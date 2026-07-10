@@ -142,12 +142,24 @@ This section is for contributors working from the repository. If you just want t
   node agentx.mjs
   ```
 
+- Run the lint check:
+
+  ```bash
+  npm run lint
+  ```
+
 ## Testing
 
 Run the test suite with:
 
 ```bash
 npm test
+```
+
+Run the lint check with:
+
+```bash
+npm run lint
 ```
 
 The test command also collects coverage.
