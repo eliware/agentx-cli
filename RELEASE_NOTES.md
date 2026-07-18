@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.3.0 - streamlined CLI and configurable setup
+
+- Removed the experimental web GUI, including its server, frontend, authentication, systemd service, assets, build tooling, dependencies, and tests.
+- Added first-run setup prompting and an in-session `/setup` command for API key, model, reasoning, output, compaction, and MCP settings.
+- Added configurable GPT-5.6 model pricing and high-context pricing warnings to `/usage`.
+- Improved `AGENTS.md` discovery documentation and session/prompt configuration handling.
+- Simplified the setup flow, package dependencies, README, and user documentation around the terminal CLI.
+- Reworked regression coverage for the CLI, setup, settings, usage, and session behavior.
+
 ## 1.2.9 - user-level configuration
 
 - Moved persisted AgentX configuration from the project-local `.env` file to `~/.agentx`.

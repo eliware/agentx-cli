@@ -3,7 +3,7 @@
 ## Project
 - This repository contains `AgentX`, a lightweight terminal chat agent.
 - The main CLI entrypoint is [`agentx.mjs`](./agentx.mjs), which wires into the implementation under [`src/`](./src).
-- The setup entrypoint is [`agentx-setup.mjs`](./agentx-setup.mjs), which configures `.agentx` and the Linux GUI service.
+- The setup entrypoint is [`agentx-setup.mjs`](./agentx-setup.mjs), which configures `.agentx` settings.
 
 ## Working Rules
 - Prefer small, focused changes.
@@ -34,6 +34,6 @@
 - The executable may be launched through a symlink such as `/usr/bin/agentx`; the entrypoint must resolve the real path before deciding whether to start the REPL.
 - The interactive prompt should reflect the current working directory and update after `cd`.
 - `cd` is handled internally and must not be sent to OpenAI.
-- `clear` clears the terminal display; `/clear` clears the stored response id and starts a new session.
+- `clear` resets the saved session; `>clear` clears the terminal display; `/clear` clears the stored response id and starts a new session.
 - Tab completion should behave like a simple shell completer for files and folders in the current working directory.
 - Tool calls should print concise status lines in the terminal, not full tool output.
