@@ -120,6 +120,14 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}`);
   }
 
+  function prepareOutput() {
+    // Streamed command/text output can arrive while the controller is already
+    // in the writing phase (for example after a tool event). In that case
+    // transition() is a no-op, so explicitly remove the temporary status line
+    // before writing output.
+    clearRenderedLine();
+  }
+
   function transition(nextState, { renderNow = true, allowStatusAfterOutput = false } = {}) {
     const now = Date.now();
     if (state === nextState) {
@@ -158,8 +166,10 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
       render();
     },
     beginWriting(options = {}) {
+      prepareOutput();
       transition('writing', options);
     },
+    prepareOutput,
     pause() {
       paused = true;
       stopTimer();
@@ -376,7 +386,10 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
   const finishReasoningSummary = () => {
     if (!statusController) return;
     process.stdout.write('\n');
-    statusController.resume();
+    // Do not immediately render a fresh status line after the summary's
+    // newline. The next shell-call delta will transition to writing and own
+    // the cursor without leaving a temporary line behind.
+    statusController.resume({ renderNow: false });
   };
 
   const handleMcpEvent = (event) => {
