@@ -65,7 +65,7 @@ The launchers also load `.env` when present.
 
 ## What to expect
 
-- The prompt shows your current working directory.
+- The prompt shows your user, short hostname, current working directory, and a `#` marker.
 - AgentX waits for your first message before contacting OpenAI.
 - Tool calls may stream command arguments and shell summaries live.
 - If `.agentx_responseid` exists, the session resumes automatically. If it contains pending tool calls, AgentX asks how you want to continue.

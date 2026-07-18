@@ -86,7 +86,7 @@ Quick flags:
 The prompt will look like this:
 
 ```text
-[AgentX root@dev:/opt/agentx-cli] 
+alice@laptop:/opt/agentx-cli#
 ```
 
 ## Behavior

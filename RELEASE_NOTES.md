@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.2.8 - model, prompt, and usage updates
+
+- Updated the default model configuration and enabled programmatic tool calling.
+- Lowered the server-side compaction threshold and refined reasoning/tool settings.
+- Simplified the CLI prompt to show the user, short hostname, working directory, and `#` marker.
+- Updated usage pricing for input, cached, and output tokens.
+- Adjusted regression tests for the new prompt formatting and usage totals.
+
 ## 1.2.7 - lint tooling and cleanup
 
 - Added an `npm run lint` command powered by `oxlint` and updated package metadata.
