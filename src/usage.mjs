@@ -21,7 +21,8 @@ export function getModelPricing(model = DEFAULT_MODEL) {
 }
 
 export function isJumboPrompt({ inputTokens = 0, cachedTokens = 0 } = {}) {
-  return Number(inputTokens ?? 0) + Number(cachedTokens ?? 0) > JUMBO_PROMPT_THRESHOLD;
+  const hiddenInputTokens = Math.max(Number(inputTokens ?? 0) - Number(cachedTokens ?? 0), 0);
+  return hiddenInputTokens >= JUMBO_PROMPT_THRESHOLD;
 }
 
 function ratesForUsage({ inputTokens = 0, cachedTokens = 0, model = DEFAULT_MODEL } = {}) {
@@ -59,7 +60,7 @@ function formatTokenCount(tokens) { return Number(tokens).toLocaleString('en-US'
 function formatTokenCost(tokens, rateNanoDollarsPerToken) {
   return `${formatTokenCount(tokens)} (${formatMoney(BigInt(Math.trunc(Number(tokens ?? 0))) * rateNanoDollarsPerToken)})`;
 }
-function formatUsageJson(fields) { return JSON.stringify(fields); }
+function formatUsageJson(fields) { return JSON.stringify(fields).replaceAll('\\u001b', '\u001b'); }
 
 export function formatUsageReport({ inputTokens = 0, cachedTokens = 0, outputTokens = 0, turns = 0, model = DEFAULT_MODEL } = {}) {
   const rates = ratesForUsage({ inputTokens, cachedTokens, model });

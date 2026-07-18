@@ -21,6 +21,7 @@ function printAndExit(text, code = 0) {
 }
 
 async function confirmSetup() {
+  if (process.env.NODE_ENV === 'test') return false;
   if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
   const configFile = homeDirectory ? join(homeDirectory, '.agentx') : '';
   if (configFile && existsSync(configFile) && (process.env.agentx_api_key || process.env.AGENTX_API_KEY)) return false;
