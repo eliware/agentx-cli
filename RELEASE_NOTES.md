@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.3.2 - MCP configuration and streaming support
+
+- Added optional local `mcp.json` configuration, with support for merging MCP tools into the prompt template.
+- Added `mcp.json.example` and ignored local MCP configuration files.
+- Added live MCP call and argument streaming with cyan terminal output.
+- Improved `--debug` output filtering for reasoning and MCP streaming events.
+- Upgraded `string-width` to 8.2.2 and refreshed the lockfile.
+- Added regression coverage for MCP configuration loading, streaming behavior, debug output, and display formatting.
+
 ## 1.3.1 - setup and runtime improvements
 
 - Removed MCP server configuration from the setup flow and runtime settings.

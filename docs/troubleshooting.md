@@ -15,7 +15,7 @@ AgentX stops at startup if neither environment variable is set. Export one befor
 
 ## prompt.json cannot be read
 
-If the prompt template is missing or invalid, AgentX prints the file path and the parse/read error. Fix the file and launch again.
+If the prompt template is missing or invalid, AgentX prints the file path and the parse/read error. Fix the file and launch again. If you use MCP, also check that the optional `mcp.json` beside `prompt.json` contains valid JSON. A missing `mcp.json` is allowed.
 
 ## It says AGENTS.md was not found
 

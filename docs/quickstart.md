@@ -29,6 +29,7 @@ Use that to save your OpenAI API key and runtime settings in `~/.agentx`.
 - `agentx --help` or `agentx -h` shows quick help
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
+- MCP calls and streamed arguments are shown in cyan when configured
 
 ## Before you begin
 
@@ -41,6 +42,10 @@ export agentx_api_key="your-key-here"
 
 AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
 The launchers load `~/.agentx` when present. Startup also displays the active model and runtime settings.
+
+## Optional MCP tools
+
+To enable MCP tools, place an `mcp.json` file beside `prompt.json`. Copy [`mcp.json.example`](../mcp.json.example) as a starting point and update its server URL and authorization. AgentX loads the file automatically; a missing file is allowed, while invalid JSON prevents the prompt template from loading.
 
 ## First run
 

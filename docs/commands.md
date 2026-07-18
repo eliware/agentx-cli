@@ -46,4 +46,4 @@ These are command-line flags, not in-app commands:
 
 - `--help`, `-h`, `-?`: show quick help and exit
 - `--version`, `-v`: print the package version and exit
-- `--debug`: print raw websocket logs and suppress live status lines
+- `--debug`: print raw websocket logs and suppress live status lines. MCP and reasoning argument deltas are filtered where appropriate to keep raw diagnostics readable.
