@@ -100,8 +100,9 @@ describe('agent flow helpers', () => {
     const tmp = makeTempDir('agentx-prompt-');
     try {
       const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'missing-mcp.json');
       writeFileSync(promptPath, JSON.stringify({ input: [] }));
-      await expect(loadPromptTemplate(promptPath)).resolves.toEqual({ input: [] });
+      await expect(loadPromptTemplate(promptPath, mcpPath)).resolves.toEqual({ input: [] });
     } finally {
       cleanupTempDir(tmp);
     }

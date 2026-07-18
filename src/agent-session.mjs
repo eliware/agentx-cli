@@ -384,7 +384,9 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
       /* c8 ignore next 12 */
       onEvent(event, message) {
         if (isResponseCompletedEvent(event, message?.raw)) {
-          statusController?.clear();
+          // Do not erase the line after the final text has been streamed. The
+          // cursor may already be at the start of the next line, which makes
+          // the terminal control sequence look like it removed the last line.
           return;
         }
         if (isReasoningSummaryEvent(event)) {
@@ -463,10 +465,15 @@ async function createStreamedResponse(openai, request, { liveStreaming = false, 
   if (liveStreaming) statusController?.showReasoning();
   const live = createLiveResponseHandlers({ liveStreaming, statusController, ...(process.argv.includes('--debug') ? { debug: true } : {}) });
   const response = await openai.responses.create(request, live.handlers || undefined);
-  if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
-    process.stdout.write('\n');
+  if (liveStreaming && live.sawOutput()) {
+    // Clear any in-progress status line before adding the response terminator.
+    // Clearing afterwards can target the blank line following a response that
+    // already ended with a newline, making the last response line appear lost.
+    statusController?.clear();
+    if (!live.streamedText().endsWith('\n')) process.stdout.write('\n');
+  } else {
+    statusController?.clear();
   }
-  statusController?.clear();
   return response;
 }
 
