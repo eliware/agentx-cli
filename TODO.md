@@ -31,7 +31,7 @@ Update `agentx-setup` to support these settings:
   - Authentication: none, bearer token, or custom headers.
   - Warn that adding many MCP tools increases the cost of every request.
 
-Make the setup menu navigable with Up/Down/Enter.
+Make the setup menu navigable with Up/Down/Enter. (Similar to how the existing session resume menu works)
 
 ### In-app setup
 
@@ -74,8 +74,8 @@ Implement per-model pricing calculations:
 
 Detect jumbo prompts during usage calculation:
 
-- For inputs exceeding `270k` tokens, apply 2× input pricing.
-- Display a warning whenever jumbo-prompt pricing is applied.
+- For inputs exceeding `270k` tokens, apply 2× pricing for that request to input, cached, and output
+- Display a light red colored warning whenever jumbo-prompt pricing is applied.
 
 ### Documentation
 
