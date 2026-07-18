@@ -180,8 +180,9 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
 }
 
 function textFromContent(content) {
+  if (content == null) return undefined;
   const parts = [];
-  for (const part of content ?? []) {
+  for (const part of content) {
     if (part?.text) parts.push(String(part.text));
     else if (part?.type === 'input_text' || part?.type === 'output_text') parts.push(String(part.text ?? ''));
     else if (part?.type === 'refusal' && part.refusal) parts.push(`[refusal] ${part.refusal}`);

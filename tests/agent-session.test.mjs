@@ -30,6 +30,7 @@ describe('agent session helpers', () => {
     expect(responseItemToTranscript({ type: 'function_call_output', output: null })).toBe('tool output: ');
     expect(responseItemToTranscript({ type: 'shell_call_output', call_id: 'call-1', output: [{ stdout: 'x'.repeat(200), stderr: 'y'.repeat(200), outcome: { type: 'exit', exit_code: 0 } }, 'ignored'], max_output_length: 10, status: 'completed' })).toContain('tool output shell_call_output:');
     expect(responseItemToTranscript({ type: 'reasoning', summary: [] })).toBe('');
+    expect(responseItemToTranscript({ type: 'reasoning' })).toBe('');
     expect(responseItemToTranscript({ type: 'reasoning', summary: [{ type: 'output_text', text: 'plan' }] })).toBe('plan');
     expect(responseItemToTranscript({ type: 'custom_call', foo: 'bar' })).toBe('assistant custom_call: {"type":"custom_call","foo":"bar"}');
     expect(responseItemToTranscript({ type: 'custom_call_output', foo: 'bar' })).toBe('tool output custom_call_output: {"type":"custom_call_output","foo":"bar"}');
