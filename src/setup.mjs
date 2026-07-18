@@ -33,6 +33,9 @@ function parseEnvLines(text) {
     return match ? { type: 'pair', key: match[1], value: match[2], line } : { type: 'raw', line };
   });
 }
+function parseMcpServers(value) {
+  try { return JSON.parse(value || '[]'); } catch { return []; }
+}
 function serializeEnvValue(value) {
   const text = String(value ?? '');
   if (!text) return '';
@@ -96,7 +99,7 @@ async function editCompaction(rl, envState, stdout) {
   if (value > 270000) stdout.write('Warning: jumbo prompts cost 2x above 270k tokens.\n');
 }
 async function editMcp(rl, envState, stdout) {
-  let servers; try { servers = JSON.parse(envState.values.AGENTX_MCP_SERVERS || '[]'); } catch { servers = []; }
+  const servers = parseMcpServers(envState.values.AGENTX_MCP_SERVERS);
   const url = (await ask(rl, 'MCP server URL (blank to cancel): ')).trim(); if (!url) return;
   const label = (await ask(rl, 'MCP server label: ')).trim(); const description = (await ask(rl, 'MCP server description: ')).trim();
   const authType = (await ask(rl, 'Authentication [none/bearer/headers]: ')).trim().toLowerCase() || 'none';
@@ -160,9 +163,9 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout 
     else if (selected.id === 'summary') await editValue(rl, envState, 'AGENTX_REASONING_SUMMARY', labels.summary, choices.summary, stdout);
     else if (selected.id === 'verbosity') await editValue(rl, envState, 'AGENTX_OUTPUT_VERBOSITY', labels.verbosity, choices.verbosity, stdout);
     else if (selected.id === 'compaction') await editCompaction(rl, envState, stdout);
-    else if (selected.id === 'mcp') await editMcp(rl, envState, stdout);
+    else await editMcp(rl, envState, stdout);
   } } finally { rl.close(); }
 }
 
 export const setupPaths = { rootDir, envPath };
-export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, DEFAULTS, choices };
+export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, parseMcpServers, serializeEnvValue, updateEnvText, buildMenuEntries, DEFAULTS, choices };

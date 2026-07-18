@@ -30,6 +30,11 @@ beforeEach(() => {
 });
 
 describe('setup helpers', () => {
+  test('parses empty and malformed MCP server values as empty lists', () => {
+    expect(setupInternals.parseMcpServers('')).toEqual([]);
+    expect(setupInternals.parseMcpServers('{invalid')).toEqual([]);
+  });
+
   test('reads and writes only the API key', async () => {
     const filePath = '/tmp/agentx/.agentx';
     const text = 'AGENTX_API_KEY=old\nHOST=127.0.0.1\nPORT=3100\n';
@@ -226,7 +231,7 @@ describe('setup coverage paths', () => {
       fileMap.set(filePath, writes === 1 ? String(text) : '');
     });
     const stdout = { isTTY: true, write: jest.fn() };
-    const questions = ['model', 'terra', 'quit'];
+    const questions = ['model', 'gpt-5.6-terra', 'quit'];
     createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
     await runSetup({ stdin: { isTTY: true }, stdout });
   });
@@ -282,5 +287,99 @@ describe('setup falsy branch coverage', () => {
     handlers.data(Buffer.from('123456789'));
     handlers.data(Buffer.from('\u0003'));
     await pending;
+  });
+});
+
+describe('setup uncovered fallback branches', () => {
+  test('uses default read and setup arguments and handles a missing config on write', async () => {
+    await expect(readEnvState()).resolves.toEqual(expect.objectContaining({ filePath: '/root/.agentx', text: '' }));
+    expect(await writeEnvState('/tmp/new-agentx/.agentx', { A: 'b' })).toBe('A=b\n');
+    // runSetup() defaults to the real process streams. Keep this coverage test
+    // from leaking its non-interactive message into Jest's output.
+    const stdoutWrite = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      await expect(runSetup()).resolves.toBeUndefined();
+      expect(stdoutWrite).toHaveBeenCalledWith(expect.stringContaining('requires an interactive terminal'));
+    } finally {
+      stdoutWrite.mockRestore();
+    }
+  });
+
+  test('handles falsy rereads after each type of update', async () => {
+    let writes = 0;
+    writeFile.mockImplementation(async (filePath, text) => {
+      writes += 1;
+      fileMap.set(filePath, String(text));
+    });
+    readFile.mockImplementation(async (filePath) => {
+      if (writes > 0 && filePath === '/root/.agentx') return '';
+      if (!fileMap.has(filePath)) throw missing(filePath);
+      return fileMap.get(filePath);
+    });
+    const stdout = { isTTY: true, write: jest.fn() };
+    const questions = [
+      'model', 'terra', 'compaction', '12',
+      'mcp', 'https://example.test', 'label', 'description', 'none', 'quit',
+    ];
+    createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
+    await runSetup({ stdin: { isTTY: true }, stdout });
+    expect(writes).toBeGreaterThanOrEqual(2);
+  });
+
+  test('covers the non-warning compaction path and short raw-menu input', async () => {
+    const handlers = {};
+    const stdin = {
+      isTTY: true,
+      setRawMode: jest.fn(),
+      resume: jest.fn(),
+      on: jest.fn((event, handler) => { handlers[event] = handler; }),
+      off: jest.fn(),
+    };
+    const stdout = { isTTY: true, write: jest.fn() };
+    createInterface.mockReturnValue({ question: async () => 'quit', close: jest.fn() });
+    const pending = runSetup({ stdin, stdout });
+    await new Promise((resolve) => setImmediate(resolve));
+    handlers.data(Buffer.from('x'));
+    handlers.data(Buffer.from('\u0003'));
+    await pending;
+    expect(stdout.write).toHaveBeenCalled();
+  });
+});
+
+describe('setup fallback branches', () => {
+  test('uses an empty string when a saved value cannot be reread', async () => {
+    let writes = 0;
+    writeFile.mockImplementation(async (filePath, text) => {
+      writes += 1;
+      fileMap.set(filePath, String(text));
+    });
+    readFile.mockImplementation(async (filePath) => {
+      if (writes > 0 && filePath === '/root/.agentx') throw missing(filePath);
+      if (!fileMap.has(filePath)) throw missing(filePath);
+      return fileMap.get(filePath);
+    });
+    const questions = ['model', 'gpt-5.6-terra', 'quit'];
+    createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
+    await runSetup({ stdin: { isTTY: true }, stdout: { isTTY: true, write: jest.fn() } });
+    expect(writes).toBeGreaterThanOrEqual(1);
+  });
+
+  test('defaults an empty MCP server value to an empty server list', async () => {
+    fileMap.set('/root/.agentx', 'AGENTX_MCP_SERVERS=\n');
+    const questions = ['mcp', 'https://example.test', 'label', 'description', 'none', 'quit'];
+    createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
+    await runSetup({ stdin: { isTTY: true }, stdout: { isTTY: true, write: jest.fn() } });
+    expect(fileMap.get('/root/.agentx')).toContain('https://example.test');
+  });
+
+  test('uses an empty MCP server list when the saved JSON is invalid', async () => {
+    fileMap.set('/root/.agentx', 'AGENTX_API_KEY=existing\nAGENTX_MCP_SERVERS={invalid\n');
+    const questions = ['mcp', 'https://invalid-json.test', 'label', 'description', 'none', 'quit'];
+    createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
+
+    await runSetup({ stdin: { isTTY: true }, stdout: { isTTY: true, write: jest.fn() } });
+
+    const saved = JSON.parse(JSON.parse(fileMap.get('/root/.agentx').match(/^AGENTX_MCP_SERVERS=(.*)$/m)[1]));
+    expect(saved).toEqual([{ url: 'https://invalid-json.test', label: 'label', description: 'description', auth: { type: 'none' } }]);
   });
 });

@@ -25,7 +25,7 @@ export function isJumboPrompt({ inputTokens = 0, cachedTokens = 0 } = {}) {
   return hiddenInputTokens >= JUMBO_PROMPT_THRESHOLD;
 }
 
-function ratesForUsage({ inputTokens = 0, cachedTokens = 0, model = DEFAULT_MODEL } = {}) {
+function ratesForUsage({ inputTokens, cachedTokens, model }) {
   const pricing = getModelPricing(model);
   if (!isJumboPrompt({ inputTokens, cachedTokens })) return pricing;
   return { input: pricing.input * 2n, cached: pricing.cached * 2n, output: pricing.output * 2n };

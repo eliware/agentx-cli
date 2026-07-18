@@ -1,4 +1,4 @@
-﻿import { describe, expect, test, jest } from '@jest/globals';
+import { describe, expect, test, jest } from '@jest/globals';
 import { fs as commonFs } from '@eliware/common';
 import { readAgentsFromCwdAndParents } from '../src/shell-agents.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
@@ -66,6 +66,30 @@ describe('shell agents', () => {
       expect(text).toMatch(/root[\s\S]*parent/);
     } finally {
       cleanupTempDir(tmp);
+    }
+  });
+
+  test('accepts a missing home directory', async () => {
+    const tmp = makeTempDir('agentx-');
+    try {
+      await expect(readAgentsFromCwdAndParents(tmp, null)).resolves.toEqual(expect.any(String));
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('prepends a distinct home AGENTS file', async () => {
+    const tmp = makeTempDir('agentx-');
+    const home = makeTempDir('agentx-home-');
+    try {
+      makeDirectory(tmp, 'child');
+      makeFile(home, 'AGENTS.md', 'home');
+      makeFile(tmp, 'AGENTS.md', 'cwd');
+      const text = await readAgentsFromCwdAndParents(`${tmp}/child`, home);
+      expect(text).toMatch(/home[\s\S]*cwd/);
+    } finally {
+      cleanupTempDir(tmp);
+      cleanupTempDir(home);
     }
   });
 
