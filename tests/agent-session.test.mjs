@@ -504,6 +504,57 @@ describe('agent session helpers', () => {
     expect(statusController.showReasoning).toHaveBeenCalled();
   });
 
+  test('live handlers stream MCP calls and suppress debug-only output', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const statusController = {
+      showReasoning: jest.fn(), showExecuting: jest.fn(), pause: jest.fn(),
+      resume: jest.fn(), clear: jest.fn(), beginWriting: jest.fn(),
+    };
+    const originalArgv = process.argv;
+    try {
+      const normalOpenai = {
+        responses: {
+          create: async (_request, handlers) => {
+            handlers.onItemAdded({ type: 'mcp_call', name: 'lookup' });
+            handlers.onItemAdded({ type: 'mcp_call', server_label: 'server' });
+            handlers.onItemAdded({ type: 'mcp_call' });
+            handlers.onItemAdded({ type: 'message' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: 'abc' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: '' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta' });
+            handlers.onEvent({ type: 'response.reasoning_summary_text.delta' });
+            handlers.onItemDone({ type: 'mcp_call' });
+            handlers.onItemDone({ type: 'reasoning', summary: [{ type: 'output_text', text: 'plan' }] });
+            return { id: 'resp-mcp', output: [] };
+          },
+        },
+      };
+      await createStreamedResponse(normalOpenai, template, { liveStreaming: true, statusController });
+      expect(stdoutWrites.join('')).toContain('assistant mcp call: lookup(');
+      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('plan');
+
+      stdoutWrites.length = 0;
+      process.argv = [...originalArgv, '--debug'];
+      const debugOpenai = {
+        responses: {
+          create: async (_request, handlers) => {
+            handlers.onEvent({ type: 'response.reasoning_summary_part.delta', delta: 'hidden' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: 'hidden' });
+            handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'hidden' });
+            handlers.onItemDone({ type: 'reasoning', summary: [{ type: 'output_text', text: 'hidden' }] });
+            return { id: 'resp-debug', output: [] };
+          },
+        },
+      };
+      await createStreamedResponse(debugOpenai, template, { liveStreaming: true, statusController });
+      expect(stdoutWrites.join('')).toContain('{\"mcp\":\"hidden\"}');
+      expect(stdoutWrites.join('')).not.toContain('\u001b[95mhidden\u001b[0m');
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+
   test('live handlers cover optional status branches and web-search shapes', async () => {
     const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'), { quiet: true });
     controller.showReasoning();

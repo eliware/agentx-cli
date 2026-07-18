@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { clearTerminal, formatCommandMessage, formatInfoMessage, formatPromptForCwd, formatSystemMessage } from '../src/shell-display.mjs';
+import { clearTerminal, formatCommandMessage, formatInfoMessage, formatMcpMessage, formatPromptForCwd, formatSystemMessage } from '../src/shell-display.mjs';
 
 describe('shell display', () => {
   test('formats prompt and messages and clears the terminal', () => {
@@ -26,6 +26,7 @@ describe('shell display', () => {
       expect(formatSystemMessage('hello')).toBe(`[33mhello[0m`);
       expect(formatCommandMessage('hello')).toBe(`[32mhello[0m`);
       expect(formatInfoMessage('hello')).toBe(`[94mhello[0m`);
+      expect(formatMcpMessage('hello')).toBe(`[36mhello[0m`);
       clearTerminal();
       expect(writes).toContain('\n');
 

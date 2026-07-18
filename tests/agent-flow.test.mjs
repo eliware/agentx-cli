@@ -40,6 +40,46 @@ describe('agent flow helpers', () => {
     }
   });
 
+  test('loadPromptTemplate wraps non-missing MCP file errors', async () => {
+    const tmp = makeTempDir('agentx-prompt-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'mcp.json');
+      writeFileSync(promptPath, JSON.stringify({ input: [] }));
+      writeFileSync(mcpPath, '{not json');
+      await expect(loadPromptTemplate(promptPath, mcpPath)).rejects.toThrow(`Unable to read prompt template at ${promptPath}`);
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('loadPromptTemplate merges top-level MCP tool arrays', async () => {
+    const tmp = makeTempDir('agentx-prompt-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'mcp.json');
+      const tools = [{ type: 'function', name: 'lookup' }];
+      writeFileSync(promptPath, JSON.stringify({ input: [] }));
+      writeFileSync(mcpPath, JSON.stringify(tools));
+      await expect(loadPromptTemplate(promptPath, mcpPath)).resolves.toEqual({ input: [], tools });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('loadPromptTemplate defaults missing MCP tools to an empty array', async () => {
+    const tmp = makeTempDir('agentx-prompt-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'mcp.json');
+      writeFileSync(promptPath, JSON.stringify({ input: [] }));
+      writeFileSync(mcpPath, JSON.stringify({}));
+      await expect(loadPromptTemplate(promptPath, mcpPath)).resolves.toEqual({ input: [], tools: [] });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
   test('loadPromptTemplate returns parsed JSON when the prompt file is valid', async () => {
     const tmp = makeTempDir('agentx-prompt-');
     try {

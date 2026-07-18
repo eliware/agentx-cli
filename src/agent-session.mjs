@@ -461,7 +461,7 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
 
 async function createStreamedResponse(openai, request, { liveStreaming = false, statusController = null } = {}) {
   if (liveStreaming) statusController?.showReasoning();
-  const live = createLiveResponseHandlers({ liveStreaming, statusController, debug: Boolean(process.argv.includes('--debug')) });
+  const live = createLiveResponseHandlers({ liveStreaming, statusController, ...(process.argv.includes('--debug') ? { debug: true } : {}) });
   const response = await openai.responses.create(request, live.handlers || undefined);
   if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
     process.stdout.write('\n');
