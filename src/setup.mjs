@@ -125,7 +125,7 @@ function renderScreen({ values, message, stdout }) { stdout.write('\x1b[2J\x1b[H
 async function selectMenu(stdin, stdout, entries, initialIndex = 0) {
   if (typeof stdin.setRawMode !== 'function' || typeof stdin.on !== 'function') return null;
   let selected = Number.isInteger(initialIndex) && initialIndex >= 0 && initialIndex < entries.length ? initialIndex : 0; let buffer = '';
-  const render = () => { stdout.write('\x1b[2J\x1b[HAgentX setup\n\n'); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${index + 1}. ${entry.label}\n`)); };
+  const render = () => { stdout.write('\x1b[2J\x1b[HAgentX setup\n\n'); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${index + 1}. ${entry.label}\n`)); stdout.write(`Use 1-${entries.length}, ↑/↓, or Enter.\n`); };
   render(); stdin.setRawMode(true); stdin.resume();
   return await new Promise((resolve) => {
     const onData = (chunk) => {
@@ -157,7 +157,7 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
     const entries = buildMenuEntries({ values: envState.values, includeSettings: true });
     let selected = await selectMenu(stdin, stdout, entries);
     if (!selected) {
-      renderScreen({ values: envState.values, message, stdout }); entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`));
+      renderScreen({ values: envState.values, message, stdout }); entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`)); stdout.write(`Use 1-${entries.length}, ↑/↓, or Enter.\n`);
       const choice = (await ask(rl, '\nChoose an option: ')).trim().toLowerCase(); const index = Number(choice);
       selected = Number.isInteger(index) && index >= 1 && index <= entries.length ? entries[index - 1] : entries.find((entry) => entry.id === choice || entry.label.toLowerCase() === choice);
     }
@@ -173,4 +173,4 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
 }
 
 export const setupPaths = { rootDir, envPath };
-export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, selectMenu, DEFAULTS, choices };
+export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, selectMenu, selectChoice, DEFAULTS, choices };

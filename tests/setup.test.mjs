@@ -78,6 +78,7 @@ describe('interactive setup', () => {
     send(stdin, '\x1b[A');
     send(stdin, '\r');
     expect(await pending).toEqual({ id: 'one', label: 'One' });
+    expect(stdout.text).toContain('Use 1-2, ↑/↓, or Enter.');
   });
 
   test('trims non-selection input before accepting a selection', async () => {
@@ -154,6 +155,7 @@ describe('interactive setup menu flow', () => {
     await drive(readlineInput, ['2', 'gpt-5.6-terra', '8']);
     await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 2000))])).resolves.toBeUndefined();
     expect((await readEnvState(configPath)).values.AGENTX_MODEL).toBe('gpt-5.6-terra');
+    expect(stdout.text).toContain('Use 1-8, ↑/↓, or Enter.');
   }, 5000);
 
   test('uses the readline fallback and accepts textual choices', async () => {
@@ -185,4 +187,27 @@ describe('interactive setup menu flow', () => {
     expect(stdout.text).toContain('Enter a positive token count.');
     expect((await readEnvState(configPath)).values.AGENTX_API_KEY).toBe('valid-key');
   }, 5000);
+});
+
+describe('setup coverage edge cases', () => {
+  test('handles malformed quoted values and empty env updates', () => {
+    expect(setupInternals.decodeEnvValue('\"bad\n\"')).toBe('bad\n');
+    expect(setupInternals.updateEnvText('', {})).toBe('');
+  });
+
+  test('selectChoice accepts an interactive selection and rejects invalid fallback input', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const selected = setupInternals.selectChoice(stdin, stdout, { question: async () => 'nope' }, 'Model', ['one'], 'missing');
+    send(stdin, '\r');
+    expect(await selected).toBe('one');
+
+    const fallback = await setupInternals.selectChoice({}, stdout, { question: async () => 'nope' }, 'Model', ['one'], 'missing');
+    expect(fallback).toBeNull();
+  });
+
+  test('covers default setup arguments and empty saved content', async () => {
+    const stdin = { isTTY: false }; const stdout = new FakeOutput();
+    await runSetup({ stdin, stdout });
+    await writeEnvState(path.join(os.tmpdir(), `agentx-empty-${Date.now()}`), { AGENTX_API_KEY: '' });
+  });
 });
