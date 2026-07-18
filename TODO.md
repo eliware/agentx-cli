@@ -6,6 +6,7 @@
   - Ask whether the user wants to run `agentx-setup` now (`Y/n`).
   - After setup exits, start the application automatically if the file was created and an API key was configured.
 - Always load `$HOME/AGENTS.md` when it exists.
+- If no AGENTS.mds are found suggest the user asks agentx to generate one
 - Update the `agentx-setup` menu to support the settings below:
   - Model selection:
     - `gpt-5.6-luna` — small
@@ -46,3 +47,13 @@
 - currently '/clear' resets the session but just 'clear' clears the screen
 - i want it to both /clear and clear to clear the session
 - if the user wants to clear screen they can type >clear (which already shells the clear command)
+
+## Documentation
+- Update the docs to show that both installation and updating can be done with
+  - npm -g install @eliware/agentx-cli@latest
+- Add uninstall instructions
+  - npm -g uninstall @eliware/agentx-cli
+  - rm -f $HOME/.agentx*
+- Better AGENTS.md explaination about how loading, how inheritenace works
+  - Mention that the AGENTS.md make up the system prompt, so larger files will increase the cost of each request
+  - Mention AGENTS.md best practices
