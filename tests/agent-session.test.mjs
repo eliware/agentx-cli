@@ -63,6 +63,25 @@ describe('agent session helpers', () => {
     }
   });
 
+  test('status line controller accepts omitted transition options', () => {
+    const controller = createStatusLineController(Date.now());
+    controller.showReasoning();
+    expect(stdoutWrites.join('')).toContain('\"reasoning\":');
+    controller.clear();
+  });
+
+  test('status line controller can resume without immediately rendering', () => {
+    const controller = createStatusLineController(Date.now());
+    controller.showReasoning();
+    stdoutWrites = [];
+    controller.pause();
+    stdoutWrites = [];
+    controller.resume({ renderNow: false });
+
+    expect(stdoutWrites.join('')).toBe('');
+    controller.clear();
+  });
+
   test('status line controller renders JSON stats and highlights the active state', () => {
     jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
     try {

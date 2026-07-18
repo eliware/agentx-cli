@@ -155,17 +155,17 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   }
 
   return {
-    showReasoning(options = {}) {
+    showReasoning(options) {
       transition('reasoning', options);
     },
-    showExecuting(done, total, options = {}) {
+    showExecuting(done, total, options) {
       transition('executing', options);
     },
     updateExecuting(_done, _total) {
       if (state !== 'executing' || paused) return;
       render();
     },
-    beginWriting(options = {}) {
+    beginWriting(options) {
       prepareOutput();
       transition('writing', options);
     },
