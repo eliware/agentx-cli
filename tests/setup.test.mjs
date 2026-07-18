@@ -209,7 +209,8 @@ describe('setup coverage edge cases', () => {
   test('covers default setup arguments and empty saved content', async () => {
     const stdin = { isTTY: false }; const stdout = new FakeOutput();
     await runSetup({ stdin, stdout });
-    await runSetup();
+    const defaultStdout = new FakeOutput(); defaultStdout.isTTY = false;
+    await runSetup({ stdout: defaultStdout });
     await writeEnvState(path.join(os.tmpdir(), `agentx-empty-${Date.now()}`), { AGENTX_API_KEY: '' });
   });
 
