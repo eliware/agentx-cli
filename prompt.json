@@ -29,8 +29,14 @@
   "reasoning": {
     "effort": "medium",
     "mode": "standard",
-    "summary": "auto"
+    "summary": null
   },
+  "context_management": [
+    {
+      "type": "compaction",
+      "compact_threshold": 200000
+    }
+  ],
   "tools": [
     {
       "type": "programmatic_tool_calling"
