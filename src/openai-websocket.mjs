@@ -35,7 +35,9 @@ function shouldLogWebSocketFrame(raw) {
   const text = String(raw ?? '');
   return !text.includes('response.output_text.delta')
     && !text.includes('response.function_call_arguments.delta')
-    && !text.includes('response.shell_call_command.delta');
+    && !text.includes('response.shell_call_command.delta')
+    && !text.includes('response.reasoning_summary_text.delta')
+    && !text.includes('response.mcp_call_arguments.delta');
 }
 
 export function sendOpenAIWebSocketEvent(socket, payload, debug = null) {

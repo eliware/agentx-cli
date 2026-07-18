@@ -4,7 +4,7 @@ import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
 import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport, formatUsageReport } from './usage.mjs';
 import { createUsageTotals } from './response.mjs';
-import { formatCommandMessage, formatInfoMessage, formatSystemMessage } from './shell-display.mjs';
+import { formatCommandMessage, formatInfoMessage, formatMcpMessage, formatSystemMessage } from './shell-display.mjs';
 
 const SHELL_OUTPUT_PREVIEW = 120;
 const STATUS_UPDATE_INTERVAL_MS = 250;
@@ -221,6 +221,10 @@ function isShellToolCall(item) {
   return item?.type === 'shell_call';
 }
 
+function isMcpToolCall(item) {
+  return item?.type === 'mcp_call';
+}
+
 export function responseItemToTranscript(item) {
   if (!item || item.role === 'developer' || item.role === 'system') return '';
 
@@ -318,7 +322,7 @@ function webSearchCompletionLine(item) {
   }, null, 2));
 }
 
-function createLiveResponseHandlers({ liveStreaming, statusController }) {
+function createLiveResponseHandlers({ liveStreaming, statusController, debug = false }) {
   let sawOutput = false;
   let streamedText = '';
 
@@ -384,11 +388,20 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
           return;
         }
         if (isReasoningSummaryEvent(event)) {
+          if (debug) return;
           if (event.type.endsWith('.delta')) showReasoningSummaryDelta(event.delta);
           else if (event.type.endsWith('.done')) finishReasoningSummary();
           return;
         }
         if (isMcpEvent(event)) {
+          if (debug && (event.type === 'response.mcp_call_arguments.delta' || event.type === 'response.reasoning_summary_text.delta')) return;
+          if (event.type === 'response.mcp_call_arguments.delta') {
+            markOutput();
+            statusController?.beginWriting();
+            const delta = String(event?.delta ?? '');
+            if (delta) process.stdout.write(formatMcpMessage(delta));
+            return;
+          }
           handleMcpEvent(event);
           return;
         }
@@ -414,6 +427,12 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
           }
         }
       },
+      onItemAdded(item) {
+        if (!isMcpToolCall(item)) return;
+        markOutput();
+        const label = item.name || item.server_label || 'mcp_call';
+        process.stdout.write(formatMcpMessage(`assistant mcp call: ${label}(`));
+      },
       onTextDelta(delta) {
         markOutput();
         const text = String(delta ?? '');
@@ -425,12 +444,13 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
           finishWebSearch(item);
           return;
         }
-        if (isShellToolCall(item)) {
+        if (isShellToolCall(item) || isMcpToolCall(item)) {
           markOutput();
           streamedText += '\n';
-          process.stdout.write('\n');
+          process.stdout.write(isMcpToolCall(item) ? ')\n' : '\n');
         }
         if (item?.type === 'reasoning') {
+          if (debug) return;
           const transcript = responseItemToTranscript(item);
           if (transcript) process.stdout.write(`${formatSystemMessage(transcript)}\n`);
         }
@@ -441,7 +461,7 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
 
 async function createStreamedResponse(openai, request, { liveStreaming = false, statusController = null } = {}) {
   if (liveStreaming) statusController?.showReasoning();
-  const live = createLiveResponseHandlers({ liveStreaming, statusController });
+  const live = createLiveResponseHandlers({ liveStreaming, statusController, debug: Boolean(process.argv.includes('--debug')) });
   const response = await openai.responses.create(request, live.handlers || undefined);
   if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) {
     process.stdout.write('\n');

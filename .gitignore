@@ -64,6 +64,5 @@ node_modules/
 # agentx
 .agentx_responseid
 
-public/dist/
-
-mcp.json
+# MCP configuration
+mcp.json*
