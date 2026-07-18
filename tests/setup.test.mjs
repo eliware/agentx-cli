@@ -112,6 +112,15 @@ describe('interactive setup', () => {
     expect(await pending).toEqual({ id: 'quit', label: 'Quit' });
   });
 
+  test('evaluates the short-input buffer limit before Ctrl-C', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'quit', label: 'Quit' }]);
+    send(stdin, 'x');
+    send(stdin, 'y');
+    send(stdin, '\u0003');
+    expect(await pending).toEqual({ id: 'quit', label: 'Quit' });
+  });
+
   test('trims oversized input before accepting a selection', async () => {
     const stdin = new FakeTerminal(); const stdout = new FakeOutput();
     const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }]);
@@ -191,7 +200,7 @@ describe('interactive setup menu flow', () => {
 
 describe('setup coverage edge cases', () => {
   test('handles malformed quoted values and empty env updates', () => {
-    expect(setupInternals.decodeEnvValue('\"bad\n\"')).toBe('bad\n');
+    expect(setupInternals.decodeEnvValue('"bad\n"')).toBe('bad\n');
     expect(setupInternals.updateEnvText('', {})).toBe('');
     expect(setupInternals.updateEnvText(null, {})).toBe('');
   });
@@ -223,6 +232,20 @@ describe('setup coverage edge cases', () => {
 });
 
 describe('setup final coverage paths', () => {
+  test('takes the non-compaction menu path before quitting', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const configPath = path.join(os.tmpdir(), `agentx-quit-${Date.now()}.agentx`);
+    const run = runSetup({ stdin, stdout, configPath, readlineInput: new FakeTerminal() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    stdin.emit('data', Buffer.from('6'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    stdin.emit('data', Buffer.from('1'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    stdin.emit('data', Buffer.from('8'));
+    await run;
+    await rm(configPath, { force: true });
+  });
+
   test('uses the default environment path and compact menu blank label', async () => {
     const state = await readEnvState();
     expect(state.filePath).toBe(setupPaths.envPath);
@@ -290,6 +313,12 @@ describe('setup branch completion', () => {
   }, 5000);
 
   test('covers omitted runSetup arguments', async () => {
-    await runSetup();
+    const originalWrite = process.stdout.write;
+    process.stdout.write = () => true;
+    try {
+      await runSetup();
+    } finally {
+      process.stdout.write = originalWrite;
+    }
   });
 });

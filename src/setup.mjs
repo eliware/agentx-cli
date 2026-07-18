@@ -143,7 +143,7 @@ async function selectMenu(stdin, stdout, entries, initialIndex = 0) {
       }
       else if (buffer.includes('\r') || buffer.includes('\n')) { stdin.setRawMode(false); stdin.off?.('data', onData); stdout.write('\n'); resolve(entries[selected]); }
       else if (buffer.includes('\u0003')) { stdin.setRawMode(false); stdin.off?.('data', onData); resolve(entries.find((entry) => entry.id === 'quit')); }
-      else if (buffer.length > 8) buffer = buffer.slice(-8);
+      else buffer = buffer.length > 8 ? buffer.slice(-8) : buffer;
     };
     stdin.on('data', onData);
   });
@@ -163,13 +163,15 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
       selected = Number.isInteger(index) && index >= 1 && index <= entries.length ? entries[index - 1] : entries.find((entry) => entry.id === choice || entry.label.toLowerCase() === choice);
     }
     if (!selected) { message = 'Unknown option.'; continue; } if (selected.id === 'quit') break;
-    if (selected.id === 'api') message = await editApiKey(rl, envState, stdout);
-    else if (selected.id === 'model') await editValue(stdin, stdout, rl, envState, 'AGENTX_MODEL', labels.model, choices.model);
-    else if (selected.id === 'mode') await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_MODE', labels.mode, choices.mode);
-    else if (selected.id === 'effort') await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_EFFORT', labels.effort, choices.effort);
-    else if (selected.id === 'summary') await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_SUMMARY', labels.summary, choices.summary);
-    else if (selected.id === 'verbosity') await editValue(stdin, stdout, rl, envState, 'AGENTX_OUTPUT_VERBOSITY', labels.verbosity, choices.verbosity);
-    else if (selected.id === 'compaction') await editCompaction(rl, envState, stdout);
+    switch (selected.id) {
+      case 'api': message = await editApiKey(rl, envState, stdout); break;
+      case 'model': await editValue(stdin, stdout, rl, envState, 'AGENTX_MODEL', labels.model, choices.model); break;
+      case 'mode': await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_MODE', labels.mode, choices.mode); break;
+      case 'effort': await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_EFFORT', labels.effort, choices.effort); break;
+      case 'summary': await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_SUMMARY', labels.summary, choices.summary); break;
+      case 'verbosity': await editValue(stdin, stdout, rl, envState, 'AGENTX_OUTPUT_VERBOSITY', labels.verbosity, choices.verbosity); break;
+      case 'compaction': await editCompaction(rl, envState, stdout); break;
+    }
   } } finally { rl.close(); }
 }
 
