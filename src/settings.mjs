@@ -25,10 +25,16 @@ export function applySettings(template, settings = settingsFromEnv()) {
   next.context_management = [{ type: 'compaction', compact_threshold: settings.compactionThreshold }];
   const configured = settings.mcpServers.map((server) => ({
     type: 'mcp', server_url: server.url, server_label: server.label, server_description: server.description,
-    ...(server.auth?.type === 'bearer' ? { authorization: `Bearer ${server.auth.token}` } : {}),
+    ...(server.auth?.type === 'bearer' && server.auth.token ? { authorization: server.auth.token } : {}),
     ...(server.auth?.type === 'headers' ? { headers: server.auth.headers || {} } : {}),
+    ...(server.requireApproval ? { require_approval: server.requireApproval } : {}),
+    ...(Array.isArray(server.allowedCallers) && server.allowedCallers.length ? { allowed_callers: server.allowedCallers } : {}),
   }));
-  if (configured.length) next.tools = [...(next.tools || []), ...configured];
+  if (configured.length) {
+    const tools = [...(next.tools || [])];
+    if (!tools.some((tool) => tool?.type === 'programmatic_tool_calling')) tools.unshift({ type: 'programmatic_tool_calling' });
+    next.tools = [...tools, ...configured];
+  }
   return next;
 }
 export async function reloadSettings() {

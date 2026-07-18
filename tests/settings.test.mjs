@@ -36,8 +36,9 @@ test('applies reasoning, text, compaction, and MCP settings', () => {
     ],
   });
   expect(result).toEqual({ model: 'new', reasoning: { existing: true, mode: 'enabled', effort: 'high', summary: null }, text: { existing: true, verbosity: 'high' }, context_management: [{ type: 'compaction', compact_threshold: 456 }], tools: [
+    { type: 'programmatic_tool_calling' },
     { type: 'existing' },
-    { type: 'mcp', server_url: 'https://bearer', server_label: 'Bearer', server_description: 'B', authorization: 'Bearer secret' },
+    { type: 'mcp', server_url: 'https://bearer', server_label: 'Bearer', server_description: 'B', authorization: 'secret' },
     { type: 'mcp', server_url: 'https://headers', server_label: 'Headers', server_description: 'H', headers: {} },
     { type: 'mcp', server_url: 'https://headers-set', server_label: 'Headers set', server_description: undefined, headers: { 'X-Test': 'yes' } },
     { type: 'mcp', server_url: 'https://none', server_label: 'None', server_description: undefined },
@@ -47,7 +48,7 @@ test('applies reasoning, text, compaction, and MCP settings', () => {
 
 test('adds MCP tools to a template without an existing tools array', () => {
   const result = applySettings({}, { ...DEFAULT_SETTINGS, mcpServers: [{ url: 'https://mcp', label: 'M' }] });
-  expect(result.tools).toEqual([{ type: 'mcp', server_url: 'https://mcp', server_label: 'M', server_description: undefined }]);
+  expect(result.tools).toEqual([{ type: 'programmatic_tool_calling' }, { type: 'mcp', server_url: 'https://mcp', server_label: 'M', server_description: undefined }]);
 });
 
 test('uses process environment when no environment is supplied', () => {
