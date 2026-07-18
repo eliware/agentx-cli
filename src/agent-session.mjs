@@ -247,7 +247,7 @@ export function responseItemToTranscript(item) {
 
   if (item.type === 'reasoning') {
     const summary = textFromContent(item.summary);
-    return summary ? `assistant reasoning summary: ${summary}` : '';
+    return summary ?? '';
   }
 
   if (item.type?.endsWith?.('_call')) {

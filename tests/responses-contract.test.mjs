@@ -22,7 +22,7 @@ describe('responses contract', () => {
 
     expect(extractTextFromResponse(response)).toBe('final answer');
     expect(extractUsage(response)).toEqual({ inputTokens: 12, cachedTokens: 5, outputTokens: 9 });
-    expect(responseItemToTranscript(response.output[0])).toBe('assistant reasoning summary: plan');
+    expect(responseItemToTranscript(response.output[0])).toBe('plan');
     expect(responseItemToTranscript(response.output[2])).toContain('assistant shell call:');
     expect(responseItemToTranscript(response.output[3])).toContain('tool output shell_call_output:');
     expect(toolOutputForCall(response.output[2], { type: 'shell_call_output', call_id: 'call-1', status: 'completed', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] })).toMatchObject({ type: 'shell_call_output', call_id: 'call-1' });
