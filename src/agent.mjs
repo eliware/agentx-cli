@@ -203,7 +203,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     }
   }
 
-  const rl = createReplInterface(cwd, terminalInput, terminalOutput);
+  let rl = createReplInterface(cwd, terminalInput, terminalOutput);
 
   try {
     for (; ;) {
@@ -232,9 +232,15 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
 
       const internal = parseInternalCommand(message);
       if (internal?.type === 'setup') {
+        // Do not keep two readline interfaces attached to the same terminal.
+        // The setup menu creates its own interface and raw-mode input handler;
+        // leaving the REPL interface open here can strand its pending question
+        // when setup exits, producing an unsettled top-level await warning.
+        rl.close();
         await runSetup({ stdin: terminalInput, stdout: terminalOutput });
         template = applySettings(await loadPromptTemplate(promptPath), await reloadSettings());
         process.stdout.write(`${formatSystemMessage('Settings reloaded')}\n`);
+        rl = createReplInterface(cwd, terminalInput, terminalOutput);
         continue;
       }
       if (internal?.type === 'exit') {
