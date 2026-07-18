@@ -1,4 +1,4 @@
-# TODO
+# TODO.md
 
 ## Startup and Configuration
 
@@ -16,6 +16,7 @@
   - Reasoning summary: `concise`, `detailed`, `auto` (default), or `null` (off).
   - Output verbosity: `low` (default), `medium`, or `high`.
   - Compaction threshold: `200k` tokens by default. Warn about the jumbo-prompt 2× price increase when the threshold exceeds `270k` tokens.
+  - Make it so the menu is navigable with Up/Down/Enter 
 
 ## In-App Setup
 
@@ -39,5 +40,5 @@
 ## Streaming Output
 
 - Add handling for streamed reasoning-summary output and display it in light orange.
-- Support pausing and resuming the timer status output.
+- Support pausing and resuming the timer status output while outputting reasoning summary
 
