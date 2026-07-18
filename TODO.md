@@ -42,3 +42,7 @@
 - Add handling for streamed reasoning-summary output and display it in light orange.
 - Support pausing and resuming the timer status output while outputting reasoning summary
 
+## Clear command
+- currently '/clear' resets the session but just 'clear' clears the screen
+- i want it to both /clear and clear to clear the session
+- if the user wants to clear screen they can type >clear (which already shells the clear command)
