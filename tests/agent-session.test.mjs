@@ -555,7 +555,7 @@ describe('agent session helpers', () => {
       await createStreamedResponse(normalOpenai, template, { liveStreaming: true, statusController });
       expect(stdoutWrites.join('')).toContain('lookup(');
       expect(stdoutWrites.join('')).toContain('\u001b[36mlookup(\u001b[0m');
-      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m)\n');
+      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m\u001b[36m)\u001b[0m\n');
       expect(stdoutWrites.join('')).not.toContain('assistant mcp call:');
       expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m');
       expect(statusController.pause).toHaveBeenCalled();

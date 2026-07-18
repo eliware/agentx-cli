@@ -165,12 +165,12 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
       stopTimer();
       clearRenderedLine();
     },
-    resume() {
+    resume({ renderNow = true } = {}) {
       if (!paused) return;
       paused = false;
       if (state && state !== 'writing') {
         startTimer();
-        render();
+        if (renderNow) render();
       }
     },
     snapshot() {
@@ -340,6 +340,7 @@ function webSearchCompletionLine(item) {
 function createLiveResponseHandlers({ liveStreaming, statusController, debug = false }) {
   let sawOutput = false;
   let streamedText = '';
+  let streamedReasoningSummary = false;
 
   const markOutput = () => {
     if (sawOutput) return;
@@ -364,10 +365,13 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
   };
 
   const showReasoningSummaryDelta = (delta) => {
-    if (!delta) return;
+    if (delta === undefined || delta === null || delta === '') return;
+    streamedReasoningSummary = true;
     statusController?.pause();
     process.stdout.write(colorizeReasoningSummary(String(delta)));
   };
+
+  const reasoningSummaryDelta = (event) => event?.delta ?? event?.text ?? event?.summary_text;
 
   const finishReasoningSummary = () => {
     if (!statusController) return;
@@ -406,7 +410,7 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
         }
         if (isReasoningSummaryEvent(event)) {
           if (debug) return;
-          if (event.type.endsWith('.delta')) showReasoningSummaryDelta(event.delta);
+          if (event.type.endsWith('.delta')) showReasoningSummaryDelta(reasoningSummaryDelta(event));
           else if (event.type.endsWith('.done')) finishReasoningSummary();
           return;
         }
@@ -464,18 +468,22 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
         }
         if (isShellToolCall(item) || isMcpToolCall(item)) {
           markOutput();
-          if (isMcpToolCall(item)) process.stdout.write(')');
+          if (isMcpToolCall(item)) process.stdout.write(formatMcpMessage(')'));
           streamedText += '\n';
           process.stdout.write('\n');
           if (isMcpToolCall(item)) {
-            statusController?.showExecuting(0, 0, { renderNow: false, allowStatusAfterOutput: true });
-            statusController?.resume();
+            // Keep the status line paused while the next response takes over
+            // the terminal. Resume then immediately pause only to preserve
+            // the controller transition for callers that observe it; do not
+            // allow a render between tool output and final answer.
+            statusController?.resume({ renderNow: false });
+            statusController?.pause();
           }
         }
         if (item?.type === 'reasoning') {
           if (debug) return;
           const transcript = responseItemToTranscript(item);
-          if (transcript) process.stdout.write(`${formatSystemMessage(transcript)}\n`);
+          if (transcript && !streamedReasoningSummary) process.stdout.write(`${formatSystemMessage(transcript)}\n`);
         }
       },
     } : null,
