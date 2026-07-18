@@ -3,7 +3,7 @@
 ## Project
 - This repository contains `AgentX`, a lightweight terminal chat agent.
 - The main CLI entrypoint is [`agentx.mjs`](./agentx.mjs), which wires into the implementation under [`src/`](./src).
-- The setup entrypoint is [`agentx-setup.mjs`](./agentx-setup.mjs), which configures `.agentx` settings.
+- The setup entrypoint is [`agentx-setup.mjs`](./agentx-setup.mjs), which configures `~/.agentx` settings.
 
 ## Working Rules
 - Prefer small, focused changes.
@@ -29,6 +29,7 @@
 - The runtime now uses the direct `openai` package and a WebSocket transport for Responses API calls.
 - Shell tool calls may arrive as `shell_call` structured calls with sequential command steps, per-step working directories, timeouts, and output limits. Interrupted sessions may prompt the user to resume, retry, or start a new session before returning to the REPL.
 - Server-side compaction is configured in `prompt.json`; there is no manual `/compact` command.
+- The interactive `/setup` flow edits API key, model, reasoning, output, and compaction settings; MCP configuration is not supported.
 
 ## Runtime Notes
 - The executable may be launched through a symlink such as `/usr/bin/agentx`; the entrypoint must resolve the real path before deciding whether to start the REPL.

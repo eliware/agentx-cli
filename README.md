@@ -13,6 +13,7 @@ It is designed to feel shell-like:
 - remembers session state in `.agentx_responseid`
 - can prompt to resume interrupted tool execution on startup
 - includes quick CLI flags for help, version, and debug logging
+- prints active model and runtime settings at startup
 - prints friendly startup errors for missing config or API keys
 
 ## Usage
@@ -40,7 +41,7 @@ Quick flags:
 - Type `>clear` to clear the terminal display through the local shell.
 - Type `/clear` to clear the saved session id.
 - Type `/usage` to view token and cost totals.
-- Type `/setup` to edit settings and reload them without ending the session.
+- Type `/setup` to edit the API key, model, reasoning, output, and compaction settings, then reload them without ending the session.
 - Type `quit`, `exit`, `/quit`, or `/exit` to leave the app.
 
 ## Docs

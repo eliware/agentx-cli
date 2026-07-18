@@ -22,7 +22,7 @@ node agentx.mjs
 agentx-setup
 ```
 
-Use that to save your OpenAI API key in `.agentx`.
+Use that to save your OpenAI API key and runtime settings in `~/.agentx`.
 
 ## Quick flags
 
@@ -40,7 +40,7 @@ export agentx_api_key="your-key-here"
 ```
 
 AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
-The launchers load `~/.agentx` when present.
+The launchers load `~/.agentx` when present. Startup also displays the active model and runtime settings.
 
 ## First run
 

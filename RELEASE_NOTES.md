@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.3.1 - setup and runtime improvements
+
+- Removed MCP server configuration from the setup flow and runtime settings.
+- Improved interactive `/setup` menus with numbered choices, arrow-key navigation, current-value indicators, and safer terminal handling.
+- Added startup output showing the active model, reasoning, verbosity, and compaction settings.
+- Fixed readline cleanup when reloading settings through `/setup`.
+- Improved configuration-file persistence and response-content handling for missing content.
+- Updated prompt configuration, command documentation, example settings, and regression coverage.
+
 ## 1.3.0 - streamlined CLI and configurable setup
 
 - Removed the experimental web GUI, including its server, frontend, authentication, systemd service, assets, build tooling, dependencies, and tests.
