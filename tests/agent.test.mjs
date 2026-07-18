@@ -703,7 +703,7 @@ Ask the user what they want to do next.`,
     await runAgent({ promptPath, cwd });
 
     expect(process.exit).toHaveBeenCalledWith(0);
-    expect(writes.join(' ')).toContain('Starting new session');
+    expect(writes.join(' ')).toContain('Welcome to AgentX...');
   });
 
   test('propagates unexpected readline errors', async () => {

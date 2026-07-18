@@ -98,7 +98,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
 
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found')}\n`);
-  process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
+  process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Welcome to AgentX...')}\n`);
   printResumeMessage('Last user message', savedState?.last_user_message || '');
   printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
 

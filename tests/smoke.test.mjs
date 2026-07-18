@@ -71,7 +71,7 @@ describe('CLI smoke test', () => {
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
-      expect(result.stdout).toContain('Starting new session');
+      expect(result.stdout).toContain('Welcome to AgentX...');
       expect(result.stdout).toContain('smoke ok');
       expect(result.stdout).toContain('"turns":"1"');
       expect(existsSync(path.join(tmp, '.agentx_responseid'))).toBe(true);
