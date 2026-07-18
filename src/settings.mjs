@@ -15,6 +15,17 @@ export function settingsFromEnv(env = process.env) {
     compactionThreshold: Number(env.AGENTX_COMPACTION_THRESHOLD) || DEFAULT_SETTINGS.compactionThreshold,
   };
 }
+export function formatStartupSettings(settings = settingsFromEnv()) {
+  return JSON.stringify({
+    model: settings.model,
+    mode: settings.reasoningMode,
+    effort: settings.reasoningEffort,
+    summary: settings.reasoningSummary,
+    verbosity: settings.outputVerbosity,
+    compaction: String(settings.compactionThreshold),
+  });
+}
+
 export function applySettings(template, settings = settingsFromEnv()) {
   const next = JSON.parse(JSON.stringify(template));
   next.model = settings.model;

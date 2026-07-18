@@ -6,7 +6,7 @@
       "content": [
         {
           "type": "input_text",
-          "text": "agents.md"
+          "text": "<agents.md(s) content goes here>"
         }
       ]
     },
@@ -15,7 +15,7 @@
       "content": [
         {
           "type": "input_text",
-          "text": "user message"
+          "text": "<user message goes here>"
         }
       ]
     }
@@ -39,9 +39,6 @@
   ],
   "tools": [
     {
-      "type": "programmatic_tool_calling"
-    },
-    {
       "type": "web_search",
       "user_location": {
         "type": "approximate"
@@ -52,10 +49,7 @@
       "type": "shell",
       "environment": {
         "type": "local"
-      },
-      "allowed_callers": [
-        "programmatic"
-      ]
+      }
     }
   ],
   "store": true,

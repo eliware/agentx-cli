@@ -148,11 +148,11 @@ async function selectMenu(stdin, stdout, entries, initialIndex = 0) {
   });
 }
 
-export async function runSetup({ stdin = process.stdin, stdout = process.stdout } = {}) {
-  const envState = await readEnvState(envPath);
+export async function runSetup({ stdin = process.stdin, stdout = process.stdout, configPath = envPath, readlineInput = stdin } = {}) {
+  const envState = await readEnvState(configPath);
   Object.assign(envState.values, DEFAULTS, envState.values);
   if (!stdin?.isTTY || !stdout?.isTTY) { stdout.write('AgentX setup requires an interactive terminal.\n'); return; }
-  const rl = createInterface({ input: stdin, output: stdout }); let message = '';
+  const rl = createInterface({ input: readlineInput, output: stdout }); let message = '';
   try { while (true) {
     const entries = buildMenuEntries({ values: envState.values, includeSettings: true });
     let selected = await selectMenu(stdin, stdout, entries);
@@ -173,4 +173,4 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout 
 }
 
 export const setupPaths = { rootDir, envPath };
-export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, DEFAULTS, choices };
+export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, selectMenu, DEFAULTS, choices };

@@ -1,0 +1,117 @@
+import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
+import { EventEmitter } from 'node:events';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { buildMenuEntries, readEnvState, runSetup, setupInternals, setupPaths, writeEnvState } from '../src/setup.mjs';
+
+class FakeTerminal extends EventEmitter {
+  constructor() { super(); this.isTTY = true; this.raw = false; this.resumed = false; }
+  setRawMode(value) { this.raw = value; }
+  resume() { this.resumed = true; }
+  pause() { this.paused = true; }
+}
+class FakeOutput extends EventEmitter { constructor() { super(); this.isTTY = true; this.text = ''; } write(value) { this.text += value; } }
+
+const send = (stdin, value) => setImmediate(() => stdin.emit('data', Buffer.from(value)));
+
+describe('setup helpers', () => {
+  test('formats and decodes values', () => {
+    expect(setupInternals.formatMaybeBlank()).toBe('(blank)');
+    expect(setupInternals.formatMaybeBlank(' x ')).toBe('x');
+    expect(setupInternals.decodeEnvValue(' "hello" ')).toBe('hello');
+    expect(setupInternals.decodeEnvValue('"bad')).toBe('"bad');
+    expect(setupInternals.decodeEnvValue(' plain ')).toBe('plain');
+  });
+
+  test('parses and serializes env content', () => {
+    expect(setupInternals.parseEnvLines('A=1\n# note\nBAD LINE')).toEqual([
+      { type: 'pair', key: 'A', value: '1', line: 'A=1' },
+      { type: 'raw', line: '# note' }, { type: 'raw', line: 'BAD LINE' },
+    ]);
+    expect(setupInternals.serializeEnvValue('')).toBe('');
+    expect(setupInternals.serializeEnvValue('safe-1:/')).toBe('safe-1:/');
+    expect(setupInternals.serializeEnvValue('needs "quotes" \\')).toBe('"needs \\"quotes\\" \\\\"');
+    expect(setupInternals.updateEnvText('A=old\nA=duplicate\n# keep\n', { A: 'new', B: 'two words' }))
+      .toBe('A=new\n# keep\n\nB="two words"\n');
+    expect(setupInternals.updateEnvText('', { A: '1' })).toBe('A=1\n');
+  });
+
+  test('builds compact and full menus', () => {
+    expect(buildMenuEntries({ values: { AGENTX_API_KEY: '' } }).map((x) => x.id)).toEqual(['api', 'quit']);
+    const entries = buildMenuEntries({ values: { AGENTX_API_KEY: 'x' }, includeSettings: true });
+    expect(entries.map((x) => x.id)).toEqual(['api', 'model', 'mode', 'effort', 'summary', 'verbosity', 'compaction', 'quit']);
+    expect(entries[0].label).toContain('set');
+  });
+});
+
+describe('setup environment persistence', () => {
+  let directory;
+  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), 'agentx-setup-')); });
+  afterEach(async () => { await rm(directory, { recursive: true, force: true }); });
+
+  test('reads missing and populated files and writes updates', async () => {
+    const file = path.join(directory, 'nested', '.agentx');
+    expect((await readEnvState(file)).values.AGENTX_API_KEY).toBe('');
+    await writeEnvState(file, { AGENTX_API_KEY: 'key', AGENTX_MODEL: 'gpt-5.6-sol' });
+    await writeEnvState(file, { AGENTX_MODEL: 'gpt-5.6-terra' });
+    const state = await readEnvState(file);
+    expect(state.values).toMatchObject({ AGENTX_API_KEY: 'key', AGENTX_MODEL: 'gpt-5.6-terra' });
+    expect(await readFile(file, 'utf8')).toContain('AGENTX_MODEL=gpt-5.6-terra');
+  });
+});
+
+describe('interactive setup', () => {
+  test('rejects non-interactive terminals', async () => {
+    const stdout = new FakeOutput(); stdout.isTTY = false;
+    await runSetup({ stdin: {}, stdout });
+    expect(stdout.text).toContain('requires an interactive terminal');
+  });
+
+  test('selects an entry with a number', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }, { id: 'quit', label: 'Quit' }], 1);
+    send(stdin, '2');
+    expect(await pending).toEqual({ id: 'quit', label: 'Quit' });
+    expect(stdin.raw).toBe(false);
+  });
+
+  test('returns null when raw mode is unavailable', async () => {
+    const stdin = {}; const stdout = new FakeOutput();
+    await expect(setupInternals.selectMenu(stdin, stdout, [])).resolves.toBeNull();
+  });
+});
+
+describe('interactive setup menu flow', () => {
+  let directory;
+  beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), 'agentx-setup-flow-')); });
+  afterEach(async () => { await rm(directory, { recursive: true, force: true }); });
+
+  const drive = async (readlineInput, values) => {
+    for (const value of values) {
+      await new Promise((resolve) => setTimeout(() => { readlineInput.emit('data', Buffer.from(`${value}\n`)); resolve(); }, 20));
+    }
+  };
+
+  test('visits every menu item on a TTY without waiting indefinitely', async () => {
+    const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
+    const configPath = path.join(directory, '.agentx');
+    const run = runSetup({ stdin, stdout, configPath, readlineInput });
+    await drive(readlineInput, ['1', 'api-key', '2', '1', '3', '1', '4', '1', '5', '1', '6', '1', '7', '300000', '8']);
+    await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 2000))])).resolves.toBeUndefined();
+    const saved = await readEnvState(configPath);
+    expect(saved.values).toMatchObject({ AGENTX_API_KEY: 'api-key', AGENTX_COMPACTION_THRESHOLD: '300000' });
+    expect(stdout.text).toContain('Warning: jumbo prompts cost 2x above 270k tokens.');
+  }, 5000);
+
+  test('retries blank API keys and rejects invalid compaction input', async () => {
+    const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
+    const configPath = path.join(directory, '.agentx');
+    const run = runSetup({ stdin, stdout, configPath, readlineInput });
+    await drive(readlineInput, ['1', '', 'valid-key', '7', 'not-a-number', '8']);
+    await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 2000))])).resolves.toBeUndefined();
+    expect(stdout.text).toContain('API key is required.');
+    expect(stdout.text).toContain('Enter a positive token count.');
+    expect((await readEnvState(configPath)).values.AGENTX_API_KEY).toBe('valid-key');
+  }, 5000);
+});

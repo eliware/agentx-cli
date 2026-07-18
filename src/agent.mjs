@@ -10,7 +10,7 @@ import { createUsageTotals, addUsageTotals, formatUsageReport } from './response
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
 import { promptResumeMenu } from './resume-menu.mjs';
-import { applySettings, reloadSettings, settingsFromEnv } from './settings.mjs';
+import { applySettings, formatStartupSettings, reloadSettings, settingsFromEnv } from './settings.mjs';
 import { runSetup } from './setup.mjs';
 
 registerHandlers({ log });
@@ -99,6 +99,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const debugEnabled = process.argv.includes('--debug');
   const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
 
+  process.stdout.write(`${formatStartupSettings(settingsFromEnv())}\n`);
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found; ask AgentX to generate one for this project.')}\n`);
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
   printResumeMessage('Last user message', savedState?.last_user_message || '');
