@@ -221,3 +221,75 @@ describe('setup coverage edge cases', () => {
     expect((await readEnvState(file)).values.AGENTX_API_KEY).toBe('new-key');
   });
 });
+
+describe('setup final coverage paths', () => {
+  test('uses the default environment path and compact menu blank label', async () => {
+    const state = await readEnvState();
+    expect(state.filePath).toBe(setupPaths.envPath);
+    expect(buildMenuEntries({ values: { AGENTX_API_KEY: '' } })[0].label).toContain('blank');
+  });
+
+  test('truncates oversized input and handles the compaction save path', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }]);
+    stdin.emit('data', Buffer.from('xxxxxxxxx'));
+    stdin.emit('data', Buffer.from('x'));
+    stdin.emit('data', Buffer.from('\r'));
+    expect(await pending).toEqual({ id: 'one', label: 'One' });
+
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'agentx-setup-final-'));
+    try {
+      const input = new FakeTerminal();
+      const run = runSetup({ stdin: { isTTY: true }, stdout: new FakeOutput(), configPath: path.join(directory, '.agentx'), readlineInput: input });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      input.emit('data', Buffer.from('7\n'));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      input.emit('data', Buffer.from('123456\n'));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      input.emit('data', Buffer.from('8\n'));
+      await run;
+      expect((await readEnvState(path.join(directory, '.agentx'))).values.AGENTX_COMPACTION_THRESHOLD).toBe('123456');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  }, 5000);
+});
+
+describe('setup branch completion', () => {
+  test('covers raw menu selection, compaction through the raw menu, and missing off handler', async () => {
+    const stdin = new FakeTerminal(); delete stdin.off;
+    const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'quit', label: 'Quit' }]);
+    stdin.emit('data', Buffer.from('\r'));
+    expect(await pending).toEqual({ id: 'quit', label: 'Quit' });
+
+    const menuInput = new FakeTerminal();
+    const readlineInput = new FakeTerminal();
+    const configPath = path.join(os.tmpdir(), `agentx-raw-${Date.now()}.agentx`);
+    const run = runSetup({ stdin: menuInput, stdout: new FakeOutput(), configPath, readlineInput });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    menuInput.emit('data', Buffer.from('7'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    readlineInput.emit('data', Buffer.from('123456\n'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    menuInput.emit('data', Buffer.from('8'));
+    await run;
+    expect((await readEnvState(configPath)).values.AGENTX_COMPACTION_THRESHOLD).toBe('123456');
+    await rm(configPath, { force: true });
+
+    const modelMenu = new FakeTerminal();
+    const modelInput = new FakeTerminal();
+    const modelPath = path.join(os.tmpdir(), `agentx-model-${Date.now()}.agentx`);
+    const modelRun = runSetup({ stdin: modelMenu, stdout: new FakeOutput(), configPath: modelPath, readlineInput: modelInput });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    modelMenu.emit('data', Buffer.from('2'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    modelMenu.emit('data', Buffer.from('1'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    modelMenu.emit('data', Buffer.from('8'));
+    await modelRun;
+    await rm(modelPath, { force: true });
+  }, 5000);
+
+  test('covers omitted runSetup arguments', async () => {
+    await runSetup();
+  });
+});
