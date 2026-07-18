@@ -36,7 +36,7 @@ describe('usage edge branches', () => {
   test('formats negative and fractional values', () => {
     expect(formatMoney(-1.2345)).toBe('$-1.235');
     expect(formatMoney(-0.0004)).toBe('$0.000');
-    expect(formatTurnUsage()).toContain('\"turns\":\"1\"');
+    expect(formatTurnUsage()).toContain('"turns":"1"');
     expect(formatUsageReport({ inputTokens: null, cachedTokens: null, outputTokens: null })).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}');
     expect(formatUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}');
     expect(formatTurnUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","total":"$0.000"}');

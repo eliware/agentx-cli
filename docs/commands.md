@@ -14,7 +14,7 @@ AgentX supports shell-like commands in the terminal, whether you launched it fro
   - `gpt-5.6-sol`: $5.00 input, $0.50 cached input, $30.00 output per million tokens
 
 Inputs over 270,000 tokens use 2x pricing for input, cached input, and output; the usage report marks these requests with a light-red warning.
-- `/setup`: edit the API key, model, reasoning, output, compaction, and MCP settings, then reload them without ending the session
+- `/setup`: edit the API key, model, reasoning, output, and compaction settings, then reload them without ending the session
 - `quit`, `exit`, `/quit`, `/exit`: leave the app
 
 ## Local shell commands

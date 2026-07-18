@@ -16,7 +16,6 @@ const DEFAULTS = {
   AGENTX_REASONING_SUMMARY: 'auto',
   AGENTX_OUTPUT_VERBOSITY: 'low',
   AGENTX_COMPACTION_THRESHOLD: '200000',
-  AGENTX_MCP_SERVERS: '[]',
 };
 
 function formatMaybeBlank(value) { const text = String(value ?? '').trim(); return text ? text : '(blank)'; }
@@ -32,9 +31,6 @@ function parseEnvLines(text) {
     const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
     return match ? { type: 'pair', key: match[1], value: match[2], line } : { type: 'raw', line };
   });
-}
-function parseMcpServers(value) {
-  try { return JSON.parse(value || '[]'); } catch { return []; }
 }
 function serializeEnvValue(value) {
   const text = String(value ?? '');
@@ -90,7 +86,8 @@ async function saveEnvValue(envState, key, value) {
 async function selectChoice(stdin, stdout, rl, title, valuesList, current) {
   const entries = valuesList.map((value) => ({ id: value, label: `${value}${value === current ? ' (current)' : ''}` }));
   stdout.write(`\x1b[2J\x1b[HAgentX setup\n\n${title}\n`);
-  const selected = await selectMenu(stdin, stdout, entries);
+  const currentIndex = entries.findIndex((entry) => entry.id === current);
+  const selected = await selectMenu(stdin, stdout, entries, currentIndex >= 0 ? currentIndex : 0);
   if (selected) return selected.id;
   const answer = (await ask(rl, `${title} (1-${entries.length}) [${current}]: `)).trim();
   const index = Number(answer);
@@ -110,44 +107,6 @@ async function editCompaction(rl, envState, stdout) {
   if (!input) return; const value = Number(input.replaceAll(/[^0-9]/g, '')); if (!Number.isInteger(value) || value < 1) { stdout.write('Enter a positive token count.\n'); return; }
   await saveEnvValue(envState, 'AGENTX_COMPACTION_THRESHOLD', String(value)); if (value > 270000) stdout.write('Warning: jumbo prompts cost 2x above 270k tokens.\n');
 }
-async function editMcpServer(rl, envState, stdout, existing = null, urlOverride = "") {
-  const read = async (prompt, fallback = '') => { const value = (await ask(rl, `${prompt}${fallback ? ` [${fallback}]` : ''}: `)).trim(); return value || fallback; };
-  const url = urlOverride || await read('MCP server URL', existing?.url || ''); if (!url) return null;
-  const label = await read('MCP server label', existing?.label || '');
-  const description = await read('MCP server description', existing?.description || '');
-  const authType = (await read('Authentication (none/bearer/headers)', existing?.auth?.type || 'none')).toLowerCase();
-  const auth = { type: authType };
-  if (authType === 'bearer') auth.token = await read('Bearer token', existing?.auth?.token || '');
-  if (authType === 'headers') { const raw = await read('Custom headers JSON', JSON.stringify(existing?.auth?.headers || {})); try { auth.headers = JSON.parse(raw); } catch { stdout.write('Invalid headers JSON; server not saved.\n'); return null; } }
-  const approval = await read('Require approval (always/never)', existing?.requireApproval || 'always');
-  return { url, label, description, auth, requireApproval: approval };
-}
-async function editMcp(stdin, rl, envState, stdout) {
-  const servers = parseMcpServers(envState.values.AGENTX_MCP_SERVERS);
-  const entries = servers.map((server, index) => ({ id: `server:${index}`, label: `${server.label || '(unnamed)'} — ${server.url}` }));
-  entries.push({ id: 'add', label: 'Add MCP server' }); entries.push({ id: 'back', label: 'Back' });
-  let selected = await selectMenu(stdin, stdout, entries);
-  if (!selected) {
-    const answer = (await ask(rl, `MCP server (1-${entries.length}, or add): `)).trim();
-    const index = Number(answer);
-    if (Number.isInteger(index)) selected = entries[index - 1];
-    else if (answer === 'mcp' || answer === 'add' || !answer) selected = entries.find((entry) => entry.id === 'add');
-    else { selected = entries.find((entry) => entry.id === 'add'); selected.urlOverride = answer; }
-  }
-  if (!selected || selected.id === 'back') return;
-  if (selected.id === 'add') { const server = await editMcpServer(rl, envState, stdout, null, selected.urlOverride || ''); if (server) servers.push(server); }
-  else {
-    const index = Number(selected.id.split(':')[1]); const actions = [
-      { id: 'edit', label: 'Edit server' }, { id: 'remove', label: 'Remove server' }, { id: 'back', label: 'Back' },
-    ];
-    let action = await selectMenu(stdin, stdout, actions);
-    if (!action) { const answer = Number((await ask(rl, '1. Edit  2. Remove  3. Back: ')).trim()); action = actions[answer - 1]; }
-    if (action?.id === 'edit') { const server = await editMcpServer(rl, envState, stdout, servers[index]); if (server) servers[index] = server; }
-    if (action?.id === 'remove') servers.splice(index, 1);
-  }
-  if (selected.id === 'add' || selected.id.startsWith('server:')) { await saveEnvValue(envState, 'AGENTX_MCP_SERVERS', JSON.stringify(servers)); stdout.write('MCP server configuration saved.\n'); }
-}
-
 export function buildMenuEntries({ values, includeSettings = false }) {
   const configured = { ...DEFAULTS, ...values };
   if (!includeSettings && !Object.keys(values).some((key) => key !== 'AGENTX_API_KEY')) return [
@@ -158,22 +117,29 @@ export function buildMenuEntries({ values, includeSettings = false }) {
     { id: 'model', label: `Model (${configured.AGENTX_MODEL})` }, { id: 'mode', label: `Reasoning mode (${configured.AGENTX_REASONING_MODE})` },
     { id: 'effort', label: `Reasoning effort (${configured.AGENTX_REASONING_EFFORT})` }, { id: 'summary', label: `Reasoning summary (${configured.AGENTX_REASONING_SUMMARY})` },
     { id: 'verbosity', label: `Output verbosity (${configured.AGENTX_OUTPUT_VERBOSITY})` }, { id: 'compaction', label: `Compaction threshold (${configured.AGENTX_COMPACTION_THRESHOLD} tokens)` },
-    { id: 'mcp', label: 'Manage MCP servers' }, { id: 'quit', label: 'Quit' },
+    { id: 'quit', label: 'Quit' },
   ];
 }
 function renderScreen({ values, message, stdout }) { stdout.write('\x1b[2J\x1b[HAgentX setup\n'); stdout.write(`Root: ${rootDir}\nConfig: ${envPath}\nAPI key: ${values.AGENTX_API_KEY ? 'set' : 'blank'}\n`); if (message) stdout.write(`\n${message}\n`); stdout.write('\n'); }
 
-async function selectMenu(stdin, stdout, entries) {
+async function selectMenu(stdin, stdout, entries, initialIndex = 0) {
   if (typeof stdin.setRawMode !== 'function' || typeof stdin.on !== 'function') return null;
-  let selected = 0; let buffer = '';
-  const render = () => { stdout.write('\x1b[2J\x1b[HAgentX setup\n\n'); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${entry.label}\n`)); };
+  let selected = Number.isInteger(initialIndex) && initialIndex >= 0 && initialIndex < entries.length ? initialIndex : 0; let buffer = '';
+  const render = () => { stdout.write('\x1b[2J\x1b[HAgentX setup\n\n'); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${index + 1}. ${entry.label}\n`)); };
   render(); stdin.setRawMode(true); stdin.resume();
   return await new Promise((resolve) => {
     const onData = (chunk) => {
       buffer += chunk.toString();
       if (buffer.includes('\x1b[A')) { selected = (selected + entries.length - 1) % entries.length; buffer = ''; render(); }
       else if (buffer.includes('\x1b[B')) { selected = (selected + 1) % entries.length; buffer = ''; render(); }
-      else if (/^[1-9]$/.test(buffer) && Number(buffer) <= entries.length) { selected = Number(buffer) - 1; buffer = ''; render(); }
+      else if (/^[1-9]$/.test(buffer) && Number(buffer) <= entries.length) {
+        selected = Number(buffer) - 1;
+        buffer = '';
+        stdin.setRawMode(false);
+        stdin.off?.('data', onData);
+        stdout.write('\n');
+        resolve(entries[selected]);
+      }
       else if (buffer.includes('\r') || buffer.includes('\n')) { stdin.setRawMode(false); stdin.off?.('data', onData); stdout.write('\n'); resolve(entries[selected]); }
       else if (buffer.includes('\u0003')) { stdin.setRawMode(false); stdin.off?.('data', onData); resolve(entries.find((entry) => entry.id === 'quit')); }
       else if (buffer.length > 8) buffer = buffer.slice(-8);
@@ -203,9 +169,8 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout 
     else if (selected.id === 'summary') await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_SUMMARY', labels.summary, choices.summary);
     else if (selected.id === 'verbosity') await editValue(stdin, stdout, rl, envState, 'AGENTX_OUTPUT_VERBOSITY', labels.verbosity, choices.verbosity);
     else if (selected.id === 'compaction') await editCompaction(rl, envState, stdout);
-    else await editMcp(stdin, rl, envState, stdout);
   } } finally { rl.close(); }
 }
 
 export const setupPaths = { rootDir, envPath };
-export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, parseMcpServers, serializeEnvValue, updateEnvText, buildMenuEntries, DEFAULTS, choices };
+export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, DEFAULTS, choices };
