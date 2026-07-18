@@ -22,6 +22,7 @@ describe('setup helpers', () => {
     expect(setupInternals.decodeEnvValue(' "hello" ')).toBe('hello');
     expect(setupInternals.decodeEnvValue('"bad')).toBe('"bad');
     expect(setupInternals.decodeEnvValue(' plain ')).toBe('plain');
+    expect(setupInternals.decodeEnvValue(null)).toBe('');
   });
 
   test('parses and serializes env content', () => {
@@ -29,7 +30,9 @@ describe('setup helpers', () => {
       { type: 'pair', key: 'A', value: '1', line: 'A=1' },
       { type: 'raw', line: '# note' }, { type: 'raw', line: 'BAD LINE' },
     ]);
+    expect(setupInternals.parseEnvLines(null)).toEqual([{ type: 'raw', line: '' }]);
     expect(setupInternals.serializeEnvValue('')).toBe('');
+    expect(setupInternals.serializeEnvValue(null)).toBe('');
     expect(setupInternals.serializeEnvValue('safe-1:/')).toBe('safe-1:/');
     expect(setupInternals.serializeEnvValue('needs "quotes" \\')).toBe('"needs \\"quotes\\" \\\\"');
     expect(setupInternals.updateEnvText('A=old\nA=duplicate\n# keep\n', { A: 'new', B: 'two words' }))
@@ -68,12 +71,52 @@ describe('interactive setup', () => {
     expect(stdout.text).toContain('requires an interactive terminal');
   });
 
+  test('handles arrow navigation and invalid initial indexes', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }, { id: 'quit', label: 'Quit' }], 99);
+    send(stdin, '\x1b[B');
+    send(stdin, '\x1b[A');
+    send(stdin, '\r');
+    expect(await pending).toEqual({ id: 'one', label: 'One' });
+  });
+
+  test('trims non-selection input before accepting a selection', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }]);
+    send(stdin, 'abcdefghi');
+    send(stdin, '\r');
+    expect(await pending).toEqual({ id: 'one', label: 'One' });
+  });
+
   test('selects an entry with a number', async () => {
     const stdin = new FakeTerminal(); const stdout = new FakeOutput();
     const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }, { id: 'quit', label: 'Quit' }], 1);
     send(stdin, '2');
     expect(await pending).toEqual({ id: 'quit', label: 'Quit' });
     expect(stdin.raw).toBe(false);
+  });
+
+  test('selects the highlighted entry with Enter', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }, { id: 'quit', label: 'Quit' }], 1);
+    send(stdin, '\r');
+    expect(await pending).toEqual({ id: 'quit', label: 'Quit' });
+    expect(stdin.raw).toBe(false);
+  });
+
+  test('selects quit on Ctrl-C', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }, { id: 'quit', label: 'Quit' }]);
+    send(stdin, '\u0003');
+    expect(await pending).toEqual({ id: 'quit', label: 'Quit' });
+  });
+
+  test('trims oversized input before accepting a selection', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'one', label: 'One' }]);
+    send(stdin, '123456789');
+    send(stdin, '\r');
+    expect(await pending).toEqual({ id: 'one', label: 'One' });
   });
 
   test('returns null when raw mode is unavailable', async () => {
@@ -102,6 +145,34 @@ describe('interactive setup menu flow', () => {
     const saved = await readEnvState(configPath);
     expect(saved.values).toMatchObject({ AGENTX_API_KEY: 'api-key', AGENTX_COMPACTION_THRESHOLD: '300000' });
     expect(stdout.text).toContain('Warning: jumbo prompts cost 2x above 270k tokens.');
+  }, 5000);
+
+  test('accepts a textual setting choice', async () => {
+    const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
+    const configPath = path.join(directory, '.agentx');
+    const run = runSetup({ stdin, stdout, configPath, readlineInput });
+    await drive(readlineInput, ['2', 'gpt-5.6-terra', '8']);
+    await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 2000))])).resolves.toBeUndefined();
+    expect((await readEnvState(configPath)).values.AGENTX_MODEL).toBe('gpt-5.6-terra');
+  }, 5000);
+
+  test('uses the readline fallback and accepts textual choices', async () => {
+    const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
+    const configPath = path.join(directory, '.agentx');
+    const run = runSetup({ stdin, stdout, configPath, readlineInput });
+    await drive(readlineInput, ['unknown', 'model', 'gpt-5.6-terra', 'quit']);
+    await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 2000))])).resolves.toBeUndefined();
+    expect((await readEnvState(configPath)).values.AGENTX_MODEL).toBe('gpt-5.6-terra');
+    expect(stdout.text).toContain('Unknown option.');
+  }, 5000);
+
+  test('accepts blank compaction input without changing the value', async () => {
+    const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
+    const configPath = path.join(directory, '.agentx');
+    const run = runSetup({ stdin, stdout, configPath, readlineInput });
+    await drive(readlineInput, ['7', '', '8']);
+    await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 2000))])).resolves.toBeUndefined();
+    expect((await readEnvState(configPath)).values.AGENTX_COMPACTION_THRESHOLD).toBeUndefined();
   }, 5000);
 
   test('retries blank API keys and rejects invalid compaction input', async () => {
