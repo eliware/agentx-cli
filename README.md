@@ -18,7 +18,7 @@ It is designed to feel shell-like:
 ## Usage
 
 ```bash
-npm install -g @eliware/agentx-cli
+npm -g install @eliware/agentx-cli@latest
 agentx-setup
 agentx
 ```
@@ -49,6 +49,7 @@ User-facing docs live in [`docs/`](./docs):
 - [Session state](./docs/session-state.md)
 - [Examples](./docs/examples.md)
 - [Troubleshooting](./docs/troubleshooting.md)
+- [AGENTS.md behavior](./docs/agents.md)
 
 ## Development
 
@@ -77,3 +78,20 @@ The launchers load `~/.agentx` when present.
 ## License
 
 [MIT © 2025 Eli Sterling, eliware.org](LICENSE)
+
+## Install, update, and uninstall
+
+Install or update the latest release with:
+
+```bash
+npm -g install @eliware/agentx-cli@latest
+```
+
+Remove AgentX and its local configuration with:
+
+```bash
+npm -g uninstall @eliware/agentx-cli
+rm -f $HOME/.agentx*
+```
+
+See [AGENTS.md behavior](./docs/agents.md) for discovery, inheritance, prompt-cost implications, and maintenance guidance.

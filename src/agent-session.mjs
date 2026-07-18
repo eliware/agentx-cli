@@ -10,6 +10,7 @@ const SHELL_OUTPUT_PREVIEW = 120;
 const STATUS_UPDATE_INTERVAL_MS = 250;
 const GREEN = '\u001b[32m';
 const PINK = '\u001b[95m';
+const LIGHT_ORANGE = '\u001b[38;5;214m';
 const RESET = '\u001b[0m';
 
 function formatElapsedStatus(elapsedMs) {
@@ -32,8 +33,8 @@ function formatTransactionCompletionMessage(summary) {
   return JSON.stringify({
     time: String(summary?.time ?? ''),
     reasoning: stripStatusValue(summary?.reasoning),
-    executing: stripStatusValue(summary?.executing),
     writing: stripStatusValue(summary?.writing),
+    executing: stripStatusValue(summary?.executing),
   });
 }
 
@@ -97,8 +98,8 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     return {
       time: formatElapsedStatus(now - sessionStartedAt),
       reasoning: phaseSnapshot('reasoning', now),
-      executing: phaseSnapshot('executing', now),
       writing: phaseSnapshot('writing', now),
+      executing: phaseSnapshot('executing', now),
     };
   }
 
@@ -112,7 +113,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   function render() {
     if (quiet || paused || !state || state === 'writing') return;
     const stats = snapshot();
-    writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('executing', stats.executing)},${formatStatusField('writing', stats.writing)}}`);
+    writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}`);
   }
 
   function transition(nextState, { renderNow = true } = {}) {
@@ -277,6 +278,24 @@ function isWebSearchEvent(event) {
   return typeof event?.type === 'string' && event.type.startsWith('response.web_search_call.');
 }
 
+function isMcpEvent(event) {
+  return typeof event?.type === 'string' && event.type.startsWith('response.mcp_');
+}
+
+function isReasoningSummaryEvent(event) {
+  return typeof event?.type === 'string' && event.type.startsWith('response.reasoning_summary_');
+}
+
+function colorizeReasoningSummary(text) {
+  return `${LIGHT_ORANGE}${text}${RESET}`;
+}
+
+function formatMcpProgress(event) {
+  const progress = event?.progress ?? event?.progress_update ?? event?.message ?? event?.data ?? event?.payload ?? event?.status ?? event?.delta;
+  if (progress === undefined || progress === null || progress === '') return '';
+  return JSON.stringify({ mcp: String(progress) });
+}
+
 function colorizePink(text) {
   return `${PINK}${text}${RESET}`;
 }
@@ -324,6 +343,35 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
     statusController.resume();
   };
 
+  const showReasoningSummaryDelta = (delta) => {
+    if (!delta) return;
+    statusController?.pause();
+    process.stdout.write(colorizeReasoningSummary(String(delta)));
+  };
+
+  const finishReasoningSummary = () => {
+    if (!statusController) return;
+    process.stdout.write('\n');
+    statusController.resume();
+  };
+
+  const handleMcpEvent = (event) => {
+    const type = String(event?.type ?? '');
+    if (type.endsWith('.in_progress')) {
+      statusController?.showExecuting(0, 0);
+      return;
+    }
+    if (type.endsWith('.completed') || type.endsWith('.failed')) {
+      statusController?.showReasoning({ renderNow: false });
+      return;
+    }
+    if (type.includes('progress') || type.includes('update')) {
+      statusController?.showExecuting(0, 0, { renderNow: false });
+      const line = formatMcpProgress(event);
+      if (line) process.stdout.write(`${formatInfoMessage(line)}\n`);
+    }
+  };
+
   return {
     sawOutput: () => sawOutput,
     streamedText: () => streamedText,
@@ -332,6 +380,15 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
       onEvent(event, message) {
         if (isResponseCompletedEvent(event, message?.raw)) {
           statusController?.clear();
+          return;
+        }
+        if (isReasoningSummaryEvent(event)) {
+          if (event.type.endsWith('.delta')) showReasoningSummaryDelta(event.delta);
+          else if (event.type.endsWith('.done')) finishReasoningSummary();
+          return;
+        }
+        if (isMcpEvent(event)) {
+          handleMcpEvent(event);
           return;
         }
         if (isWebSearchEvent(event)) {
@@ -410,14 +467,14 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
     }
     if (shouldReportUsage) {
-      process.stdout.write(`${formatSystemMessage(formatTurnUsageReport(usage))}\n`);
+      process.stdout.write(`${formatSystemMessage(formatTurnUsageReport({ ...usage, model: baseRequest?.model }))}\n`);
       if (cumulativeUsage) {
-        process.stdout.write(`${formatSystemMessage(formatUsageReport(cumulativeUsage))}\n`);
+        process.stdout.write(`${formatSystemMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`);
       }
     }
     if (calls.length === 0) {
       statusController?.clear();
-      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', executing: '0s/0s', writing: '0s/0s' }))}\n`);
+      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' }))}\n`);
       return current;
     }
 

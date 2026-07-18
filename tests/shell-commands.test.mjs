@@ -3,7 +3,7 @@ import { parseInternalCommand } from '../src/shell-commands.mjs';
 
 describe('shell commands', () => {
   test('recognizes clear, usage, exit and cd commands', () => {
-    expect(parseInternalCommand('clear')).toEqual({ type: 'clear' });
+    expect(parseInternalCommand('clear')).toEqual({ type: 'session_clear' });
     expect(parseInternalCommand('/clear')).toEqual({ type: 'session_clear' });
     expect(parseInternalCommand('/usage')).toEqual({ type: 'usage' });
     expect(parseInternalCommand('quit')).toEqual({ type: 'exit' });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { calculateUsageCost, calculateUsageCostNanoDollars, formatMoney, formatTurnUsage, formatTurnUsageReport, formatUsageReport, normalizeUsage } from '../src/usage.mjs';
+import { calculateUsageCost, calculateUsageCostNanoDollars, formatMoney, formatTurnUsage, formatTurnUsageReport, formatUsageReport, getModelPricing, isJumboPrompt, normalizeUsage } from '../src/usage.mjs';
 
 describe('usage helpers', () => {
   test('normalize and format token counts', () => {
@@ -19,6 +19,19 @@ describe('usage helpers', () => {
     expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 0 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}');
     expect(formatTurnUsage({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}');
     expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","total":"$0.000"}');
+  });
+
+  test('uses model-specific pricing', () => {
+    expect(getModelPricing('gpt-5.6-terra')).toEqual({ input: 2_500n, cached: 250n, output: 15_000n });
+    expect(calculateUsageCost({ model: 'gpt-5.6-sol', inputTokens: 1_000_000, cachedTokens: 1_000_000, outputTokens: 1_000_000 })).toBeCloseTo(35.5);
+  });
+
+  test('applies jumbo pricing to all token classes and reports a warning', () => {
+    expect(isJumboPrompt({ inputTokens: 270_001 })).toBe(true);
+    expect(calculateUsageCost({ inputTokens: 270_001, cachedTokens: 0, outputTokens: 1, model: 'gpt-5.6-luna' })).toBeCloseTo(0.540008);
+    const report = formatUsageReport({ inputTokens: 270_001, cachedTokens: 1, outputTokens: 1, turns: 1, model: 'gpt-5.6-terra' });
+    expect(report).toContain('Jumbo prompt pricing applied (2x)');
+    expect(report).toContain('\u001b[91m');
   });
 
   test('formats totals from token counts without per-turn rounding drift', () => {

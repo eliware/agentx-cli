@@ -10,6 +10,8 @@ import { createUsageTotals, addUsageTotals, formatUsageReport } from './response
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
 import { promptResumeMenu } from './resume-menu.mjs';
+import { applySettings, reloadSettings, settingsFromEnv } from './settings.mjs';
+import { runSetup } from './setup.mjs';
 
 registerHandlers({ log });
 
@@ -28,8 +30,8 @@ function createReplInterface(cwd, input = defaultInput, output = defaultOutput) 
   return createInterface({ input, output, completer: (line) => completePath(line, cwd) });
 }
 
-function printUsageReport(totals, { leadingNewline = false } = {}) {
-  process.stdout.write(`${leadingNewline ? '\n' : ''}${formatSystemMessage(formatUsageReport(totals))}\n`);
+function printUsageReport(totals, { leadingNewline = false, model } = {}) {
+  process.stdout.write(`${leadingNewline ? '\n' : ''}${formatSystemMessage(formatUsageReport({ ...totals, model }))}\n`);
 }
 
 function createPendingResponse(savedState) {
@@ -87,7 +89,7 @@ function createResumeToolCallRunner(mode, pendingCallIds = new Set()) {
 export async function runAgent({ promptPath, cwd, input: terminalInput = defaultInput, output: terminalOutput = defaultOutput } = {}) {
   const launchCwd = cwd;
   const statePath = path(launchCwd, '.agentx_responseid');
-  const template = await loadPromptTemplate(promptPath);
+  let template = applySettings(await loadPromptTemplate(promptPath), settingsFromEnv());
   const agentsText = await readAgentsFromCwdAndParents(cwd).catch((error) => {
     throw new Error(`Unable to read AGENTS.md files under ${cwd}: ${error?.message || String(error)}`);
   });
@@ -97,7 +99,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const debugEnabled = process.argv.includes('--debug');
   const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
 
-  if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found')}\n`);
+  if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found; ask AgentX to generate one for this project.')}\n`);
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
   printResumeMessage('Last user message', savedState?.last_user_message || '');
   printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
@@ -132,7 +134,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   }
 
   async function exitWithSummary({ leadingNewline = false } = {}) {
-    printUsageReport(sessionUsage, { leadingNewline });
+    printUsageReport(sessionUsage, { leadingNewline, model: template.model });
     rl.close();
     process.exit(0);
   }
@@ -229,6 +231,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
 
       const internal = parseInternalCommand(message);
+      if (internal?.type === 'setup') {
+        await runSetup({ stdin: terminalInput, stdout: terminalOutput });
+        template = applySettings(await loadPromptTemplate(promptPath), await reloadSettings());
+        process.stdout.write(`${formatSystemMessage('Settings reloaded')}\n`);
+        continue;
+      }
       if (internal?.type === 'exit') {
         await exitWithSummary();
         return;
@@ -240,7 +248,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
 
       if (internal?.type === 'session_clear') {
-        printUsageReport(sessionUsage);
+        printUsageReport(sessionUsage, { model: template.model });
         previousResponseId = '';
         lastUserMessage = '';
         lastAssistantMessage = '';
@@ -253,7 +261,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
 
       if (internal?.type === 'usage') {
-        printUsageReport(sessionUsage);
+        printUsageReport(sessionUsage, { model: template.model });
         continue;
       }
 

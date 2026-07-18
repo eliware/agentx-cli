@@ -3,12 +3,12 @@ export function parseInternalCommand(message) {
     return { type: 'exit' };
   }
 
-  if (message === 'clear') {
-    return { type: 'clear' };
+  if (message === 'clear' || message === '/clear') {
+    return { type: 'session_clear' };
   }
 
-  if (message === '/clear') {
-    return { type: 'session_clear' };
+  if (message === '/setup') {
+    return { type: 'setup' };
   }
 
   if (message === '/usage') {

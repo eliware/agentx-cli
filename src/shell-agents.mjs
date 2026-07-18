@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fs } from '@eliware/common';
+import { getHomeDirectory } from './platform.mjs';
 
 async function readAgentsEntry(dir) {
   const filePath = path.join(dir, 'AGENTS.md');
@@ -16,8 +17,9 @@ async function readAgentsEntry(dir) {
   }
 }
 
-export async function readAgentsFromCwdAndParents(cwd) {
+export async function readAgentsFromCwdAndParents(cwd, home = getHomeDirectory()) {
   const entries = [];
+  const homeEntry = home ? await readAgentsEntry(path.resolve(home)) : null;
   const seenRealPaths = new Set();
   let current = path.resolve(cwd);
 
@@ -33,5 +35,7 @@ export async function readAgentsFromCwdAndParents(cwd) {
     current = parent;
   }
 
-  return entries.reverse().map(({ dir, content }) => `# AGENTS.md (${dir})\n${content.trim()}`).join('\n\n');
+  const ordered = entries.reverse();
+  if (homeEntry && !seenRealPaths.has(homeEntry.realPath)) ordered.unshift(homeEntry);
+  return ordered.map(({ dir, content }) => `# AGENTS.md (${dir})\n${content.trim()}`).join('\n\n');
 }

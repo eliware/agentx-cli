@@ -96,13 +96,13 @@ describe('agent session helpers', () => {
 
 
   test('formatTransactionCompletionMessage handles missing summary fields and non-string status values', () => {
-    expect(formatTransactionCompletionMessage()).toBe('{"time":"","reasoning":"","executing":"","writing":""}');
+    expect(formatTransactionCompletionMessage()).toBe('{"time":"","reasoning":"","writing":"","executing":""}');
     expect(formatTransactionCompletionMessage({
       time: 42,
       reasoning: { value: '1s/2s' },
       executing: { value: undefined },
       writing: null,
-    })).toBe('{"time":"42","reasoning":"1s/2s","executing":"","writing":""}');
+    })).toBe('{"time":"42","reasoning":"1s/2s","writing":"","executing":""}');
   });
 
   test('status line controller covers repeated transitions, refresh before start, and updateExecuting states', () => {
@@ -130,7 +130,7 @@ describe('agent session helpers', () => {
       reasoning: { active: false, value: '1s/13s' },
       executing: { active: false, value: '5s/6s' },
       writing: { active: false, value: '1s/12s' },
-    })).toBe('{"time":"30s","reasoning":"1s/13s","executing":"5s/6s","writing":"1s/12s"}');
+    })).toBe('{"time":"30s","reasoning":"1s/13s","writing":"1s/12s","executing":"5s/6s"}');
   });
 
   test('createStreamedResponse uses default stream options when omitted', async () => {
@@ -571,7 +571,7 @@ describe('agent session helpers', () => {
 
       const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[0m,"executing":"0s/0s"');
+      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[0m,"writing":"0s/0s"');
 
       await jest.advanceTimersByTimeAsync(1000);
       expect(stdoutWrites.join('')).toContain('{"time":"1s"');
@@ -622,7 +622,7 @@ describe('agent session helpers', () => {
 
     const pending = handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('{"time":"0s","reasoning":"0s/0s",\u001b[32m"executing":"0s/0s"\u001b[0m');
+    expect(stdoutWrites.join('')).toContain('{"time":"0s","reasoning":"0s/0s","writing":"0s/0s",\u001b[32m"executing":"0s/0s"\u001b[0m');
 
     await new Promise((resolve) => setTimeout(resolve, 70));
 

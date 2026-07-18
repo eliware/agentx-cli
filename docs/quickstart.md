@@ -55,3 +55,20 @@ The launchers load `~/.agentx` when present.
 - AgentX waits for your first message before contacting OpenAI.
 - Tool calls may stream command arguments and shell summaries live.
 - If `.agentx_responseid` exists, the session resumes automatically. If it contains pending tool calls, AgentX asks how you want to continue.
+
+## Install or update
+
+Install or update the latest release at any time with:
+
+```bash
+npm -g install @eliware/agentx-cli@latest
+```
+
+See [AGENTS.md behavior](agents.md) for how project instructions are discovered and loaded.
+
+## Remove AgentX
+
+```bash
+npm -g uninstall @eliware/agentx-cli
+rm -f $HOME/.agentx*
+```

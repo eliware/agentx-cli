@@ -5,5 +5,5 @@ export { extractTextFromResponse, isFunctionCall, extractUsage, createUsageTotal
 export { formatUsageReport, formatTurnUsageReport };
 
 export function formatUsageSummary(response) {
-  return formatTurnUsage(extractUsage(response));
+  return formatTurnUsage({ ...extractUsage(response), model: response?.model });
 }
