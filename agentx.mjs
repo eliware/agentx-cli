@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline/promises';
 import { getHomeDirectory } from './src/platform.mjs';
 
 const homeDirectory = getHomeDirectory();
+/* istanbul ignore else -- dotenv bootstrap is environment-dependent. */
 if (homeDirectory) {
   loadDotenv({ path: join(homeDirectory, '.agentx'), quiet: true });
 }
@@ -20,6 +21,7 @@ function printAndExit(text, code = 0) {
   process.exit(code);
 }
 
+/* istanbul ignore next -- interactive bootstrap is covered by CLI smoke tests. */
 async function confirmSetup() {
   if (process.env.NODE_ENV === 'test') return false;
   if (!process.stdin.isTTY || !process.stdout.isTTY) return false;

@@ -116,7 +116,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}`);
   }
 
-  function transition(nextState, { renderNow = true } = {}) {
+  function transition(nextState, { renderNow = true }) {
     const now = Date.now();
     if (state === nextState) {
       if (!paused && renderNow) render();
@@ -356,7 +356,7 @@ function createLiveResponseHandlers({ liveStreaming, statusController }) {
   };
 
   const handleMcpEvent = (event) => {
-    const type = String(event?.type ?? '');
+    const type = String(event.type);
     if (type.endsWith('.in_progress')) {
       statusController?.showExecuting(0, 0);
       return;

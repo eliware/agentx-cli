@@ -460,6 +460,102 @@ describe('agent session helpers', () => {
     expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
   });
 
+  test('sendMessage handles reasoning, MCP, and web-search live event branches', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const statusController = {
+      showReasoning: jest.fn(), showExecuting: jest.fn(), pause: jest.fn(),
+      resume: jest.fn(), clear: jest.fn(), beginWriting: jest.fn(),
+    };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onEvent({ type: 'response.reasoning_summary_part.delta', delta: '' });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.delta', delta: 'thinking' });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.done' });
+          handlers.onEvent({ type: 'response.mcp_call.in_progress' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'half' });
+          handlers.onEvent({ type: 'response.mcp_call.update', progress_update: 2 });
+          handlers.onEvent({ type: 'response.mcp_call.progress', message: 'message' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', data: 'data' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', payload: 'payload' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', status: 'status' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', delta: 'delta' });
+          handlers.onEvent({ type: 'response.mcp_call.progress' });
+          handlers.onEvent({ type: 'response.mcp_call.completed' });
+          handlers.onEvent({ type: 'response.mcp_call.failed' });
+          handlers.onEvent({ type: 'response.web_search_call.completed' });
+          handlers.onEvent({ type: 'response.web_search_call.unknown' });
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+    await sendMessage(openai, template, '', 'hello', '', '/tmp/work', null, null, {
+      liveStreaming: true, statusController,
+    });
+    const output = stdoutWrites.join('');
+    expect(output).toContain('thinking');
+    expect(output).toContain('"mcp":"half"');
+    expect(output).toContain('"mcp":"2"');
+    expect(output).toContain('"mcp":"delta"');
+    expect(statusController.pause).toHaveBeenCalled();
+    expect(statusController.resume).toHaveBeenCalled();
+    expect(statusController.showExecuting).toHaveBeenCalled();
+    expect(statusController.showReasoning).toHaveBeenCalled();
+  });
+
+  test('live handlers cover optional status branches and web-search shapes', async () => {
+    const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'), { quiet: true });
+    controller.showReasoning();
+    controller.showReasoning({ renderNow: false });
+    controller.pause();
+    controller.showExecuting(0, 0);
+    controller.resume();
+    controller.resume();
+    controller.beginWriting();
+    controller.resume();
+    controller.pause();
+    controller.beginWriting();
+    controller.resume();
+    controller.pause();
+    controller.showExecuting(0, 0);
+    controller.showExecuting(0, 0);
+    controller.pause();
+    controller.resume();
+    controller.beginWriting();
+    controller.resume();
+    controller.clear();
+
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onEvent({ type: 'response.web_search_call.in_progress' });
+          handlers.onItemDone({ type: 'web_search_call', action: { queries: ['q', '', 1], sources: [{ url: 'https://x.test' }, 'plain', ''] } });
+          handlers.onItemDone({ type: 'web_search_call', action: {} });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.done' });
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+    await createStreamedResponse(openai, { model: 'test-model' }, { liveStreaming: true, statusController: controller });
+    expect(stdoutWrites.join('')).toContain('https://x.test');
+    expect(stdoutWrites.join('')).toContain('plain');
+
+    const noStatusOpenai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onEvent({ type: 'response.web_search_call.in_progress' });
+          handlers.onItemDone({ type: 'web_search_call', action: { queries: ['q'] } });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.done' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'p' });
+          handlers.onEvent({ type: 'response.mcp_call.other' });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.other' });
+          return { id: 'resp-no-status', output: [] };
+        },
+      },
+    };
+    await createStreamedResponse(noStatusOpenai, { model: 'test-model' }, { liveStreaming: true });
+  });
+
   test('sendMessage pauses live status during web search events and resumes reasoning after completion', async () => {
     jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
     try {
