@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.3.3 - MCP configuration and streaming fixes
+
+- Moved optional MCP configuration to `~/.agentx.mcp.json` with home-directory fallback support.
+- Improved streamed status-line cleanup so final responses and tool output are preserved.
+- Refined MCP call, reasoning-summary, and streamed argument display behavior.
+- Enhanced the setup screen with version, install path, configuration path, and MCP configuration details.
+- Added regression coverage for streaming transitions, setup fallbacks, and configuration-path handling.
+
 ## 1.3.2 - MCP configuration and streaming support
 
 - Added optional local `.agentx.mcp.json` configuration, with support for merging MCP tools into the prompt template.

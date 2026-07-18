@@ -3,7 +3,7 @@
 ## AgentX does not start
 
 Check that `agentx_api_key` or `AGENTX_API_KEY` is set in your shell environment. If you installed the package globally, make sure your npm global bin directory is on PATH so `agentx` and `agentx-setup` can be found.
-If you want a guided setup, run `agentx-setup` to edit `.agentx`.
+If you want a guided setup, run `agentx-setup` to edit `~/.agentx`.
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
 

@@ -15,7 +15,7 @@ It is designed to feel shell-like:
 - includes quick CLI flags for help, version, and debug logging
 - prints active model and runtime settings at startup
 - prints friendly startup errors for missing config or API keys
-- supports optional MCP tools configured in a local `.agentx.mcp.json`
+- supports optional MCP tools configured in `~/.agentx.mcp.json`
 
 ## Usage
 
