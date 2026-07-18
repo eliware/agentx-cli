@@ -65,3 +65,5 @@ node_modules/
 .agentx_responseid
 
 public/dist/
+
+mcp.json

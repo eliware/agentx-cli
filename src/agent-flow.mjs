@@ -1,4 +1,5 @@
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
+import { dirname, join } from 'node:path';
 import { readJson } from './runtime.mjs';
 
 export function resolveAgentApiKey(env = process.env) {
@@ -7,9 +8,17 @@ export function resolveAgentApiKey(env = process.env) {
   throw new Error('Set agentx_api_key or AGENTX_API_KEY in your shell environment.');
 }
 
-export async function loadPromptTemplate(promptPath) {
+export async function loadPromptTemplate(promptPath, mcpPath = join(dirname(promptPath), 'mcp.json')) {
   try {
-    return await readJson(promptPath);
+    const template = await readJson(promptPath);
+    let mcpTools = null;
+    try {
+      const configuredTools = await readJson(mcpPath);
+      mcpTools = Array.isArray(configuredTools) ? configuredTools : configuredTools?.tools || [];
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+    return mcpTools === null ? template : { ...template, tools: [...(template.tools || []), ...mcpTools] };
   } catch (error) {
     throw new Error(`Unable to read prompt template at ${promptPath}: ${error?.message || String(error)}`);
   }

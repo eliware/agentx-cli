@@ -1,0 +1,9 @@
+[
+  {
+    "type": "mcp",
+    "server_label": "example",
+    "server_url": "https://example.invalid/mcp",
+    "authorization": "replace-with-authorization",
+    "require_approval": "never"
+  }
+]
