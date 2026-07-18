@@ -294,15 +294,27 @@ describe('setup uncovered fallback branches', () => {
   test('uses default read and setup arguments and handles a missing config on write', async () => {
     await expect(readEnvState()).resolves.toEqual(expect.objectContaining({ filePath: '/root/.agentx', text: '' }));
     expect(await writeEnvState('/tmp/new-agentx/.agentx', { A: 'b' })).toBe('A=b\n');
-    // runSetup() defaults to the real process streams. Keep this coverage test
-    // from leaking its non-interactive message into Jest's output.
-    const stdoutWrite = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    // Supplying streams keeps this test deterministic when Jest itself is run
+    // from a TTY. Using the real process streams here can enter the setup menu
+    // and wait forever for input instead of exercising non-interactive mode.
+    const stdout = { isTTY: false, write: jest.fn() };
+    await expect(runSetup({ stdin: { isTTY: false }, stdout })).resolves.toBeUndefined();
+    expect(stdout.write).toHaveBeenCalledWith(expect.stringContaining('requires an interactive terminal'));
+  });
+
+  test('uses process streams when setup arguments are omitted', async () => {
+    const originalStdin = process.stdin;
+    const originalStdout = process.stdout;
+    const stdout = { isTTY: false, write: jest.fn() };
+    Object.defineProperty(process, 'stdin', { configurable: true, value: { isTTY: false } });
+    Object.defineProperty(process, 'stdout', { configurable: true, value: stdout });
     try {
       await expect(runSetup()).resolves.toBeUndefined();
-      expect(stdoutWrite).toHaveBeenCalledWith(expect.stringContaining('requires an interactive terminal'));
     } finally {
-      stdoutWrite.mockRestore();
+      Object.defineProperty(process, 'stdin', { configurable: true, value: originalStdin });
+      Object.defineProperty(process, 'stdout', { configurable: true, value: originalStdout });
     }
+    expect(stdout.write).toHaveBeenCalledWith(expect.stringContaining('requires an interactive terminal'));
   });
 
   test('handles falsy rereads after each type of update', async () => {
