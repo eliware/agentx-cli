@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.2.9 - user-level configuration
+
+- Moved persisted AgentX configuration from the project-local `.env` file to `~/.agentx`.
+- Updated the CLI, setup helper, and Linux GUI service to load and manage the user-level configuration.
+- Renamed the packaged configuration example to `.agentx.example` so global npm upgrades do not overwrite user settings.
+- Updated documentation and regression tests for the new configuration path.
+
 ## 1.2.8 - model, prompt, and usage updates
 
 - Updated the default model configuration and enabled programmatic tool calling.
