@@ -1,12 +1,12 @@
 {
-  "model": "gpt-5.4-mini",
+  "model": "gpt-5.6-luna",
   "input": [
     {
       "role": "developer",
       "content": [
         {
           "type": "input_text",
-          "text": "<insert AGENTS.md chain>"
+          "text": "agents.md"
         }
       ]
     },
@@ -15,7 +15,7 @@
       "content": [
         {
           "type": "input_text",
-          "text": "<insert user message>"
+          "text": "user message"
         }
       ]
     }
@@ -28,15 +28,13 @@
   },
   "reasoning": {
     "effort": "medium",
-    "summary": null
+    "mode": "standard",
+    "summary": "auto"
   },
-  "context_management": [
-    {
-      "type": "compaction",
-      "compact_threshold": 300000
-    }
-  ],
   "tools": [
+    {
+      "type": "programmatic_tool_calling"
+    },
     {
       "type": "web_search",
       "user_location": {
@@ -48,7 +46,10 @@
       "type": "shell",
       "environment": {
         "type": "local"
-      }
+      },
+      "allowed_callers": [
+        "programmatic"
+      ]
     }
   ],
   "store": true,

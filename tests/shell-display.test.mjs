@@ -22,7 +22,7 @@ describe('shell display', () => {
       delete process.env.USERNAME;
       delete process.env.COMPUTERNAME;
 
-      expect(formatPromptForCwd('/tmp/work')).toBe(`[[33mAgentX alice@laptop:/tmp/work[0m] `);
+      expect(formatPromptForCwd('/tmp/work')).toBe(`[33malice@laptop:/tmp/work#[0m `);
       expect(formatSystemMessage('hello')).toBe(`[33mhello[0m`);
       expect(formatCommandMessage('hello')).toBe(`[32mhello[0m`);
       expect(formatInfoMessage('hello')).toBe(`[94mhello[0m`);

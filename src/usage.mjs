@@ -9,9 +9,9 @@ export function normalizeUsage({ inputTokens = 0, cachedTokens = 0, outputTokens
   };
 }
 
-const INPUT_NANO_DOLLARS_PER_TOKEN = 750n;
-const CACHED_NANO_DOLLARS_PER_TOKEN = 75n;
-const OUTPUT_NANO_DOLLARS_PER_TOKEN = 4500n;
+const INPUT_NANO_DOLLARS_PER_TOKEN = 1_000n;
+const CACHED_NANO_DOLLARS_PER_TOKEN = 100n;
+const OUTPUT_NANO_DOLLARS_PER_TOKEN = 6_000n;
 const NANO_DOLLARS_PER_DISPLAY_UNIT = 1_000_000n;
 
 function toTokenCount(value) {

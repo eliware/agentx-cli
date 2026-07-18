@@ -15,7 +15,8 @@ export function clearTerminal() {
 
 export function formatPromptForCwd(cwd) {
   const { user, host } = getPromptIdentity(process.env);
-  return `[${YELLOW}AgentX ${user}@${host}:${cwd}${RESET}] `;
+  const shortHost = host.split('.')[0];
+  return `${YELLOW}${user}@${shortHost}:${cwd}#${RESET} `;
 }
 
 export function formatSystemMessage(message) {
