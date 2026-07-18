@@ -314,11 +314,17 @@ describe('setup branch completion', () => {
 
   test('covers omitted runSetup arguments', async () => {
     const originalWrite = process.stdout.write;
+    const originalStdinTTY = process.stdin.isTTY;
+    const originalStdoutTTY = process.stdout.isTTY;
     process.stdout.write = () => true;
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: false });
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: false });
     try {
       await runSetup();
     } finally {
       process.stdout.write = originalWrite;
+      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: originalStdinTTY });
+      Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: originalStdoutTTY });
     }
   });
 });
