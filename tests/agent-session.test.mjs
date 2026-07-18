@@ -548,7 +548,7 @@ describe('agent session helpers', () => {
         },
       };
       await createStreamedResponse(debugOpenai, template, { liveStreaming: true, statusController });
-      expect(stdoutWrites.join('')).toContain('{\"mcp\":\"hidden\"}');
+      expect(stdoutWrites.join('')).toContain('{"mcp":"hidden"}');
       expect(stdoutWrites.join('')).not.toContain('\u001b[95mhidden\u001b[0m');
     } finally {
       process.argv = originalArgv;
