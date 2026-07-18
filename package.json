@@ -49,7 +49,7 @@
     "dependencies": {
         "@eliware/common": "^1.1.4",
         "dotenv": "^17.4.2",
-        "string-width": "^5.1.2",
+        "string-width": "^8.2.2",
         "strip-ansi": "^7.2.0",
         "ws": "^8.21.0"
     },
