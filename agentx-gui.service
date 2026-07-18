@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=/opt/agentx-cli
 ExecStart=/opt/agentx-cli/agentx-gui.mjs
-EnvironmentFile=/opt/agentx-cli/.env
+EnvironmentFile=%h/.agentx
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production

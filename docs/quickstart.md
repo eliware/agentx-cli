@@ -3,7 +3,7 @@
 AgentX is a terminal chat agent built on the OpenAI Responses API over WebSocket transport.
 For most users, the simplest path is: install it globally, run `agentx-setup` once, then start `agentx`.
 It also includes an experimental web GUI, but that is still a proof of concept and a lot of things are broken or incomplete.
-A separate `agentx-setup` helper can edit `.env` values and manage the Linux GUI service.
+A separate `agentx-setup` helper can edit `.agentx` values and manage the Linux GUI service.
 
 ## Start the CLI
 
@@ -36,7 +36,7 @@ Use the CLI if you want the more reliable path; the GUI is still rough.
 agentx-setup
 ```
 
-Use that to edit `.env` values and manage the GUI service on Linux.
+Use that to edit `.agentx` values and manage the GUI service on Linux.
 
 ## Quick flags
 
@@ -46,7 +46,7 @@ Use that to edit `.env` values and manage the GUI service on Linux.
 
 ## Before you begin
 
-Set your API key in the shell environment, or let `agentx-setup` write it into a local `.env` file for you:
+Set your API key in the shell environment, or let `agentx-setup` write it into `~/.agentx` for you:
 
 ```bash
 export agentx_api_key="your-key-here"
@@ -54,7 +54,7 @@ export agentx_api_key="your-key-here"
 ```
 
 AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
-The launchers also load `.env` when present.
+The launchers load `~/.agentx` when present.
 
 ## First run
 

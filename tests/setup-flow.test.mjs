@@ -162,8 +162,8 @@ beforeEach(() => {
   unlink.mockReset();
   createInterface.mockReset();
   resetFsMocks();
-  fileMap.set(path.join(process.cwd(), 'agentx-gui.service'), 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=/opt/agentx-cli/.env\n');
-  fileMap.set(path.join(process.cwd(), '.env'), 'AGENTX_API_KEY=\nHOST=\nPORT=\n');
+  fileMap.set(path.join(process.cwd(), 'agentx-gui.service'), 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=%h/.agentx\n');
+  fileMap.set(path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx'), 'AGENTX_API_KEY=\nHOST=\nPORT=\n');
 });
 
 afterEach(() => {
@@ -200,7 +200,7 @@ describe('runSetup', () => {
     const terminal = makeTerminal();
     let failReads = 3;
     readFile.mockImplementation(async (filePath) => {
-      if (filePath === path.join(process.cwd(), '.env') && failReads > 0) {
+      if (filePath === path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx') && failReads > 0) {
         failReads -= 1;
         throw makeMissingError(filePath);
       }
@@ -236,7 +236,7 @@ describe('runSetup', () => {
   });
 
   test('uses saved HOST and PORT values when the user presses Enter', async () => {
-    fileMap.set(path.join(process.cwd(), '.env'), 'AGENTX_API_KEY=\nHOST=10.9.8.7\nPORT=4555\n');
+    fileMap.set(path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx'), 'AGENTX_API_KEY=\nHOST=10.9.8.7\nPORT=4555\n');
     const terminal = makeTerminal();
     installSystemctlMock({ versionOk: false });
     const questions = ['host', '', 'port', '', 'quit'];
@@ -255,7 +255,7 @@ describe('runSetup', () => {
     const terminal = makeTerminal();
     let failReads = 2;
     readFile.mockImplementation(async (filePath) => {
-      if (filePath === path.join(process.cwd(), '.env') && failReads > 0) {
+      if (filePath === path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx') && failReads > 0) {
         failReads -= 1;
         throw makeMissingError(filePath);
       }
@@ -353,9 +353,9 @@ describe('runSetup', () => {
     expect(terminal.writes.join('')).toContain('Service uninstalled.');
     expect(terminal.writes.join('')).toContain('Service: inactive / dead / disabled / error');
     expect(createInterface).toHaveBeenCalled();
-    expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('AGENTX_API_KEY=new-api-key');
-    expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('HOST=10.1.2.3');
-    expect(fileMap.get(path.join(process.cwd(), '.env'))).toContain('PORT=3201');
+    expect(fileMap.get(path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx'))).toContain('AGENTX_API_KEY=new-api-key');
+    expect(fileMap.get(path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx'))).toContain('HOST=10.1.2.3');
+    expect(fileMap.get(path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx'))).toContain('PORT=3201');
     expect(fileMap.has('/usr/lib/systemd/system/agentx-gui.service')).toBe(false);
     expect(state.running).toBe(false);
     expect(state.enabled).toBe(false);

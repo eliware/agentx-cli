@@ -10,7 +10,7 @@ describe('entrypoint', () => {
   });
 
 
-  test('agentx.mjs loads .env from the entrypoint directory', async () => {
+  test('agentx.mjs loads .agentx from the user home directory', async () => {
     const config = jest.fn();
 
     await jest.unstable_mockModule('dotenv', () => ({
@@ -25,7 +25,8 @@ describe('entrypoint', () => {
 
     await import('../agentx.mjs');
 
-    expect(config).toHaveBeenCalledWith(expect.objectContaining({ path: path.resolve(process.cwd(), '.env'), quiet: true }));
+    expect(config).toHaveBeenCalledTimes(1);
+    expect(config).toHaveBeenCalledWith({ path: path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx'), quiet: true });
   });
 
   test('agentx.mjs does not start the REPL when invoked indirectly', async () => {

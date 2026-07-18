@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getHomeDirectory } from './platform.mjs';
 
 const DEFAULT_PORT = 3100;
 const DEFAULT_HOST = '0.0.0.0';
@@ -14,7 +15,8 @@ const SYSTEMD_UNIT_PATH = '/usr/lib/systemd/system/agentx-gui.service';
 const INSTALL_ROOT = '/opt/agentx-cli';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const envPath = path.join(rootDir, '.env');
+const homeDirectory = getHomeDirectory();
+const envPath = path.join(homeDirectory || rootDir, '.agentx');
 const serviceTemplatePath = path.join(rootDir, SERVICE_TEMPLATE_NAME);
 
 function formatMaybeBlank(value) {
@@ -416,7 +418,7 @@ function renderScreen({ values, systemdAvailable, serviceStatus, message, stdout
   stdout.write('\x1b[2J\x1b[H');
   stdout.write('AgentX setup\n');
   stdout.write(`Root: ${rootDir}\n`);
-  stdout.write(`.env: ${envPath}\n`);
+  stdout.write(`Config: ${envPath}\n`);
   stdout.write(`API key: ${values.AGENTX_API_KEY ? 'set' : 'blank'}\n`);
   stdout.write(`HOST: ${values.HOST || DEFAULT_HOST}\n`);
   stdout.write(`PORT: ${values.PORT || DEFAULT_PORT}\n`);

@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import { config as loadDotenv } from 'dotenv';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { getHomeDirectory } from './src/platform.mjs';
 
-loadDotenv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env'), quiet: true });
+const homeDirectory = getHomeDirectory();
+if (homeDirectory) {
+  loadDotenv({ path: join(homeDirectory, '.agentx'), quiet: true });
+}
+
 
 const { isDirectInvocation, promptPath } = await import('./src/runtime.mjs');
 const { runAgent } = await import('./src/agent.mjs');

@@ -243,14 +243,14 @@ describe('setup helpers', () => {
   test('builds and writes service units and exposes paths', async () => {
     const root = '/tmp/agentx-custom-root';
     const templatePath = path.join(root, 'agentx-gui.service');
-    const template = 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=/opt/agentx-cli/.env\n';
+    const template = 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=%h/.agentx\n';
     fileMap.set(templatePath, template);
     fileMap.set(setupPaths.serviceTemplatePath, template);
     expect(getServiceName()).toBe('agentx-gui.service');
     expect(getServiceUnitPath()).toBe('/usr/lib/systemd/system/agentx-gui.service');
     expect(getSetupRootDir()).toBe(process.cwd());
     expect(setupPaths.rootDir).toBe(process.cwd());
-    expect(setupPaths.envPath).toBe(path.join(process.cwd(), '.env'));
+    expect(setupPaths.envPath).toBe(path.join(process.env.HOME || process.env.USERPROFILE || '', '.agentx'));
     expect(setupPaths.serviceTemplatePath).toBe(path.join(process.cwd(), 'agentx-gui.service'));
 
     const unit = await buildServiceUnit(root);
@@ -258,7 +258,7 @@ describe('setup helpers', () => {
     expect(await setupInternals.readServiceText(root)).toBe(fileMap.get(templatePath));
     expect(await setupInternals.readServiceText()).toBe(fileMap.get(templatePath));
     expect(unit).toContain(`ExecStart=${root}/agentx-gui.mjs`);
-    expect(unit).toContain(`EnvironmentFile=${root}/.env`);
+    expect(unit).toContain('EnvironmentFile=%h/.agentx');
 
     const targetPath = '/tmp/agentx-custom-root/agentx-gui.service.generated';
     const written = await writeServiceUnit(root, targetPath);
@@ -283,7 +283,7 @@ describe('setup helpers', () => {
   });
 
   test('uses default service paths when helpers are called without arguments', async () => {
-    const template = 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=/opt/agentx-cli/.env\n';
+    const template = 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=%h/.agentx\n';
     fileMap.set(setupPaths.serviceTemplatePath, template);
     spawnSync.mockImplementation((command, args) => {
       if (command !== 'systemctl') throw new Error('unexpected command');
@@ -306,7 +306,7 @@ describe('setup helpers', () => {
   });
 
   test('reads and writes env files while preserving defaults', async () => {
-    const envPath = '/tmp/agentx-env/.env';
+    const envPath = '/tmp/agentx-env/.agentx';
     fileMap.set(envPath, 'AGENTX_API_KEY=abc\nHOST=127.0.0.1\nPORT=3200\nOTHER=keep\n');
 
     const state = await readEnvState(envPath);
@@ -435,7 +435,7 @@ describe('service helpers', () => {
   });
 
   test('uses default service paths when helpers are called without arguments', async () => {
-    const template = 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=/opt/agentx-cli/.env\n';
+    const template = 'WorkingDirectory=/opt/agentx-cli\nExecStart=/opt/agentx-cli/agentx-gui.mjs\nEnvironmentFile=%h/.agentx\n';
     fileMap.set(setupPaths.serviceTemplatePath, template);
     installSystemctlMock();
 
