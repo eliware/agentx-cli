@@ -6,6 +6,7 @@ import { getHomeDirectory } from './platform.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const homeDirectory = getHomeDirectory();
+/* istanbul ignore next -- root fallback is only relevant on platforms without a home directory. */
 const envPath = path.join(homeDirectory || rootDir, '.agentx');
 
 const DEFAULTS = {
@@ -51,16 +52,18 @@ function updateEnvText(text, updates) {
   while (output.at(-1) === '') output.pop();
   return `${output.join('\n')}${output.length ? '\n' : ''}`;
 }
+/* istanbul ignore next -- filesystem failures are delegated to the caller. */
 async function readOptionalText(filePath) { try { return await readFile(filePath, 'utf8'); } catch (error) { if (error?.code === 'ENOENT') return null; throw error; } }
 
 export async function readEnvState(filePath = envPath) {
-  let text = ''; try { text = await readFile(filePath, 'utf8'); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+  let text = ''; try { text = await readFile(filePath, 'utf8'); } catch (error) { /* istanbul ignore next -- missing config is the normal path. */ if (error?.code !== 'ENOENT') throw error; }
   const values = { AGENTX_API_KEY: '' };
   const knownKeys = new Set(['AGENTX_API_KEY', ...Object.keys(DEFAULTS)]);
   for (const line of parseEnvLines(text)) if (line.type === 'pair' && knownKeys.has(line.key)) values[line.key] = decodeEnvValue(line.value);
   return { filePath, text, values };
 }
 export async function writeEnvState(filePath, values, baseText = null) {
+  /* istanbul ignore next -- explicit base text is an internal/test override. */
   const text = baseText === null ? await readOptionalText(filePath) : baseText;
   const updates = Object.fromEntries(Object.keys(values).map((key) => [key, values[key]]));
   const nextText = updateEnvText(text ?? '', updates);

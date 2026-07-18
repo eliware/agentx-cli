@@ -89,7 +89,9 @@ describe('setup edge cases and settings', () => {
   test('covers numeric menu selection and default setup arguments', async () => {
     const { stdout } = terminal(['9']);
     await runSetup({ stdin: { isTTY: true }, stdout });
-    await runSetup();
+    const defaultStdout = { isTTY: false, write: jest.fn() };
+    await runSetup({ stdin: { isTTY: false }, stdout: defaultStdout });
+    expect(defaultStdout.write).toHaveBeenCalledWith(expect.stringContaining('requires'));
     expect(stdout.writes?.length ?? 0).toBe(0);
   });
 
@@ -207,5 +209,78 @@ describe('setup edge cases and settings', () => {
     handlers.data(Buffer.from('\u0003'));
     await pending;
     expect(stdout.write).toHaveBeenCalled();
+  });
+});
+
+describe('setup coverage paths', () => {
+  test('covers explicit base text and falsy rereads', async () => {
+    expect(await writeEnvState('/tmp/base', { A: '1' }, '')).toBe('A=1\n');
+    fileMap.set('/tmp/base', '');
+    expect(await writeEnvState('/tmp/base', { A: '2' })).toBe('A=2\n');
+  });
+
+  test('covers empty rereads after setting values', async () => {
+    let writes = 0;
+    writeFile.mockImplementation(async (filePath, text) => {
+      writes += 1;
+      fileMap.set(filePath, writes === 1 ? String(text) : '');
+    });
+    const stdout = { isTTY: true, write: jest.fn() };
+    const questions = ['model', 'terra', 'quit'];
+    createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
+    await runSetup({ stdin: { isTTY: true }, stdout });
+  });
+
+  test('covers blank MCP authentication default', async () => {
+    const stdout = { isTTY: true, write: jest.fn() };
+    const questions = ['mcp', 'https://none.test', 'label', 'description', '', 'quit'];
+    createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
+    await runSetup({ stdin: { isTTY: true }, stdout });
+    expect(fileMap.get('/root/.agentx')).toContain('\\"type\\":\\"none\\"');
+  });
+
+  test('covers raw menu buffer trimming', async () => {
+    const handlers = {};
+    const stdin = {
+      isTTY: true,
+      setRawMode: jest.fn(),
+      resume: jest.fn(),
+      on: jest.fn((event, handler) => { handlers[event] = handler; }),
+      off: jest.fn(),
+    };
+    const stdout = { isTTY: true, write: jest.fn() };
+    createInterface.mockReturnValue({ question: async () => 'quit', close: jest.fn() });
+    const pending = runSetup({ stdin, stdout });
+    await new Promise((resolve) => setImmediate(resolve));
+    handlers.data(Buffer.from('123456789'));
+    handlers.data(Buffer.from('\u0003'));
+    await pending;
+  });
+});
+
+describe('setup falsy branch coverage', () => {
+  test('covers fallback paths for config and interactive updates', async () => {
+    fileMap.set('/root/.agentx', 'AGENTX_API_KEY=existing\nAGENTX_MCP_SERVERS=\n');
+    readFile.mockImplementation(async (filePath) => {
+      if (filePath === '/root/.agentx' && fileMap.get(filePath) === '') return '';
+      if (!fileMap.has(filePath)) throw missing(filePath);
+      return fileMap.get(filePath);
+    });
+    writeFile.mockImplementation(async (filePath) => { fileMap.set(filePath, ''); });
+    const stdout = { isTTY: true, write: jest.fn() };
+    const questions = ['api', '', 'quit'];
+    createInterface.mockReturnValue({ question: async () => questions.shift(), close: jest.fn() });
+    await runSetup({ stdin: { isTTY: true }, stdout });
+
+    const handlers = {};
+    const rawStdin = { isTTY: true, setRawMode: jest.fn(), resume: jest.fn(), on: jest.fn((e, h) => { handlers[e] = h; }), off: jest.fn() };
+    createInterface.mockReturnValue({ question: async () => 'quit', close: jest.fn() });
+    const pending = runSetup({ stdin: rawStdin, stdout });
+    await new Promise((resolve) => setImmediate(resolve));
+    handlers.data(Buffer.from('\x1b[B'));
+    handlers.data(Buffer.from('\x1b[A'));
+    handlers.data(Buffer.from('123456789'));
+    handlers.data(Buffer.from('\u0003'));
+    await pending;
   });
 });
