@@ -11,8 +11,6 @@
 - Preserve the interactive CLI behavior unless the user asks otherwise.
 - The launchers load `.agentx` when present, but the app still reads `agentx_api_key` / `AGENTX_API_KEY` from the environment.
 - Use `agentx-setup` for local setup tasks instead of hand-editing service files when possible.
-- The web GUI is a proof-of-concept only; expect broken and incomplete flows, and keep CLI behavior as the source of truth.
-- The `agentx-setup` helper may install, repair, or remove the `agentx-gui.service` unit on Linux.
 - When editing files, keep the behavior aligned with the current tests and update tests when behavior changes.
 - Tests are expected to pass cleanly on Linux, Windows, and GitHub Actions; keep the entire repository cross-platform friendly and avoid platform-specific assumptions.
 

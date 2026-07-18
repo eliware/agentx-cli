@@ -3,7 +3,7 @@
 ## AgentX does not start
 
 Check that `agentx_api_key` or `AGENTX_API_KEY` is set in your shell environment. If you installed the package globally, make sure your npm global bin directory is on PATH so `agentx` and `agentx-setup` can be found.
-If you want a guided setup, run `agentx-setup` to edit `.agentx` and inspect the GUI service.
+If you want a guided setup, run `agentx-setup` to edit `.agentx`.
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
 
@@ -21,10 +21,6 @@ If the prompt template is missing or invalid, AgentX prints the file path and th
 
 That means there is no `AGENTS.md` in the current directory or any parent directory. AgentX will continue with a fallback instruction.
 
-## Web GUI looks broken
-
-That is expected for now. The browser UI is still a proof of concept and many flows are incomplete or fail.
-Use the CLI if you want the more reliable path. The GUI path is mainly for repository-local use.
 
 ## Shell command output looks missing
 

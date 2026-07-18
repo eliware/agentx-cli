@@ -41,13 +41,3 @@
 - Add handling for streamed reasoning-summary output and display it in light orange.
 - Support pausing and resuming the timer status output.
 
-## Web Server Removal
-
-- Remove the web-server component, including:
-  - `agentx-gui.mjs`
-  - `agentx-gui.service`
-  - All supporting frontend and backend code
-  - Related tests
-- Remove `PORT` and `HOST` from the `.env` file.
-- Remove web-server installation and uninstallation logic from `agentx-setup`.
-- Remove the build command and `webpack.config.mjs`.

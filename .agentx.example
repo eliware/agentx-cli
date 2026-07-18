@@ -1,3 +1,1 @@
 AGENTX_API_KEY=<your OpenAI API key>
-HOST=0.0.0.0
-PORT=3100
