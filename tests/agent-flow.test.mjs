@@ -29,6 +29,22 @@ describe('agent flow helpers', () => {
     expect(() => resolveAgentApiKey({})).toThrow('Set agentx_api_key or AGENTX_API_KEY in your shell environment.');
   });
 
+  test('loadPromptTemplate falls back to the OS home directory when the platform home is unavailable', async () => {
+    jest.resetModules();
+    await jest.unstable_mockModule('../src/platform.mjs', () => ({ getHomeDirectory: () => '' }));
+    const { loadPromptTemplate: loadPromptTemplateWithFallback } = await import('../src/agent-flow.mjs');
+    const tmp = makeTempDir('agentx-prompt-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'mcp.json');
+      writeFileSync(promptPath, JSON.stringify({ input: [] }));
+      writeFileSync(mcpPath, JSON.stringify([]));
+      await expect(loadPromptTemplateWithFallback(promptPath, mcpPath)).resolves.toEqual({ input: [], tools: [] });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
   test('loadPromptTemplate wraps prompt file errors with the prompt path', async () => {
     const tmp = makeTempDir('agentx-prompt-');
     try {

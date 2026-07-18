@@ -2,12 +2,15 @@ import { createInterface } from 'node:readline/promises';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { getHomeDirectory } from './platform.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const packageVersion = JSON.parse(readFileSync(path.join(rootDir, 'package.json'), 'utf8')).version;
 const homeDirectory = getHomeDirectory();
 /* istanbul ignore next -- root fallback is only relevant on platforms without a home directory. */
 const envPath = path.join(homeDirectory || rootDir, '.agentx');
+const mcpConfigPath = path.join(homeDirectory || rootDir, '.agentx.mcp.json');
 
 const DEFAULTS = {
   AGENTX_MODEL: 'gpt-5.6-luna',
@@ -86,7 +89,7 @@ async function saveEnvValue(envState, key, value) {
 
 async function selectChoice(stdin, stdout, rl, title, valuesList, current) {
   const entries = valuesList.map((value) => ({ id: value, label: `${value}${value === current ? ' (current)' : ''}` }));
-  stdout.write(`\x1b[2J\x1b[HAgentX setup\n\n${title}\n`);
+  stdout.write(`\x1b[2J\x1b[HAgentX ${packageVersion} Setup\n\n${title}\n`);
   const currentIndex = entries.findIndex((entry) => entry.id === current);
   const selected = await selectMenu(stdin, stdout, entries, currentIndex >= 0 ? currentIndex : 0, { rootDir, envPath });
   if (selected) return selected.id;
@@ -121,12 +124,12 @@ export function buildMenuEntries({ values, includeSettings = false }) {
     { id: 'quit', label: 'Quit' },
   ];
 }
-function renderScreen({ values, message, stdout }) { stdout.write('\x1b[2J\x1b[HAgentX setup\n'); stdout.write(`Root: ${rootDir}\nConfig: ${envPath}\nAPI key: ${values.AGENTX_API_KEY ? 'set' : 'blank'}\n`); if (message) stdout.write(`\n${message}\n`); stdout.write('\n'); }
+function renderScreen({ values, message, stdout, configPath = envPath, mcpPath = mcpConfigPath }) { stdout.write(`\x1b[2J\x1b[HAgentX ${packageVersion} Setup\n\n`); stdout.write(`Install Path: ${rootDir}\nConfig File: ${configPath}\nMCP Config: ${mcpPath}\nAPI key: ${values.AGENTX_API_KEY ? 'set' : 'blank'}\n`); if (message) stdout.write(`\n${message}\n`); stdout.write('\n'); }
 
 async function selectMenu(stdin, stdout, entries, initialIndex = 0, paths = {}) {
   if (typeof stdin.setRawMode !== 'function' || typeof stdin.on !== 'function') return null;
   let selected = Number.isInteger(initialIndex) && initialIndex >= 0 && initialIndex < entries.length ? initialIndex : 0; let buffer = '';
-  const render = () => { stdout.write('\x1b[2J\x1b[HAgentX setup\n\n'); if (paths.rootDir || paths.envPath) stdout.write(`Application install path: ${paths.rootDir ?? rootDir}\nEnvironment file path: ${paths.envPath ?? envPath}\n\n`); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${index + 1}. ${entry.label}\n`)); stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`); };
+  const render = () => { stdout.write(`\x1b[2J\x1b[HAgentX ${packageVersion} Setup\n\n`); if (paths.rootDir || paths.envPath || paths.mcpPath) stdout.write(`Install Path: ${paths.rootDir ?? rootDir}\nConfig File: ${paths.envPath ?? envPath}\nMCP Config: ${paths.mcpPath ?? mcpConfigPath}\n\n`); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${index + 1}. ${entry.label}\n`)); stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`); };
   render(); stdin.setRawMode(true); stdin.resume();
   return await new Promise((resolve) => {
     const onData = (chunk) => {
@@ -156,9 +159,9 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
   const rl = createInterface({ input: readlineInput, output: stdout }); let message = '';
   try { while (true) {
     const entries = buildMenuEntries({ values: envState.values, includeSettings: true });
-    let selected = await selectMenu(stdin, stdout, entries);
+    let selected = await selectMenu(stdin, stdout, entries, 0, { rootDir, envPath: configPath, mcpPath: mcpConfigPath });
     if (!selected) {
-      renderScreen({ values: envState.values, message, stdout }); stdout.write(`Application install path: ${rootDir}\nEnvironment file path: ${configPath}\n\n`); entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`)); stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`);
+      renderScreen({ values: envState.values, message, stdout, configPath, mcpPath: mcpConfigPath }); entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`)); stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`);
       const choice = (await ask(rl, '\nChoose an option: ')).trim().toLowerCase(); const index = Number(choice);
       selected = Number.isInteger(index) && index >= 1 && index <= entries.length ? entries[index - 1] : entries.find((entry) => entry.id === choice || entry.label.toLowerCase() === choice);
     }
@@ -175,5 +178,5 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
   } } finally { rl.close(); }
 }
 
-export const setupPaths = { rootDir, envPath };
-export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, selectMenu, selectChoice, DEFAULTS, choices };
+export const setupPaths = { rootDir, envPath, mcpConfigPath };
+export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, renderScreen, selectMenu, selectChoice, DEFAULTS, choices };

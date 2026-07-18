@@ -40,6 +40,13 @@ describe('setup helpers', () => {
     expect(setupInternals.updateEnvText('', { A: '1' })).toBe('A=1\n');
   });
 
+  test('renders the default config path when omitted', () => {
+    const stdout = new FakeOutput();
+    setupInternals.renderScreen({ values: { AGENTX_API_KEY: '' }, stdout });
+    expect(stdout.text).toContain(`Config File: ${setupPaths.envPath}`);
+    expect(stdout.text).toContain(`MCP Config: ${setupPaths.mcpConfigPath}`);
+  });
+
   test('builds compact and full menus', () => {
     expect(buildMenuEntries({ values: { AGENTX_API_KEY: '' } }).map((x) => x.id)).toEqual(['api', 'quit']);
     const entries = buildMenuEntries({ values: { AGENTX_API_KEY: 'x' }, includeSettings: true });
@@ -127,6 +134,27 @@ describe('interactive setup', () => {
     send(stdin, '123456789');
     send(stdin, '\r');
     expect(await pending).toEqual({ id: 'one', label: 'One' });
+  });
+
+  test('renders with missing optional paths', async () => {
+    const stdin = new FakeTerminal(); const stdout = new FakeOutput();
+    const pending = setupInternals.selectMenu(stdin, stdout, [{ id: 'quit', label: 'Quit' }], 0, {});
+    send(stdin, '\u0003');
+    await expect(pending).resolves.toEqual({ id: 'quit', label: 'Quit' });
+    expect(stdout.text).toContain('> 1. Quit');
+  });
+
+  test('falls back to configured paths when one optional path is absent', async () => {
+    const entries = [{ id: 'quit', label: 'Quit' }];
+    const firstStdin = new FakeTerminal(); const firstStdout = new FakeOutput();
+    const first = setupInternals.selectMenu(firstStdin, firstStdout, entries, 0, { envPath: '/tmp/env' });
+    send(firstStdin, '\u0003');
+    await expect(first).resolves.toEqual(entries[0]);
+
+    const secondStdin = new FakeTerminal(); const secondStdout = new FakeOutput();
+    const second = setupInternals.selectMenu(secondStdin, secondStdout, entries, 0, { rootDir: '/tmp/root' });
+    send(secondStdin, '\u0003');
+    await expect(second).resolves.toEqual(entries[0]);
   });
 
   test('returns null when raw mode is unavailable', async () => {
