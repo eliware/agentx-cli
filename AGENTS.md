@@ -30,7 +30,7 @@
 - Shell tool calls may arrive as `shell_call` structured calls with sequential command steps, per-step working directories, timeouts, and output limits. Interrupted sessions may prompt the user to resume, retry, or start a new session before returning to the REPL.
 - Server-side compaction is configured in `prompt.json`; there is no manual `/compact` command.
 - The interactive `/setup` flow edits API key, model, reasoning, output, and compaction settings.
-- Optional MCP tools are loaded from `mcp.json` beside `prompt.json`; use `mcp.json.example` as the configuration shape.
+- Optional MCP tools are loaded from `~/.agentx.mcp.json`; use `.agentx.mcp.json.example` as the configuration shape.
 
 ## Runtime Notes
 - The executable may be launched through a symlink such as `/usr/bin/agentx`; the entrypoint must resolve the real path before deciding whether to start the REPL.

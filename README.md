@@ -15,7 +15,7 @@ It is designed to feel shell-like:
 - includes quick CLI flags for help, version, and debug logging
 - prints active model and runtime settings at startup
 - prints friendly startup errors for missing config or API keys
-- supports optional MCP tools configured in a local `mcp.json`
+- supports optional MCP tools configured in a local `.agentx.mcp.json`
 
 ## Usage
 
@@ -82,7 +82,7 @@ The launchers load `~/.agentx` when present.
 
 ## MCP tools
 
-AgentX automatically loads an optional `mcp.json` beside `prompt.json` and merges its MCP tool definitions into the request. Start with [`mcp.json.example`](./mcp.json.example), then add your server configuration to `mcp.json`. The example file is ignored by Git when copied or customized locally. MCP calls and streamed arguments are displayed in cyan.
+AgentX automatically loads an optional `.agentx.mcp.json` from your home directory and merges its MCP tool definitions into the request. Start with [`.agentx.mcp.json.example`](./.agentx.mcp.json.example), then copy it to `~/.agentx.mcp.json` and add your server configuration. The example file is ignored by Git when copied or customized locally. MCP calls and streamed arguments are displayed in cyan.
 
 ## License
 

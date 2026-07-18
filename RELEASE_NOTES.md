@@ -2,8 +2,8 @@
 
 ## 1.3.2 - MCP configuration and streaming support
 
-- Added optional local `mcp.json` configuration, with support for merging MCP tools into the prompt template.
-- Added `mcp.json.example` and ignored local MCP configuration files.
+- Added optional local `.agentx.mcp.json` configuration, with support for merging MCP tools into the prompt template.
+- Added `.agentx.mcp.json.example` and ignored local MCP configuration files.
 - Added live MCP call and argument streaming with cyan terminal output.
 - Improved `--debug` output filtering for reasoning and MCP streaming events.
 - Upgraded `string-width` to 8.2.2 and refreshed the lockfile.

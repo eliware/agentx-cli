@@ -88,7 +88,7 @@ async function selectChoice(stdin, stdout, rl, title, valuesList, current) {
   const entries = valuesList.map((value) => ({ id: value, label: `${value}${value === current ? ' (current)' : ''}` }));
   stdout.write(`\x1b[2J\x1b[HAgentX setup\n\n${title}\n`);
   const currentIndex = entries.findIndex((entry) => entry.id === current);
-  const selected = await selectMenu(stdin, stdout, entries, currentIndex >= 0 ? currentIndex : 0);
+  const selected = await selectMenu(stdin, stdout, entries, currentIndex >= 0 ? currentIndex : 0, { rootDir, envPath });
   if (selected) return selected.id;
   const answer = (await ask(rl, `${title} (1-${entries.length}) [${current}]: `)).trim();
   const index = Number(answer);
@@ -123,10 +123,10 @@ export function buildMenuEntries({ values, includeSettings = false }) {
 }
 function renderScreen({ values, message, stdout }) { stdout.write('\x1b[2J\x1b[HAgentX setup\n'); stdout.write(`Root: ${rootDir}\nConfig: ${envPath}\nAPI key: ${values.AGENTX_API_KEY ? 'set' : 'blank'}\n`); if (message) stdout.write(`\n${message}\n`); stdout.write('\n'); }
 
-async function selectMenu(stdin, stdout, entries, initialIndex = 0) {
+async function selectMenu(stdin, stdout, entries, initialIndex = 0, paths = {}) {
   if (typeof stdin.setRawMode !== 'function' || typeof stdin.on !== 'function') return null;
   let selected = Number.isInteger(initialIndex) && initialIndex >= 0 && initialIndex < entries.length ? initialIndex : 0; let buffer = '';
-  const render = () => { stdout.write('\x1b[2J\x1b[HAgentX setup\n\n'); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${index + 1}. ${entry.label}\n`)); stdout.write(`Use 1-${entries.length}, ↑/↓, or Enter.\n`); };
+  const render = () => { stdout.write('\x1b[2J\x1b[HAgentX setup\n\n'); if (paths.rootDir || paths.envPath) stdout.write(`Application install path: ${paths.rootDir ?? rootDir}\nEnvironment file path: ${paths.envPath ?? envPath}\n\n`); entries.forEach((entry, index) => stdout.write(`${index === selected ? '> ' : '  '}${index + 1}. ${entry.label}\n`)); stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`); };
   render(); stdin.setRawMode(true); stdin.resume();
   return await new Promise((resolve) => {
     const onData = (chunk) => {
@@ -158,7 +158,7 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
     const entries = buildMenuEntries({ values: envState.values, includeSettings: true });
     let selected = await selectMenu(stdin, stdout, entries);
     if (!selected) {
-      renderScreen({ values: envState.values, message, stdout }); entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`)); stdout.write(`Use 1-${entries.length}, ↑/↓, or Enter.\n`);
+      renderScreen({ values: envState.values, message, stdout }); stdout.write(`Application install path: ${rootDir}\nEnvironment file path: ${configPath}\n\n`); entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`)); stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`);
       const choice = (await ask(rl, '\nChoose an option: ')).trim().toLowerCase(); const index = Number(choice);
       selected = Number.isInteger(index) && index >= 1 && index <= entries.length ? entries[index - 1] : entries.find((entry) => entry.id === choice || entry.label.toLowerCase() === choice);
     }

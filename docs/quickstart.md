@@ -45,7 +45,7 @@ The launchers load `~/.agentx` when present. Startup also displays the active mo
 
 ## Optional MCP tools
 
-To enable MCP tools, place an `mcp.json` file beside `prompt.json`. Copy [`mcp.json.example`](../mcp.json.example) as a starting point and update its server URL and authorization. AgentX loads the file automatically; a missing file is allowed, while invalid JSON prevents the prompt template from loading.
+To enable MCP tools, place an `.agentx.mcp.json` file in your home directory. Copy [`.agentx.mcp.json.example`](../.agentx.mcp.json.example) as a starting point and update its server URL and authorization. AgentX loads `~/.agentx.mcp.json` automatically; a missing file is allowed, while invalid JSON prevents the prompt template from loading.
 
 ## First run
 
