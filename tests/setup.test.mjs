@@ -193,6 +193,7 @@ describe('setup coverage edge cases', () => {
   test('handles malformed quoted values and empty env updates', () => {
     expect(setupInternals.decodeEnvValue('\"bad\n\"')).toBe('bad\n');
     expect(setupInternals.updateEnvText('', {})).toBe('');
+    expect(setupInternals.updateEnvText(null, {})).toBe('');
   });
 
   test('selectChoice accepts an interactive selection and rejects invalid fallback input', async () => {
@@ -208,6 +209,14 @@ describe('setup coverage edge cases', () => {
   test('covers default setup arguments and empty saved content', async () => {
     const stdin = { isTTY: false }; const stdout = new FakeOutput();
     await runSetup({ stdin, stdout });
+    await runSetup();
     await writeEnvState(path.join(os.tmpdir(), `agentx-empty-${Date.now()}`), { AGENTX_API_KEY: '' });
+  });
+
+  test('writes an update using the existing file as the implicit base text', async () => {
+    const file = path.join(os.tmpdir(), `agentx-existing-${Date.now()}`, '.agentx');
+    await writeEnvState(file, { AGENTX_API_KEY: 'old-key' });
+    await writeEnvState(file, { AGENTX_API_KEY: 'new-key' });
+    expect((await readEnvState(file)).values.AGENTX_API_KEY).toBe('new-key');
   });
 });

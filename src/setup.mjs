@@ -80,7 +80,8 @@ const labels = { model: 'Model', mode: 'Reasoning mode', effort: 'Reasoning effo
 async function saveEnvValue(envState, key, value) {
   envState.values[key] = value;
   await writeEnvState(envState.filePath, envState.values, envState.text);
-  envState.text = await readOptionalText(envState.filePath) || '';
+  /* A successful write above guarantees the file exists. */
+  envState.text = await readOptionalText(envState.filePath);
 }
 
 async function selectChoice(stdin, stdout, rl, title, valuesList, current) {
