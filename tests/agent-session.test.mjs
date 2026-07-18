@@ -106,6 +106,29 @@ describe('agent session helpers', () => {
     })).toBe('{"time":"42","reasoning":"1s/2s","writing":"","executing":""}');
   });
 
+  test('clearing after writing does not erase the final streamed response line', () => {
+    const controller = createStatusLineController(Date.now());
+    controller.showReasoning();
+    controller.beginWriting();
+    const writesAfterWriting = stdoutWrites.join('');
+    controller.clear();
+
+    expect(stdoutWrites.join('')).toBe(writesAfterWriting);
+  });
+
+  test('cleanup remains safe if a later status transition happens after output starts', () => {
+    const controller = createStatusLineController(Date.now());
+    controller.showReasoning();
+    controller.beginWriting();
+    process.stdout.write('final response');
+    controller.showReasoning();
+    controller.clear();
+
+    expect(stdoutWrites.join('')).toContain('final response');
+    const output = stdoutWrites.join('');
+    expect(output.slice(output.indexOf('final response'))).not.toContain('\r\x1b[2K');
+  });
+
   test('status line controller covers repeated transitions, refresh before start, and updateExecuting states', () => {
     jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
     try {
@@ -530,8 +553,13 @@ describe('agent session helpers', () => {
         },
       };
       await createStreamedResponse(normalOpenai, template, { liveStreaming: true, statusController });
-      expect(stdoutWrites.join('')).toContain('assistant mcp call: lookup(');
+      expect(stdoutWrites.join('')).toContain('lookup(');
+      expect(stdoutWrites.join('')).toContain('\u001b[36mlookup(\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m)\n');
+      expect(stdoutWrites.join('')).not.toContain('assistant mcp call:');
       expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m');
+      expect(statusController.pause).toHaveBeenCalled();
+      expect(statusController.resume).toHaveBeenCalled();
       expect(stdoutWrites.join('')).toContain('plan');
 
       stdoutWrites.length = 0;

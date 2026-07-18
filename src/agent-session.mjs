@@ -48,6 +48,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   let state = null;
   let stateStartedAt = 0;
   let paused = false;
+  let suppressStatusAfterOutput = false;
   const phases = {
     reasoning: { lastMs: 0, totalMs: 0 },
     executing: { lastMs: 0, totalMs: 0 },
@@ -55,8 +56,11 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   };
 
   function clearRenderedLine() {
+    // lastRendered is only set while the cursor is on our temporary status
+    // line. Clear that line, then leave the cursor at its beginning so the
+    // next status frame or streamed output owns the terminal position.
     if (quiet || !lastRendered) return;
-    process.stdout.write('\r\x1b[2K');
+    process.stdout.write('\r\x1b[2K\r');
     lastRendered = '';
   }
 
@@ -116,7 +120,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}`);
   }
 
-  function transition(nextState, { renderNow = true }) {
+  function transition(nextState, { renderNow = true, allowStatusAfterOutput = false } = {}) {
     const now = Date.now();
     if (state === nextState) {
       if (!paused && renderNow) render();
@@ -128,8 +132,15 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     if (nextState === 'writing') {
       stopTimer();
       clearRenderedLine();
+      suppressStatusAfterOutput = true;
       return;
     }
+    if (suppressStatusAfterOutput && !allowStatusAfterOutput) {
+      stopTimer();
+      clearRenderedLine();
+      return;
+    }
+    suppressStatusAfterOutput = false;
     if (paused) return;
     startTimer();
     if (renderNow) render();
@@ -170,11 +181,15 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     },
     clear() {
       finalizeActive();
+      stopTimer();
+      // Clear the rendered status before dropping the phase state. If state is
+      // reset first, clearRenderedLine() can no longer tell that writing has
+      // started and may erase the final streamed response line.
+      clearRenderedLine();
       state = null;
       stateStartedAt = 0;
       paused = false;
-      stopTimer();
-      clearRenderedLine();
+      suppressStatusAfterOutput = false;
     },
   };
 }
@@ -399,7 +414,6 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
           if (debug && (event.type === 'response.mcp_call_arguments.delta' || event.type === 'response.reasoning_summary_text.delta')) return;
           if (event.type === 'response.mcp_call_arguments.delta') {
             markOutput();
-            statusController?.beginWriting();
             const delta = String(event?.delta ?? '');
             if (delta) process.stdout.write(formatMcpMessage(delta));
             return;
@@ -432,8 +446,10 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
       onItemAdded(item) {
         if (!isMcpToolCall(item)) return;
         markOutput();
+        statusController?.pause();
+        statusController?.beginWriting();
         const label = item.name || item.server_label || 'mcp_call';
-        process.stdout.write(formatMcpMessage(`assistant mcp call: ${label}(`));
+        process.stdout.write(formatMcpMessage(`${label}(`));
       },
       onTextDelta(delta) {
         markOutput();
@@ -448,8 +464,13 @@ function createLiveResponseHandlers({ liveStreaming, statusController, debug = f
         }
         if (isShellToolCall(item) || isMcpToolCall(item)) {
           markOutput();
+          if (isMcpToolCall(item)) process.stdout.write(')');
           streamedText += '\n';
-          process.stdout.write(isMcpToolCall(item) ? ')\n' : '\n');
+          process.stdout.write('\n');
+          if (isMcpToolCall(item)) {
+            statusController?.showExecuting(0, 0, { renderNow: false, allowStatusAfterOutput: true });
+            statusController?.resume();
+          }
         }
         if (item?.type === 'reasoning') {
           if (debug) return;
