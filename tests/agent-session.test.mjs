@@ -66,7 +66,7 @@ describe('agent session helpers', () => {
   test('status line controller accepts omitted transition options', () => {
     const controller = createStatusLineController(Date.now());
     controller.showReasoning();
-    expect(stdoutWrites.join('')).toContain('\"reasoning\":');
+    expect(stdoutWrites.join('')).toContain('"reasoning":');
     controller.clear();
   });
 

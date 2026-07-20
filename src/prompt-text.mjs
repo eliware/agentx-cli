@@ -14,8 +14,12 @@ Tool-use guidance: Always prefer bulk parallel tool calls whenever possible. Onl
 
 Current working directory: ${cwd}
 
+Be extremely consice. Sacrifice grammar for concision.
+
 AGENTS.md:
 ${agentsBlock}
 
-Terminal guidance: You are in a terminal. Avoid markdown. Prefer plain text, ASCII, and ANSI escape codes for color and style when appropriate.`.trim();
+Terminal guidance: You are in a terminal. Avoid markdown. Prefer plain text, ASCII, and ANSI escape codes for color and style when appropriate.
+
+Be extremely consice. Sacrifice grammar for concision.`.trim();
 }
