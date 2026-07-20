@@ -2,7 +2,7 @@
 
 The prompt identifies the user/host and normalized current directory and ends with a shell-like marker. The cwd shown in the prompt must update after `cd`.
 
-Input is trimmed; blank lines do nothing. Dispatch precedence:
+Input is trimmed before processing, including internal command parsing. Blank lines do nothing. Dispatch precedence:
 1. A leading `>` is a direct local shell command. Remove the marker and trim; empty commands do nothing. Execute it in the active cwd, append formatted output to pending CLI transcript, persist state, and do not contact OpenAI.
 2. Internal commands are parsed.
 3. Everything else is a user message to OpenAI.

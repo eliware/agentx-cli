@@ -11,6 +11,8 @@ describe('shell commands', () => {
     expect(parseInternalCommand('exit')).toEqual({ type: 'exit' });
     expect(parseInternalCommand('/exit')).toEqual({ type: 'exit' });
     expect(parseInternalCommand('cd')).toEqual({ type: 'cd', target: '' });
+    // whitespace should be trimmed before parsing
+    expect(parseInternalCommand('  clear  ')).toEqual({ type: 'session_clear' });
     expect(parseInternalCommand('cd subdir')).toEqual({ type: 'cd', target: 'subdir' });
     expect(parseInternalCommand('unknown')).toBeNull();
   });
