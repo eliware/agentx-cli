@@ -220,6 +220,11 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
 
       const message = line.trim();
+      // Handle plain `clear` command to clear the terminal display.
+      if (message === 'clear') {
+        clearTerminal();
+        continue;
+      }
       if (!message) continue;
 
       if (message.startsWith('>')) {
@@ -249,10 +254,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         return;
       }
 
-      if (internal?.type === 'clear') {
-        clearTerminal();
-        continue;
-      }
+      // `clear` command is handled by shell commands; no action needed here.
 
       if (internal?.type === 'session_clear') {
         printUsageReport(sessionUsage, { model: template.model });

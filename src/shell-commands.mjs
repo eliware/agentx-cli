@@ -5,8 +5,7 @@ export function parseInternalCommand(message) {
     return { type: 'exit' };
   }
 
-  // Preserve legacy behavior: `clear` resets session state, `/clear` does the same.
-  // The distinction is not yet used elsewhere; tests expect this mapping.
+  // `clear` and `/clear` both reset session state per spec.
   if (message === 'clear' || message === '/clear') {
     return { type: 'session_clear' };
   }

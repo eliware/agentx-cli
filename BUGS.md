@@ -2,12 +2,7 @@
 
 This document records observations made while inspecting the repository for runtime or logical issues that could surface in real usage. The codebase currently passes all tests, but a few edge cases may lead to crashes or unexpected behaviour.
 
-## 1. `parseInternalCommand` whitespace handling
-*Location:* `src/shell-commands.mjs`
-
-The function does not trim the incoming message before matching command strings. The REPL already trims user input, so this is safe for now, but future changes that remove the trimming could cause commands with leading/trailing spaces to be ignored.
-
-**Recommendation:** Add `message = message.trim()` at the start of `parseInternalCommand`.
+## 1. (Removed) Whitespace handling in `parseInternalCommand`
 
 ## 2. Duplicate handling of the `clear` command
 *Location:* `src/shell-commands.mjs` and `src/agent.mjs`
