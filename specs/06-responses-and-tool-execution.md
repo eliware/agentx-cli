@@ -8,7 +8,7 @@ A request resolves on `response.completed` with the response object. Server `err
 - `previous_response_not_found` propagates a typed error for session recovery;
 - `websocket_connection_limit_reached` reconnects and resends the active request.
 
-Unexpected socket errors and reconnectable closes (normal/going-away or reasons containing close, limit, or disconnect) reconnect and resend the active request. Intentional `close()` prevents reconnect. Reject if another request is already active.
+Unexpected socket errors and reconnectable closes (normal/going‑away or reasons containing close, limit, or disconnect) reconnect and resend the active request. Intentional `close()` now performs a graceful shutdown, waiting up to `socketCloseTimeoutMs` for the server to close before aborting; it still prevents reconnects.
 
 The model may return shell calls, function calls, MCP calls, reasoning, and messages. Dispatch supported tool calls and return correctly shaped tool outputs with matching call IDs. Shell calls may contain command sequences, per-step cwd, timeout, and max output length. Execute steps sequentially when order matters, capture stdout/stderr/outcome, and truncate output at 100,000 characters. Do not run unknown tool types silently as successful.
 

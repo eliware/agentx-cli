@@ -19,6 +19,9 @@ function makeFakeWebSocketClass({ instances, sent, sendHook } = {}) {
     close(code, reason) {
       this.closed = { code, reason };
     }
+    terminate() {
+      this.terminated = true;
+    }
     emit(event, ...args) {
       this.handlers[event]?.(...args);
     }
@@ -27,7 +30,7 @@ function makeFakeWebSocketClass({ instances, sent, sendHook } = {}) {
 
 function makeTransport({ instances = [], sent = [], sendHook } = {}) {
   const WebSocketImpl = makeFakeWebSocketClass({ instances, sent, sendHook });
-  const transport = createOpenAIResponsesTransport({ apiKey: 'test-key', url: 'wss://example.test', WebSocketImpl });
+  const transport = createOpenAIResponsesTransport({ apiKey: 'test-key', url: 'wss://example.test', WebSocketImpl, socketCloseTimeoutMs: 10 });
   return { transport, instances, sent };
 }
 
@@ -260,6 +263,31 @@ describe('openai transport', () => {
     await Promise.resolve();
     instances[0].emit('message', JSON.stringify({ type: 'error', status: 429 }), false);
     await expect(fallback).rejects.toMatchObject({ code: 'openai_websocket_error', message: 'OpenAI websocket error', status: 429 });
+  });
+
+  test('clears the close fallback when the server closes', () => {
+    const instances = [];
+    const { transport } = makeTransport({ instances });
+    transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    transport.close();
+    instances[0].emit('close', 1000, 'bye');
+    jest.advanceTimersByTime(20);
+    expect(instances[0].terminated).toBeUndefined();
+  });
+
+  test('forces socket termination when graceful close times out', async () => {
+    jest.useFakeTimers();
+    const instances = [];
+    const { transport } = makeTransport({ instances });
+    const response = transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    await Promise.resolve();
+    transport.close();
+    jest.advanceTimersByTime(10);
+    await expect(response).rejects.toThrow('close timed out');
+    expect(instances[0].terminated).toBe(true);
+    jest.useRealTimers();
   });
 
   test('rejects closed transports and concurrent create calls', async () => {

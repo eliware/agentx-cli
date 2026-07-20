@@ -24,7 +24,14 @@ function isReconnectableClose(code, reason) {
   return text.includes('close') || text.includes('limit') || text.includes('disconnect');
 }
 
-export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl, debug = false, debugLogger = null } = {}) {
+export function createOpenAIResponsesTransport({
+  apiKey,
+  url,
+  WebSocketImpl,
+  debug = false,
+  debugLogger = null,
+  socketCloseTimeoutMs = 30_000, // default timeout for server close
+} = {}) {
   if (!apiKey) {
     throw new Error('OpenAI API key is required');
   }
@@ -36,6 +43,7 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl, deb
   let active = null;
   let closed = false;
   let intentionalClose = false;
+  let closeTimer = null;
 
   const finishActive = (fn, value) => {
     if (!active) return false;
@@ -171,6 +179,10 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl, deb
   };
 
   const handleClose = (code, reason) => {
+    if (closeTimer) {
+      clearTimeout(closeTimer);
+      closeTimer = null;
+    }
     if (intentionalClose || closed) return;
     const transportError = makeTransportError('OpenAI websocket closed', {
       code,
@@ -227,9 +239,20 @@ export function createOpenAIResponsesTransport({ apiKey, url, WebSocketImpl, deb
       create,
     },
     close() {
+      // Initiate a graceful shutdown. If the server does not respond within
+      // `socketCloseTimeoutMs`, we forcefully mark the transport as closed.
       closed = true;
       intentionalClose = true;
-      if (client) client.close();
+      // If the socket already closed, nothing to do.
+      if (!client) return;
+      const socket = client.socket;
+      client.close();
+      // Wait for server close, then force termination if needed.
+      closeTimer = setTimeout(() => {
+        closeTimer = null;
+        socket.terminate?.();
+        rejectActive(makeTransportError('OpenAI websocket close timed out'));
+      }, socketCloseTimeoutMs);
     },
   };
 }
