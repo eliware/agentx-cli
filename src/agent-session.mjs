@@ -29,13 +29,27 @@ function stripStatusValue(value) {
   return value.replace(/^([a-z]+):\s+/, '').replace(/\[[0-9;]*m/g, '');
 }
 
+// Produce a compact JSON message describing the transaction completion.
+// Only include fields that have meaningful values; undefined or empty
+// strings are omitted to avoid clutter in logs.
 function formatTransactionCompletionMessage(summary) {
-  return JSON.stringify({
-    time: String(summary?.time ?? ''),
-    reasoning: stripStatusValue(summary?.reasoning),
-    writing: stripStatusValue(summary?.writing),
-    executing: stripStatusValue(summary?.executing),
-  });
+  const obj = {};
+  if (summary?.time !== undefined && summary.time !== '') {
+    obj.time = String(summary.time);
+  }
+  const reasoning = stripStatusValue(summary?.reasoning);
+  if (reasoning) {
+    obj.reasoning = reasoning;
+  }
+  const writing = stripStatusValue(summary?.writing);
+  if (writing) {
+    obj.writing = writing;
+  }
+  const executing = stripStatusValue(summary?.executing);
+  if (executing) {
+    obj.executing = executing;
+  }
+  return JSON.stringify(obj);
 }
 
 function formatSpinnerFrame() {

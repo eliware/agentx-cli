@@ -116,13 +116,14 @@ describe('agent session helpers', () => {
 
 
   test('formatTransactionCompletionMessage handles missing summary fields and non-string status values', () => {
-    expect(formatTransactionCompletionMessage()).toBe('{"time":"","reasoning":"","writing":"","executing":""}');
+    // With no input, the output should be an empty JSON object
+    expect(formatTransactionCompletionMessage()).toBe('{}');
     expect(formatTransactionCompletionMessage({
       time: 42,
       reasoning: { value: '1s/2s' },
       executing: { value: undefined },
       writing: null,
-    })).toBe('{"time":"42","reasoning":"1s/2s","writing":"","executing":""}');
+    })).toBe('{"time":"42","reasoning":"1s/2s"}');
   });
 
   test('clearing after writing does not erase the final streamed response line', () => {
@@ -174,6 +175,18 @@ describe('agent session helpers', () => {
       executing: { active: false, value: '5s/6s' },
       writing: { active: false, value: '1s/12s' },
     })).toBe('{"time":"30s","reasoning":"1s/13s","writing":"1s/12s","executing":"5s/6s"}');
+  });
+
+  test('transaction completion message omits empty fields', () => {
+    expect(formatTransactionCompletionMessage({ time: '30s' })).toBe('{"time":"30s"}');
+    expect(
+      formatTransactionCompletionMessage({
+        time: '30s',
+        reasoning: { active: false, value: '' },
+        executing: { active: true, value: undefined },
+        writing: { active: false, value: null },
+      })
+    ).toBe('{"time":"30s"}');
   });
 
   test('createStreamedResponse uses default stream options when omitted', async () => {
