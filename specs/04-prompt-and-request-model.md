@@ -4,11 +4,13 @@
 
 The developer prompt starts from the template developer input text and appends:
 - fixed AgentX identity and creator guidance;
+- first instruction to "Be extremely consice. Sacrifice grammar for concision."
 - system administrator/DevOps/developer role guidance;
 - parallel-tool preference;
 - current working directory;
 - concatenated AGENTS.md instructions, or a fallback saying none were found;
 - terminal/plain-text guidance.
+- final reminder to "Be extremely consice. Sacrifice grammar for concision."
 
 On the first turn, clone the template deeply, replace the first input-text user placeholder (or the whole first user text) with the user request, and set `store: true`. Do not mutate the original template.
 
