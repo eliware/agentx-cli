@@ -8,10 +8,14 @@
 ## Working Rules
 - Prefer small, focused changes.
 - Keep the codebase ESM-only.
+- This project uses Spec Driven Development: `specs/` is the official source of truth for expected behavior; tests are secondary and implementation is third.
+- Before changing behavior, update the relevant specification documents first; then update tests and implementation to match.
 - Preserve the interactive CLI behavior unless the user asks otherwise.
 - The launchers load `.agentx` when present, but the app still reads `agentx_api_key` / `AGENTX_API_KEY` from the environment.
 - Use `agentx-setup` for local setup tasks instead of hand-editing service files when possible.
-- When editing files, keep the behavior aligned with the current tests and update tests when behavior changes.
+- Keep the project at 100% test coverage across all files; add or update coverage whenever behavior changes.
+- Always fix lint warnings; do not leave lint warnings unresolved.
+- When editing files, keep behavior aligned with the specifications and update tests when behavior changes.
 - Tests are expected to pass cleanly on Linux, Windows, and GitHub Actions; keep the entire repository cross-platform friendly and avoid platform-specific assumptions.
 
 ## Tooling

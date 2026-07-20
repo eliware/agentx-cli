@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.3.4 - reconstruction specifications and prompt guidance
+
+- Added normative reconstruction specifications covering architecture, lifecycle, configuration, prompts, REPL behavior, Responses API/tool execution, persistence, terminal UX, platform support, errors, and testing.
+- Added a specifications README with the recommended reading order and compatibility guidance.
+- Removed the unused AGENTS placeholder from `prompt.json`.
+- Added concise-output guidance to the generated developer prompt.
+- Expanded prompt tests and fixed a status-line assertion typo.
+
 ## 1.3.3 - MCP configuration and streaming fixes
 
 - Moved optional MCP configuration to `~/.agentx.mcp.json` with home-directory fallback support.

@@ -60,7 +60,10 @@ User-facing docs live in [`docs/`](./docs):
 
 - Main entrypoint: [`agentx.mjs`](./agentx.mjs)
 - Setup entrypoint: [`agentx-setup.mjs`](./agentx-setup.mjs)
+- Official behavior specifications: [`specs/`](./specs)
 - Implementation modules: [`src/`](./src)
+
+This project uses Spec Driven Development. Update the relevant spec first, then tests, then implementation. Tests are secondary to the specs, and implementation is third. Maintain 100% test coverage across all files and always fix lint warnings.
 
 Run lint and tests with:
 
