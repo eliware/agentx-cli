@@ -26,8 +26,8 @@ function printResumeMessage(label, text) {
   printAgentText(text);
 }
 
-function createReplInterface(cwd, input = defaultInput, output = defaultOutput) {
-  return createInterface({ input, output, completer: (line) => completePath(line, cwd) });
+function createReplInterface(getCwd, input = defaultInput, output = defaultOutput) {
+  return createInterface({ input, output, completer: (line) => completePath(line, getCwd()) });
 }
 
 function printUsageReport(totals, { leadingNewline = false, model } = {}) {
@@ -204,7 +204,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     }
   }
 
-  let rl = createReplInterface(cwd, terminalInput, terminalOutput);
+  let rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
 
   try {
     for (; ;) {
@@ -252,7 +252,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
         template = applySettings(await loadPromptTemplate(promptPath), await reloadSettings());
         process.stdout.write(`${formatSystemMessage('Settings reloaded')}\n`);
-        rl = createReplInterface(cwd, terminalInput, terminalOutput);
+        rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
         continue;
       }
       if (internal?.type === 'exit') {

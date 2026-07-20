@@ -1,6 +1,6 @@
 # Terminal UX and completion
 
-Use Node readline promises. Completion examines the final whitespace-delimited token, lists entries in the token's directory, sorts locale-wise, hides dotfiles unless the needle starts with `.`, appends the platform separator to directories, and quotes names containing spaces. Return `[matches, token]`. Support POSIX and Windows path semantics.
+Use Node readline promises. Keep one active REPL interface for the session; its completer must read the current cwd at completion time so `cd` updates completion without creating a second input listener. Completion examines the final whitespace-delimited token, lists entries in the token's directory, sorts locale-wise, hides dotfiles unless the needle starts with `.`, appends the platform separator to directories, and quotes names containing spaces. Return `[matches, token]`. Support POSIX and Windows path semantics.
 
 Text wrapping must use terminal width with an 80-column fallback and preserve ANSI escape sequences sufficiently for readable output. System, command, info, and MCP messages use ANSI styling; plain functionality must still work when output is redirected.
 
