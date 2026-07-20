@@ -13,12 +13,15 @@ async function readAgentsEntry(dir) {
     let realPath;
     try {
       realPath = await fs.promises.realpath(filePath);
-    } catch (e) {
+    } catch (_e) {
       // Skip entries that cannot be resolved, e.g., symlink loops.
+      void _e; // satisfy lint
       return null;
     }
     return { dir, content, realPath, isSymlink: stats.isSymbolicLink() };
   } catch (error) {
+    // Propagate non‑ENOENT errors so callers can handle them. Only swallow
+    // ENOENT to indicate missing file.
     if (error?.code === 'ENOENT') return null;
     throw error;
   }
