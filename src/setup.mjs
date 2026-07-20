@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { getHomeDirectory } from './platform.mjs';
+import { reloadSettings } from './settings.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const packageVersion = JSON.parse(readFileSync(path.join(rootDir, 'package.json'), 'utf8')).version;
@@ -176,6 +177,8 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
       case 'compaction': await editCompaction(rl, envState, stdout); break;
     }
   } } finally { rl.close(); }
+  // Reload environment variables so subsequent code sees updated values.
+  await reloadSettings();
 }
 
 export const setupPaths = { rootDir, envPath, mcpConfigPath };

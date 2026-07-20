@@ -243,7 +243,13 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         // leaving the REPL interface open here can strand its pending question
         // when setup exits, producing an unsettled top-level await warning.
         rl.close();
+      try {
         await runSetup({ stdin: terminalInput, stdout: terminalOutput });
+      } catch (error) {
+        const errMsg = error?.message || String(error);
+        printAgentText(`Error during setup: ${errMsg}`);
+        // Return to REPL without crashing
+      }
         template = applySettings(await loadPromptTemplate(promptPath), await reloadSettings());
         process.stdout.write(`${formatSystemMessage('Settings reloaded')}\n`);
         rl = createReplInterface(cwd, terminalInput, terminalOutput);

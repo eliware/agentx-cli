@@ -5,11 +5,18 @@ import { getHomeDirectory } from './platform.mjs';
 async function readAgentsEntry(dir) {
   const filePath = path.join(dir, 'AGENTS.md');
   try {
-    const [content, stats, realPath] = await Promise.all([
+    // Resolve the real path safely; a symlink loop will cause an error.
+    const [content, stats] = await Promise.all([
       fs.promises.readFile(filePath, 'utf8'),
       fs.promises.lstat(filePath),
-      fs.promises.realpath(filePath),
     ]);
+    let realPath;
+    try {
+      realPath = await fs.promises.realpath(filePath);
+    } catch (e) {
+      // Skip entries that cannot be resolved, e.g., symlink loops.
+      return null;
+    }
     return { dir, content, realPath, isSymlink: stats.isSymbolicLink() };
   } catch (error) {
     if (error?.code === 'ENOENT') return null;
