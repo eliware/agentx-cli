@@ -14,7 +14,7 @@ AgentX supports shell-like commands in the terminal, whether you launched it fro
   - `gpt-5.6-sol`: $5.00 input, $0.50 cached input, $30.00 output per million tokens
 
 Inputs over 270,000 tokens use 2x pricing for input, cached input, and output; the usage report marks these requests with a light-red warning.
-- `/setup`: edit the API key, model, reasoning, output, and compaction settings, then reload them without ending the session
+- `/setup`: edit the API key, model, reasoning, output, and compaction settings, then reload them without ending the session; setup errors return to the REPL
 - `quit`, `exit`, `/quit`, `/exit`: leave the app
 
 ## Local shell commands
@@ -37,7 +37,7 @@ Any other input is sent to OpenAI as a user message.
 
 ## Tab completion
 
-Tab completion suggests files and folders from the current directory.
+Tab completion suggests files and folders from the current directory. It follows the active directory after `cd` without creating duplicate input listeners.
 Paths with spaces are quoted.
 
 ## Startup flags

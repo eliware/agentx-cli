@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.3.5 - runtime robustness and terminal fixes
+
+- Fixed tab completion after changing directories with `cd`; completion now reads the active cwd without adding duplicate readline listeners.
+- Added graceful WebSocket shutdown with a timeout fallback, plus improved handling of connectivity failures and reconnectable closes.
+- Skipped symlink-loop entries during `AGENTS.md` discovery instead of failing startup.
+- Reloaded settings automatically after `/setup`, with setup errors returned to the REPL instead of terminating it.
+- Trimmed internal commands, consolidated `clear` handling, and improved `cd` error messages.
+- Compact transaction-completion logs by omitting empty fields.
+
 ## 1.3.4 - reconstruction specifications and prompt guidance
 
 - Added normative reconstruction specifications covering architecture, lifecycle, configuration, prompts, REPL behavior, Responses API/tool execution, persistence, terminal UX, platform support, errors, and testing.

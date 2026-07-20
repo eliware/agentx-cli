@@ -7,7 +7,7 @@ If you want a guided setup, run `agentx-setup` to edit `~/.agentx`.
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
 
-If the WebSocket connection closes or hits the service limit, AgentX will reconnect automatically when it can.
+If the WebSocket connection closes or hits a service limit, AgentX will reconnect automatically when it can. Intentional shutdown is graceful and has a bounded timeout.
 
 ## Missing API key
 

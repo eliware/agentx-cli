@@ -40,6 +40,8 @@
 - The executable may be launched through a symlink such as `/usr/bin/agentx`; the entrypoint must resolve the real path before deciding whether to start the REPL.
 - The interactive prompt should reflect the current working directory and update after `cd`.
 - `cd` is handled internally and must not be sent to OpenAI.
-- `clear` resets the saved session; `>clear` clears the terminal display; `/clear` clears the stored response id and starts a new session.
-- Tab completion should behave like a simple shell completer for files and folders in the current working directory.
+- `clear` clears the terminal; `>clear` clears the terminal through the local shell; `/clear` clears the stored response id and starts a new session.
+- Tab completion should behave like a simple shell completer for files and folders in the current working directory, including after `cd`.
+- WebSocket shutdown is graceful with a bounded timeout; connectivity failures/reconnectable closes should be handled without crashing the REPL.
+- AGENTS discovery must skip unresolved symlink-loop entries.
 - Tool calls should print concise status lines in the terminal, not full tool output.
