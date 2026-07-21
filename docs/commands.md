@@ -7,6 +7,8 @@ AgentX supports shell-like commands in the terminal, whether you launched it fro
 - `cd <path>`: change the local working directory
 - `clear`: clear the saved session state
 - `/clear`: clear the saved session state
+ - `clear`: clear the terminal display (does not reset session)
+ - `/clear`: delete `.agentx_responseid` and restart conversation
 - `>clear`: clear the terminal screen through the local shell
 - `/usage`: print token and cost totals. Pricing follows the configured model:
   - `gpt-5.6-luna`: $1.00 input, $0.10 cached input, $6.00 output per million tokens
