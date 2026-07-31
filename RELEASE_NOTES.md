@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.3.9 - WebSocket reconnect robustness
+
+- Prevented duplicate reconnects when a WebSocket emits both error and close events.
+- Ignored stale events from replaced sockets so they cannot affect the active connection or request.
+- Added regression coverage for stale socket events and duplicate reconnect handling.
+
 ## 1.3.8 - direct shell command prefix update
 
 - Changed direct local shell commands from the `>` prefix to `!`.
