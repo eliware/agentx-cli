@@ -1,6 +1,6 @@
 # Usage, errors, and verification
 
-Use model pricing tables for the supported models and calculate costs in integer nano-dollars to avoid floating-point drift. Track input, cached input, output, and turns separately. A prompt above 270,000 input tokens is jumbo: apply 2x pricing to input, cached input, and output and show a warning.
+Use model pricing tables for the supported models and calculate costs in integer nano-dollars to avoid floating-point drift. Track input, cached input, output, and turns separately. A prompt above 272,000 input tokens is long-context: apply long-context pricing to input, cached input, and output and show a warning. Long-context input and cached-input rates are 2x short-context rates; output rates are 1.5x.
 
 Errors should be actionable and human-readable:
 - missing API key: tell the user to set `agentx_api_key` or `AGENTX_API_KEY` or run setup;

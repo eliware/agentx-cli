@@ -1,13 +1,13 @@
 const MODEL_PRICING = {
-  'gpt-5.6-luna': { input: 1_000n, cached: 100n, output: 6_000n },
-  'gpt-5.6-terra': { input: 2_500n, cached: 250n, output: 15_000n },
+  'gpt-5.6-luna': { input: 200n, cached: 20n, output: 1_200n },
+  'gpt-5.6-terra': { input: 2_000n, cached: 200n, output: 12_000n },
   'gpt-5.6-sol': { input: 5_000n, cached: 500n, output: 30_000n },
 };
 
 const DEFAULT_MODEL = 'gpt-5.6-luna';
-const JUMBO_PROMPT_THRESHOLD = 270_000;
+const JUMBO_PROMPT_THRESHOLD = 272_000;
 const NANO_DOLLARS_PER_DISPLAY_UNIT = 1_000_000n;
-const JUMBO_WARNING = '\u001b[91mJumbo prompt pricing applied (2x)\u001b[0m';
+const JUMBO_WARNING = '\u001b[91mLong-context pricing applied\u001b[0m';
 
 export function normalizeUsage({ inputTokens = 0, cachedTokens = 0, outputTokens = 0 } = {}) {
   const totalInputTokens = Number(inputTokens ?? 0);
@@ -22,13 +22,13 @@ export function getModelPricing(model = DEFAULT_MODEL) {
 
 export function isJumboPrompt({ inputTokens = 0, cachedTokens = 0 } = {}) {
   const hiddenInputTokens = Math.max(Number(inputTokens ?? 0) - Number(cachedTokens ?? 0), 0);
-  return hiddenInputTokens >= JUMBO_PROMPT_THRESHOLD;
+  return hiddenInputTokens > JUMBO_PROMPT_THRESHOLD;
 }
 
 function ratesForUsage({ inputTokens, cachedTokens, model }) {
   const pricing = getModelPricing(model);
   if (!isJumboPrompt({ inputTokens, cachedTokens })) return pricing;
-  return { input: pricing.input * 2n, cached: pricing.cached * 2n, output: pricing.output * 2n };
+  return { input: pricing.input * 2n, cached: pricing.cached * 2n, output: pricing.output * 3n / 2n };
 }
 
 function toTokenCount(value) { return BigInt(Math.max(0, Math.trunc(Number(value ?? 0)))); }
