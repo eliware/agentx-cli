@@ -17,7 +17,7 @@ cd /var/log
 ## Run a local command
 
 ```text
-> pwd
+! pwd
 ```
 
 ## Combine shell output with the next prompt

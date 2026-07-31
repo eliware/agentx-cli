@@ -9,7 +9,7 @@ AgentX supports shell-like commands in the terminal, whether you launched it fro
 - `/clear`: clear the saved session state
  - `clear`: clear the terminal display (does not reset session)
  - `/clear`: delete `.agentx_responseid` and restart conversation
-- `>clear`: clear the terminal screen through the local shell
+- `!clear`: clear the terminal screen through the local shell
 - `/usage`: print token and cost totals. Pricing follows the configured model:
   - `gpt-5.6-luna`: $0.20 input, $0.02 cached input, $1.20 output per million tokens
   - `gpt-5.6-terra`: $2.00 input, $0.20 cached input, $12.00 output per million tokens
@@ -21,12 +21,12 @@ Inputs over 272,000 tokens use long-context pricing: 2x input/cached input and 1
 
 ## Local shell commands
 
-Prefix a line with `>` to run it locally.
+Prefix a line with `!` to run it locally.
 
 Example:
 
 ```text
-> ls
+! ls
 ```
 
 The output is stored and prepended to the next AI request.

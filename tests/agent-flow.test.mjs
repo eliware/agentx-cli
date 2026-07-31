@@ -120,21 +120,21 @@ describe('agent flow helpers', () => {
 
   test('appendCliTranscript and buildRequestMessage keep CLI context together', () => {
     const transcript = appendCliTranscript('', 'pwd', '/tmp/work\n');
-    expect(transcript).toBe('> pwd\n/tmp/work');
-    expect(buildRequestMessage({ pendingCliTranscript: transcript, cwdNote: 'cwd note', message: 'hello' })).toBe('Local shell commands and output since the last assistant message:\n\n> pwd\n/tmp/work\n\ncwd note\n\nhello');
+    expect(transcript).toBe('! pwd\n/tmp/work');
+    expect(buildRequestMessage({ pendingCliTranscript: transcript, cwdNote: 'cwd note', message: 'hello' })).toBe('Local shell commands and output since the last assistant message:\n\n! pwd\n/tmp/work\n\ncwd note\n\nhello');
   });
 
   test('appendCliTranscript and buildRequestMessage handle missing optional context', () => {
-    expect(appendCliTranscript('', 'pwd')).toBe('> pwd');
+    expect(appendCliTranscript('', 'pwd')).toBe('! pwd');
     expect(buildRequestMessage({ message: 'hello' })).toBe('hello');
   });
 
   test('appendCliTranscript formats shell output objects and plain values', () => {
-    expect(appendCliTranscript('', 'pwd', { stdout: 'out\n', stderr: 'err\n' })).toBe('> pwd\nout\n\nstderr:\nerr');
-    expect(appendCliTranscript('', 'pwd', { stderr: 'err\n' })).toBe('> pwd\nerr');
-    expect(appendCliTranscript('', 'pwd', { stdout: 'out\n' })).toBe('> pwd\nout');
-    expect(appendCliTranscript('', 'pwd', ['a', 'b'])).toBe('> pwd\na,b');
-    expect(appendCliTranscript('', 'pwd', 42)).toBe('> pwd\n42');
+    expect(appendCliTranscript('', 'pwd', { stdout: 'out\n', stderr: 'err\n' })).toBe('! pwd\nout\n\nstderr:\nerr');
+    expect(appendCliTranscript('', 'pwd', { stderr: 'err\n' })).toBe('! pwd\nerr');
+    expect(appendCliTranscript('', 'pwd', { stdout: 'out\n' })).toBe('! pwd\nout');
+    expect(appendCliTranscript('', 'pwd', ['a', 'b'])).toBe('! pwd\na,b');
+    expect(appendCliTranscript('', 'pwd', 42)).toBe('! pwd\n42');
   });
 
   test('buildRequestOverride applies first-turn prompt updates and resume requests', () => {

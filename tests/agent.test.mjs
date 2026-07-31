@@ -489,7 +489,7 @@ Ask the user what they want to do next.`,
   });
 
   test('runs direct shell commands locally and prepends them to the next AI request', async () => {
-    const questionQueue = ['>ls', '>pwd', 'hello', '/exit'];
+    const questionQueue = ['!ls', '!pwd', 'hello', '/exit'];
 
     await jest.unstable_mockModule('node:readline/promises', () => ({
       createInterface: () => ({
@@ -515,12 +515,12 @@ Ask the user what they want to do next.`,
     const sendMessage = jest.fn(async (_openai, _template, previousResponseId, userMessage, _agentsText, _activeCwd, onResponseUsage, requestOverride) => {
       expect(previousResponseId).toBe('');
       expect(userMessage).toContain('Local shell commands and output since the last assistant message:');
-      expect(userMessage).toContain('> ls');
+      expect(userMessage).toContain('! ls');
       expect(userMessage).toContain('one.txt');
-      expect(userMessage).toContain('> pwd');
+      expect(userMessage).toContain('! pwd');
       expect(userMessage).toContain('/tmp/work');
-      expect(requestOverride.input[1].content[0].text).toContain('> ls');
-      expect(requestOverride.input[1].content[0].text).toContain('> pwd');
+      expect(requestOverride.input[1].content[0].text).toContain('! ls');
+      expect(requestOverride.input[1].content[0].text).toContain('! pwd');
       onResponseUsage({ inputTokens: 1, cachedTokens: 0, outputTokens: 1 });
       return {
         id: 'resp-1',
@@ -561,16 +561,16 @@ Ask the user what they want to do next.`,
     expect(persistResponseState).toHaveBeenCalledTimes(4);
     expect(persistResponseState.mock.calls[0][1]).toMatchObject({
       response_id: '',
-      pending_cli_transcript: '> ls\none.txt\ntwo.txt',
+      pending_cli_transcript: '! ls\none.txt\ntwo.txt',
     });
     expect(persistResponseState.mock.calls[1][1]).toMatchObject({
       response_id: '',
-      pending_cli_transcript: '> ls\none.txt\ntwo.txt\n\n> pwd\n/tmp/work',
+      pending_cli_transcript: '! ls\none.txt\ntwo.txt\n\n! pwd\n/tmp/work',
     });
     expect(persistResponseState.mock.calls[2][1]).toMatchObject({
       response_id: '',
       last_user_message: 'hello',
-      pending_cli_transcript: '> ls\none.txt\ntwo.txt\n\n> pwd\n/tmp/work',
+      pending_cli_transcript: '! ls\none.txt\ntwo.txt\n\n! pwd\n/tmp/work',
     });
     expect(persistResponseState.mock.calls[3][1]).toMatchObject({
       response_id: 'resp-1',

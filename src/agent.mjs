@@ -227,7 +227,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
       if (!message) continue;
 
-      if (message.startsWith('>')) {
+      if (message.startsWith('!')) {
         const command = message.slice(1).trim();
         if (!command) continue;
         const result = await shellExec(command, cwd);

@@ -39,7 +39,7 @@ function formatShellCommandOutput(output) {
 }
 
 export function appendCliTranscript(existingTranscript, command, outputText) {
-  const entry = [`> ${command}`];
+  const entry = [`! ${command}`];
   const trimmedOutput = formatShellCommandOutput(outputText);
   if (trimmedOutput) entry.push(trimmedOutput);
   return [existingTranscript, entry.join('\n')].filter(Boolean).join('\n\n');

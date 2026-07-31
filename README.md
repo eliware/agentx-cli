@@ -8,7 +8,7 @@ Install the published package globally, run `agentx-setup` once, and then start 
 It is designed to feel shell-like:
 - waits for your first message before calling OpenAI
 - supports internal `cd`, `clear`, `/clear`, `/usage`, `/setup`, `quit`, and `exit`
-- supports direct shell commands with a leading `>`
+- supports direct shell commands with a leading `!`
 - supports tab completion for local files and folders, including after changing directories
 - remembers session state in `.agentx_responseid`
 - can prompt to resume interrupted tool execution on startup
@@ -38,10 +38,10 @@ Quick flags:
 
 - Type a normal message to send it to OpenAI.
 - Type `cd /path/to/dir` to change the local working directory without calling OpenAI.
-- Type `>ls` to run a local shell command directly; its output is buffered for the next AI request.
+- Type `!ls` to run a local shell command directly; its output is buffered for the next AI request.
   * `clear`: resets the session state and starts a fresh conversation.
   * `/clear`: also resets the session state and restarts the conversation.
-  * `>clear`: runs the local shell clear command, clearing only the terminal display.
+  * `!clear`: runs the local shell clear command, clearing only the terminal display.
 - Type `/usage` to view token and cost totals.
 - Type `/setup` to edit the API key, model, reasoning, output, and compaction settings, then reload them without ending the session; setup errors return to the REPL.
 - Type `quit`, `exit`, `/quit`, or `/exit` to leave the app.
