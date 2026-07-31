@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.3.6 - usage pricing and command documentation
+
+- Updated model usage pricing for Luna and Terra.
+- Added long-context pricing above 272,000 input tokens: 2x input/cache and 1.5x output.
+- Updated `/usage` warnings, specifications, and regression tests.
+- Clarified `clear`, `/clear`, and `>clear` behavior in the README and command docs.
+
 ## 1.3.5 - runtime robustness and terminal fixes
 
 - Fixed tab completion after changing directories with `cd`; completion now reads the active cwd without adding duplicate readline listeners.
