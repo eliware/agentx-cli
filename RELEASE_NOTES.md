@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.3.8 - direct shell command prefix update
+
+- Changed direct local shell commands from the `>` prefix to `!`.
+- Direct commands continue streaming stdout and stderr to the console and buffering both for the next AI request.
+- Updated the CLI help, README, command docs, examples, specification, and regression tests.
+
 ## 1.3.7 - setup persistence fix
 
 - Fixed setup to load persisted settings before applying defaults.
