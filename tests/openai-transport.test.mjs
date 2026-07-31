@@ -186,6 +186,54 @@ describe('openai transport', () => {
     await expect(responsePromise).rejects.toMatchObject({ message: 'OpenAI websocket closed', code: 4001, reason: '' });
   });
 
+  test('ignores stale events from a replaced socket', async () => {
+    const instances = [];
+    const sent = [];
+    const { transport } = makeTransport({ instances, sent });
+
+    const responsePromise = transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    await Promise.resolve();
+    instances[0].emit('close', 1000, 'disconnect');
+    await Promise.resolve();
+
+    const stale = instances[0];
+    stale.emit('open');
+    stale.emit('message', JSON.stringify({ type: 'response.completed', response: { id: 'stale' } }), false);
+    stale.emit('error', new Error('stale'));
+    expect(sent).toHaveLength(1);
+    expect(instances).toHaveLength(2);
+
+    instances[1].emit('open');
+    await Promise.resolve();
+    instances[1].emit('message', JSON.stringify({ type: 'response.completed', response: { id: 'current' } }), false);
+    await expect(responsePromise).resolves.toEqual({ id: 'current' });
+  });
+
+  test('does not duplicate reconnect when one socket emits both error and close', async () => {
+    const instances = [];
+    const sent = [];
+    const { transport } = makeTransport({ instances, sent });
+
+    const responsePromise = transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    await Promise.resolve();
+
+    instances[0].emit('error', new Error('socket blew up'));
+    instances[0].emit('close', 1006, 'disconnect');
+    await Promise.resolve();
+
+    expect(instances).toHaveLength(2);
+    expect(sent).toHaveLength(1);
+
+    instances[1].emit('open');
+    await Promise.resolve();
+    expect(sent).toHaveLength(2);
+    instances[1].emit('message', JSON.stringify({ type: 'response.completed', response: { id: 'resp-recovered', output: [] } }), false);
+
+    await expect(responsePromise).resolves.toEqual({ id: 'resp-recovered', output: [] });
+  });
+
   test('reconnects after websocket errors while a response is active', async () => {
     const instances = [];
     const sent = [];

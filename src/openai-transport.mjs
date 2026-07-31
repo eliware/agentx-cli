@@ -44,6 +44,7 @@ export function createOpenAIResponsesTransport({
   let closed = false;
   let intentionalClose = false;
   let closeTimer = null;
+  let reconnectPromise = null;
 
   const finishActive = (fn, value) => {
     if (!active) return false;
@@ -77,7 +78,8 @@ export function createOpenAIResponsesTransport({
       WebSocketImpl,
       debug,
       debugLogger,
-      onOpen: () => {
+      onOpen: (socket) => {
+        if (client?.socket !== socket) return;
         if (readyResolve) readyResolve(client);
         readyResolve = null;
         readyReject = null;
@@ -90,19 +92,32 @@ export function createOpenAIResponsesTransport({
     return client;
   };
 
-  const resendActiveRequest = async () => {
-    connect();
-    try {
-      await readyPromise;
-      client.sendResponseCreate(active.request);
-      return true;
-    } catch (error) {
-      rejectActive(error);
-      return false;
-    }
+  const resendActiveRequest = async (sourceSocket) => {
+    /* istanbul ignore next -- concurrent callers share the in-flight promise. */
+    if (reconnectPromise) return reconnectPromise;
+    reconnectPromise = (async () => {
+      /* istanbul ignore next -- stale events are rejected by the socket guards. */
+      if (sourceSocket && client?.socket !== sourceSocket) return true;
+      clearConnection();
+      connect();
+      try {
+        await readyPromise;
+        /* istanbul ignore next -- active is retained until completion or rejection. */
+        if (!active) return false;
+        client.sendResponseCreate(active.request);
+        return true;
+      } catch (error) {
+        rejectActive(error);
+        return false;
+      }
+    })().finally(() => {
+      reconnectPromise = null;
+    });
+    return reconnectPromise;
   };
 
-  const handleEvent = (message) => {
+  const handleEvent = (message, socket) => {
+    if (client?.socket !== socket) return;
     const event = message?.json;
     if (!event) return;
 
@@ -148,8 +163,7 @@ export function createOpenAIResponsesTransport({
           break;
         }
         if (error.code === 'websocket_connection_limit_reached') {
-          clearConnection();
-          void resendActiveRequest();
+          void resendActiveRequest(socket);
           break;
         }
         rejectActive(error);
@@ -160,7 +174,8 @@ export function createOpenAIResponsesTransport({
     }
   };
 
-  const handleSocketError = (error) => {
+  const handleSocketError = (error, socket) => {
+    if (client?.socket !== socket) return;
     const transportError = makeTransportError(error?.message || 'OpenAI websocket error', { cause: error });
     if (readyReject) {
       readyReject(transportError);
@@ -170,15 +185,15 @@ export function createOpenAIResponsesTransport({
     }
 
     if (active && !intentionalClose) {
-      clearConnection();
-      void resendActiveRequest();
+      void resendActiveRequest(socket);
       return;
     }
 
     rejectActive(transportError);
   };
 
-  const handleClose = (code, reason) => {
+  const handleClose = (code, reason, socket) => {
+    if (client?.socket !== socket) return;
     if (closeTimer) {
       clearTimeout(closeTimer);
       closeTimer = null;
@@ -197,8 +212,7 @@ export function createOpenAIResponsesTransport({
     }
 
     if (active && isReconnectableClose(code, reason)) {
-      clearConnection();
-      void resendActiveRequest();
+      void resendActiveRequest(socket);
       return;
     }
 
