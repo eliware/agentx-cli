@@ -15,6 +15,8 @@ Known settings:
 `settingsFromEnv` reads uppercase names only for runtime settings. Invalid/zero compaction values fall back to the default.
 
 ## Setup UX
+`agentx-setup` loads saved settings before applying defaults, so the menu displays the persisted model and other values on every run. Selecting any available value, including the default model, must persist that choice.
+
 `agentx-setup` requires an interactive TTY; otherwise print `AgentX setup requires an interactive terminal.` and return. Display version, install path, config path, MCP path, and whether the API key is set. Provide a raw-keyboard menu with number keys, arrows, Enter, and Ctrl-C/quit handling, with readline fallback for individual values.
 
 The setup menu edits API key, model, reasoning mode/effort/summary, output verbosity, and compaction threshold. API key cannot be saved blank. Threshold strips non-digits and must be a positive integer; warn when above 270000 tokens.

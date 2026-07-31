@@ -185,6 +185,17 @@ describe('interactive setup menu flow', () => {
     expect(stdout.text).toContain('Warning: jumbo prompts cost 2x above 270k tokens.');
   }, 5000);
 
+  test('loads persisted model over defaults and can re-select the default model', async () => {
+    const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
+    const configPath = path.join(directory, '.agentx');
+    await writeEnvState(configPath, { AGENTX_MODEL: 'gpt-5.6-terra' });
+    const run = runSetup({ stdin, stdout, configPath, readlineInput });
+    await drive(readlineInput, ['2', 'gpt-5.6-luna', '8']);
+    await expect(run).resolves.toBeUndefined();
+    expect((await readEnvState(configPath)).values.AGENTX_MODEL).toBe('gpt-5.6-luna');
+    expect(stdout.text).toContain('Model (gpt-5.6-terra)');
+  }, 5000);
+
   test('accepts a textual setting choice', async () => {
     const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
     const configPath = path.join(directory, '.agentx');

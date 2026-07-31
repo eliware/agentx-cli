@@ -155,7 +155,7 @@ async function selectMenu(stdin, stdout, entries, initialIndex = 0, paths = {}) 
 
 export async function runSetup({ stdin = process.stdin, stdout = process.stdout, configPath = envPath, readlineInput = stdin } = {}) {
   const envState = await readEnvState(configPath);
-  Object.assign(envState.values, DEFAULTS, envState.values);
+  envState.values = { ...DEFAULTS, ...envState.values };
   if (!stdin?.isTTY || !stdout?.isTTY) { stdout.write('AgentX setup requires an interactive terminal.\n'); return; }
   const rl = createInterface({ input: readlineInput, output: stdout }); let message = '';
   try { while (true) {
