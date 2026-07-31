@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.3.7 - setup persistence fix
+
+- Fixed setup to load persisted settings before applying defaults.
+- Setup now displays saved settings and persists explicit selection of the default model.
+- Added specification updates and regression coverage for persisted model settings.
+
 ## 1.3.6 - usage pricing and command documentation
 
 - Updated model usage pricing for Luna and Terra.
