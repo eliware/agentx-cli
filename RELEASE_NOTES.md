@@ -1,6 +1,15 @@
 # AgentX Release Notes
 
-## 1.4.0 - Recovery and rollback
+## 1.4.0 - Cumulative rollup
+
+- Evolved from the initial Responses API CLI into a persistent, cross-platform terminal agent with cwd-aware prompts, commands, completion, usage reporting, and `AGENTS.md` discovery.
+- Added session persistence/resume, shell and file tools, structured parallel `shell_call` execution, server-side compaction, local shell passthrough, and interrupted-session recovery.
+- Added and later removed the experimental web GUI; introduced `agentx-setup`, user-level `~/.agentx` configuration, npm packaging, service helpers, publish automation, and cross-platform support.
+- Added configurable models/settings, pricing, live status and web-search output, debug tooling, optional MCP servers, streamed tool/reasoning display, and comprehensive specifications.
+- Hardened setup, terminal handling, WebSocket transport/reconnects, prompt/config loading, tests, and linting.
+- Added bounded API/WebSocket recovery, successful-response checkpoints, and `/rollback` without automatically undoing external side effects.
+
+## 1.3.10 - Recovery and rollback
 
 - Added bounded API/WebSocket error recovery without terminating the REPL.
 - Added `/rollback` for restoring successful response checkpoints.
