@@ -6,6 +6,6 @@ Text wrapping must use terminal width with an 80-column fallback and preserve AN
 
 The live status controller tracks total elapsed time and reasoning/writing/executing phase durations. Render JSON-like fields such as `{"time":"1s","reasoning":"1s/1s",...}` with the active phase highlighted. Refresh roughly every 250ms, clear temporary lines before streamed output, pause during tool output, and never erase final response text.
 
-Resume and setup menus use raw mode where available, hide/show cursor, redraw framed content, support 1-4 or arrows/Enter, and clean up listeners/raw mode on completion or Ctrl-C.
+Resume, setup, and rollback menus use shared raw-mode behavior where available, hide/show cursor, redraw framed content, support numbered choices, arrows, Enter, and Ctrl-C, and clean up listeners/raw mode on completion.
 
 Usage reports show turns, input tokens, cached input tokens, output tokens, and calculated cost. Keep startup/status output concise; never dump complete tool results or encrypted reasoning.

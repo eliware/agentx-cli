@@ -6,6 +6,8 @@ Errors should be actionable and human-readable:
 - missing API key: tell the user to set `agentx_api_key` or `AGENTX_API_KEY` or run setup;
 - prompt/MCP read or parse error: include the prompt path and underlying message;
 - unavailable prior response: clear session and explain it;
+- recoverable OpenAI/API failure: keep the REPL alive, preserve state, and offer bounded retry, new-chain, rollback, or clear recovery;
+- repeated continuation failure: never loop indefinitely or resume the same failed continuation automatically;
 - noninteractive setup: say it requires an interactive terminal;
 - shell failures: preserve stderr and exit information for the model.
 

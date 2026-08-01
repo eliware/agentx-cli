@@ -12,6 +12,7 @@ Commands:
 - `clear` and `/clear`: delete `.agentx_responseid`, reset response id, usage, messages, transcript, and pending calls; continue with a fresh session.
 - `!clear`: execute the shell clear-screen command locally.
 - `/usage`: print session token/cost totals.
+- `/rollback`: open the successful-response checkpoint menu and restore a selected checkpoint.
 - `/setup`: run setup and reload settings.
 - `quit`, `exit`, `/quit`, `/exit`: leave after usage summary.
 

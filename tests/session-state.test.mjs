@@ -103,3 +103,38 @@ describe('session state', () => {
     }
   });
 });
+
+// Exercise optional and malformed persisted metadata branches.
+describe('session state edge normalization', () => {
+  test('normalizes history entries and optional flags', async () => {
+    const tmp = makeTempDir('agentx-state-');
+    const statePath = `${tmp}/.agentx_responseid`;
+    try {
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({
+        response_id: 'resp-history',
+        history: [null, {}, { response_id: '', user_preview: 'discarded' }, { response_id: 'h0' }, {
+          response_id: 'h1', timestamp: 7, user_preview: 42, assistant_preview: null,
+          usage: { inputTokens: '1', cachedTokens: '2', outputTokens: '3', turns: '4' },
+          last_user_message: 5, last_assistant_message: false,
+        }],
+        failed_response: 1,
+      }));
+      await expect(readSessionState(statePath)).resolves.toEqual({
+        response_id: 'resp-history',
+        usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 },
+        last_user_message: '', last_assistant_message: '', pending_cli_transcript: '', pending_tool_calls: [],
+        history: [{ response_id: 'h0', timestamp: '', user_preview: '', assistant_preview: '', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '' }, { response_id: 'h1', timestamp: '7', user_preview: '42', assistant_preview: '', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: '5', last_assistant_message: 'false' }],
+        failed_response: true,
+      });
+    } finally { cleanupTempDir(tmp); }
+  });
+
+  test('handles non-array history and absent optional pending values', async () => {
+    const tmp = makeTempDir('agentx-state-');
+    const statePath = `${tmp}/.agentx_responseid`;
+    try {
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({ response_id: 'resp', history: 'bad', pending_tool_calls: 'bad' }));
+      await expect(readSessionState(statePath)).resolves.toMatchObject({ response_id: 'resp', history: [], pending_tool_calls: [] });
+    } finally { cleanupTempDir(tmp); }
+  });
+});

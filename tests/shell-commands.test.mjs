@@ -7,6 +7,7 @@ describe('shell commands', () => {
     expect(parseInternalCommand('/clear')).toEqual({ type: 'session_clear' });
     expect(parseInternalCommand('/usage')).toEqual({ type: 'usage' });
     expect(parseInternalCommand('/setup')).toEqual({ type: 'setup' });
+    expect(parseInternalCommand('/rollback')).toEqual({ type: 'rollback' });
     expect(parseInternalCommand('quit')).toEqual({ type: 'exit' });
     expect(parseInternalCommand('exit')).toEqual({ type: 'exit' });
     expect(parseInternalCommand('/exit')).toEqual({ type: 'exit' });

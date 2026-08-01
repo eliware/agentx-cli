@@ -10,6 +10,8 @@ import { createUsageTotals, addUsageTotals, formatUsageReport } from './response
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
 import { promptResumeMenu } from './resume-menu.mjs';
+import { promptRollbackMenu } from './rollback-menu.mjs';
+import { promptRecoveryMenu } from './recovery-menu.mjs';
 import { applySettings, formatStartupSettings, reloadSettings, settingsFromEnv } from './settings.mjs';
 import { runSetup } from './setup.mjs';
 
@@ -104,8 +106,11 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
   printResumeMessage('Last user message', savedState?.last_user_message || '');
   printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
+  if (savedState?.failed_response) {
+    process.stdout.write(`${formatSystemMessage('Previous request failed; starting from the last successful checkpoint.')}\n`);
+  }
 
-  let previousResponseId = savedResponseId;
+  let previousResponseId = savedState?.failed_response ? (savedState?.history?.at(-1)?.response_id || '') : savedResponseId;
   let cwdNote = '';
   let lastUserMessage = savedState?.last_user_message || '';
   let lastAssistantMessage = savedState?.last_assistant_message || '';
@@ -113,7 +118,9 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let sessionUsage = savedState?.usage
     ? { inputTokens: Number(savedState.usage.inputTokens ?? 0), cachedTokens: Number(savedState.usage.cachedTokens ?? 0), outputTokens: Number(savedState.usage.outputTokens ?? 0), turns: Number(savedState.usage.turns ?? 0) }
     : createUsageTotals();
-  let pendingToolCalls = Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : [];
+  let pendingToolCalls = savedState?.failed_response ? [] : (Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : []);
+  let history = Array.isArray(savedState?.history) ? savedState.history : [];
+  let failedResponse = Boolean(savedState?.failed_response);
 
   async function saveState() {
     await persistResponseState(statePath, {
@@ -123,6 +130,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       last_assistant_message: lastAssistantMessage,
       pending_cli_transcript: pendingCliTranscript,
       pending_tool_calls: pendingToolCalls,
+      history,
+      failed_response: failedResponse,
     });
   }
 
@@ -150,6 +159,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       lastAssistantMessage = '';
       pendingCliTranscript = '';
       pendingToolCalls = [];
+      history = [];
+      failedResponse = false;
       sessionUsage = createUsageTotals();
       await clearSession(statePath);
       process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
@@ -198,7 +209,10 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           sessionUsage = createUsageTotals();
           await clearSession(statePath);
         } else {
-          throw error;
+          failedResponse = true;
+          pendingToolCalls = [];
+          await saveState();
+          process.stdout.write(`${formatSystemMessage(`Pending response failed: ${error?.message || String(error)}. Session preserved.`)}\n`);
         }
       }
     }
@@ -275,6 +289,32 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         continue;
       }
 
+      if (internal?.type === 'rollback') {
+        // The pending readline prompt must not remain attached while the raw-mode menu runs.
+        // Otherwise readline can redraw/echo the next line after the menu exits.
+        rl.close();
+        try {
+          const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });
+          if (selected) {
+            previousResponseId = selected.response_id;
+            lastUserMessage = selected.last_user_message;
+            lastAssistantMessage = selected.last_assistant_message;
+            sessionUsage = { ...selected.usage };
+            pendingToolCalls = [];
+            history = history.filter((entry) => entry.timestamp <= selected.timestamp);
+            failedResponse = false;
+            await saveState();
+            process.stdout.write(`${formatSystemMessage(`Rolled back to ${selected.response_id}`)}\n`);
+          } else if (!history.length) {
+            process.stdout.write(`${formatSystemMessage('No successful rollback checkpoints available.') }\n`);
+          }
+        } catch (error) {
+          if (error?.name !== 'AbortError') process.stdout.write(`${formatSystemMessage(error?.message || String(error))}\n`);
+        }
+        rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+        continue;
+      }
+
       if (internal?.type === 'usage') {
         printUsageReport(sessionUsage, { model: template.model });
         continue;
@@ -296,36 +336,57 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       cwdNote = '';
       lastUserMessage = message;
       await saveState();
-      const requestOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
       let response;
-      try {
-        response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage, { skipIncrement = false } = {}) => {
-          if (!skipIncrement) {
-            addUsageTotals(sessionUsage, usage);
-            sessionUsage.turns += 1;
-          }
-          return sessionUsage;
-        }, requestOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, suppressStatusOutput: debugEnabled });
-      } catch (error) {
-        if (error?.code === 'previous_response_not_found' && previousResponseId) {
-          process.stdout.write(`${formatSystemMessage('Previous response not found; starting a new chain')}\n`);
-          previousResponseId = '';
-          const retryOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
+      let recoveryAttempts = 0;
+      while (!response) {
+        const activeOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
+        try {
           response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage, { skipIncrement = false } = {}) => {
             if (!skipIncrement) {
               addUsageTotals(sessionUsage, usage);
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, suppressStatusOutput: debugEnabled });
-        } else {
-          throw error;
+          }, activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, suppressStatusOutput: debugEnabled });
+        } catch (error) {
+          if (error?.code === 'previous_response_not_found' && previousResponseId) {
+            previousResponseId = '';
+            process.stdout.write(`${formatSystemMessage('Previous response not found; starting a new chain.')}\n`);
+            continue;
+          }
+          failedResponse = true;
+          pendingToolCalls = [];
+          await saveState();
+          let choice;
+          try { choice = await promptRecoveryMenu(error, { input: terminalInput, output: terminalOutput }); }
+          catch (menuError) { if (menuError?.name === 'AbortError') { process.stdout.write(`${formatSystemMessage('Recovery cancelled; session preserved.')}\n`); break; } throw menuError; }
+          if (choice === 'retry' && recoveryAttempts < 1) { recoveryAttempts += 1; continue; }
+          if (choice === 'new-chain' && recoveryAttempts < 2) { recoveryAttempts += 1; previousResponseId = ''; continue; }
+          if (choice === 'rollback') {
+            const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });
+            if (selected) {
+              previousResponseId = selected.response_id; lastUserMessage = selected.last_user_message; lastAssistantMessage = selected.last_assistant_message;
+              sessionUsage = { ...selected.usage }; history = history.filter((entry) => entry.timestamp <= selected.timestamp); failedResponse = false; await saveState();
+            }
+            break;
+          }
+          if (choice === 'clear') {
+            previousResponseId = ''; lastUserMessage = ''; lastAssistantMessage = ''; pendingCliTranscript = ''; pendingToolCalls = []; history = []; failedResponse = false; sessionUsage = createUsageTotals(); await clearSession(statePath);
+            process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
+            break;
+          }
+          break;
         }
       }
+      if (!response) continue;
       previousResponseId = response?.id || previousResponseId;
       lastAssistantMessage = extractTextFromResponse(response);
       pendingToolCalls = [];
       pendingCliTranscript = '';
+      failedResponse = false;
+      if (response?.id) {
+        history = [...history, { response_id: response.id, timestamp: new Date().toISOString(), user_preview: message.slice(0, 20), assistant_preview: lastAssistantMessage.slice(0, 20), usage: { ...sessionUsage }, last_user_message: lastUserMessage, last_assistant_message: lastAssistantMessage }].slice(-20);
+      }
       await saveState();
     }
   } finally {

@@ -18,6 +18,10 @@ export function parseInternalCommand(message) {
     return { type: 'usage' };
   }
 
+  if (message === '/rollback') {
+    return { type: 'rollback' };
+  }
+
   if (message === 'cd' || message.startsWith('cd ')) {
     return { type: 'cd', target: message.slice(2).trim() };
   }

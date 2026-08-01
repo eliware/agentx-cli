@@ -15,3 +15,12 @@ The model may return shell calls, function calls, MCP calls, reasoning, and mess
 After tool outputs are collected, submit them using the response continuation mechanism until the model produces a final message. Persist a response snapshot immediately when a response ID or pending calls are known, so a crash can resume safely.
 
 Display concise colored status for reasoning, executing, writing, shell calls, MCP calls, and streamed arguments. `--debug` prints raw WebSocket diagnostics, filters high-volume delta frames, and suppresses live status rendering.
+
+
+## OpenAI error recovery
+
+Recoverable OpenAI/API and WebSocket errors must not terminate the interactive REPL. Display a concise, human-readable error and preserve the current session state. Retry transient failures at most once automatically; never retry indefinitely.
+
+If a request fails after a response ID or pending tool calls were persisted, do not repeatedly resume that failed continuation on restart. Mark it failed and present recovery choices: retry once, start a new response chain while preserving local context, rollback to a successful checkpoint, or clear the session. Starting a new chain or rolling back must clear pending tool calls.
+
+A failed response must not be added to successful response history. Tool side effects are not automatically undone by retry, new-chain recovery, or rollback.
