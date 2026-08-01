@@ -24,10 +24,12 @@ That means there is no `AGENTS.md` in the current directory or any parent direct
 
 ## Shell command output looks missing
 
-Remember that lines starting with `>` run locally and are buffered for the next AI request. If you want the output included in the next reply, send a normal message after the command.
+Remember that lines starting with `!` run locally and are buffered for the next AI request. If you want the output included in the next reply, send a normal message after the command.
 
 ## Session seems stale
 
 Remove `.agentx_responseid` or use `/clear`.
 
-If the saved response id is no longer valid, AgentX may automatically start a new chain and tell you. If pending tool calls are saved, you may also be prompted to resume them, retry them, or start a new session.
+If the saved response id is no longer valid, AgentX may automatically start a new chain and tell you. Recoverable API or WebSocket failures preserve the session and show recovery choices: retry once, start a new chain, rollback to a successful checkpoint, or clear the session. If pending tool calls are saved, startup may also ask whether to resume, retry, or start a new session.
+
+Use `/rollback` when you need to return to an earlier successful response. It changes conversation state only; shell commands and other external side effects are not undone.

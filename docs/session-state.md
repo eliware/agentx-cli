@@ -12,12 +12,18 @@ The file keeps:
 - the last assistant message
 - any pending local shell transcript
 - any pending tool calls, if a turn was interrupted mid-execution
+- up to 20 successful response checkpoints for `/rollback`
+- the latest rollback backup and failed-response marker, when applicable
 
 ## Resume behavior
 
 If the file exists on startup, AgentX resumes the previous conversation using `previous_response_id` and `store: true`.
 If pending tool calls are present, AgentX prompts you to continue, retry, or start a new session before returning to the REPL.
-If that response id is no longer usable, AgentX can start a new chain and continue from the saved local context.
+If that response id is no longer usable, AgentX can start a new chain and continue from the saved local context. Recoverable request failures preserve state and offer bounded retry, new-chain, rollback, or clear recovery. Failed responses are not added to checkpoint history.
+
+## Rollback
+
+Use `/rollback` to select a successful checkpoint by number, arrows, or Enter. Rollback restores conversation metadata and usage, clears pending tool calls, and does not undo shell commands or other external side effects.
 
 ## Reset behavior
 
