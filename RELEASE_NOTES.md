@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.4.0 - Recovery and rollback
+
+- Added bounded API/WebSocket error recovery without terminating the REPL.
+- Added `/rollback` for restoring successful response checkpoints.
+- Persisted bounded checkpoint history and failed-response state.
+
 ## 1.3.9 - WebSocket reconnect robustness
 
 - Prevented duplicate reconnects when a WebSocket emits both error and close events.
