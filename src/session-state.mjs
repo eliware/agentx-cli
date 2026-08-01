@@ -57,6 +57,7 @@ function normalizeSessionState(state) {
     pending_tool_calls: normalizePendingToolCalls(state?.pending_tool_calls),
   };
   if (Object.prototype.hasOwnProperty.call(state || {}, 'history')) normalized.history = normalizeHistory(state.history);
+  if (Object.prototype.hasOwnProperty.call(state || {}, 'rollback_backup')) normalized.rollback_backup = normalizeHistory(state.rollback_backup);
   if (Object.prototype.hasOwnProperty.call(state || {}, 'failed_response')) normalized.failed_response = Boolean(state.failed_response);
   return normalized;
 }

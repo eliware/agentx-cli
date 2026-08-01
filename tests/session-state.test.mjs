@@ -126,6 +126,8 @@ describe('session state edge normalization', () => {
         history: [{ response_id: 'h0', timestamp: '', user_preview: '', assistant_preview: '', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '' }, { response_id: 'h1', timestamp: '7', user_preview: '42', assistant_preview: '', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: '5', last_assistant_message: 'false' }],
         failed_response: true,
       });
+      await persistResponseState(statePath, { history: [{ response_id: 'backup', timestamp: 't' }], rollback_backup: [{ response_id: 'discarded', timestamp: 'd' }] });
+      await expect(readSessionState(statePath)).resolves.toMatchObject({ rollback_backup: [{ response_id: 'discarded', timestamp: 'd' }] });
     } finally { cleanupTempDir(tmp); }
   });
 

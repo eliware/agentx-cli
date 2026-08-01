@@ -8,6 +8,7 @@ Persist JSON to `.agentx_responseid` in the launch directory after meaningful st
 - `pending_cli_transcript`: string
 - `pending_tool_calls`: array of JSON-safe tool call objects
 - `history`: bounded array of successful response checkpoints
+- `rollback_backup`: single bounded array containing checkpoints discarded by the latest rollback
 
 Each `history` entry contains:
 - `response_id`: completed Responses API response ID

@@ -120,6 +120,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     : createUsageTotals();
   let pendingToolCalls = savedState?.failed_response ? [] : (Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : []);
   let history = Array.isArray(savedState?.history) ? savedState.history : [];
+  let rollbackBackup = Array.isArray(savedState?.rollback_backup) ? savedState.rollback_backup : [];
   let failedResponse = Boolean(savedState?.failed_response);
 
   async function saveState() {
@@ -131,6 +132,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       pending_cli_transcript: pendingCliTranscript,
       pending_tool_calls: pendingToolCalls,
       history,
+      rollback_backup: rollbackBackup,
       failed_response: failedResponse,
     });
   }
@@ -160,6 +162,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       pendingCliTranscript = '';
       pendingToolCalls = [];
       history = [];
+      rollbackBackup = [];
       failedResponse = false;
       sessionUsage = createUsageTotals();
       await clearSession(statePath);
@@ -301,7 +304,9 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             lastAssistantMessage = selected.last_assistant_message;
             sessionUsage = { ...selected.usage };
             pendingToolCalls = [];
-            history = history.filter((entry) => entry.timestamp <= selected.timestamp);
+            const selectedIndex = history.indexOf(selected);
+            rollbackBackup = history.slice(selectedIndex + 1);
+            history = history.slice(0, selectedIndex + 1);
             failedResponse = false;
             await saveState();
             process.stdout.write(`${formatSystemMessage(`Rolled back to ${selected.response_id}`)}\n`);
@@ -366,12 +371,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });
             if (selected) {
               previousResponseId = selected.response_id; lastUserMessage = selected.last_user_message; lastAssistantMessage = selected.last_assistant_message;
-              sessionUsage = { ...selected.usage }; history = history.filter((entry) => entry.timestamp <= selected.timestamp); failedResponse = false; await saveState();
+              sessionUsage = { ...selected.usage }; const selectedIndex = history.indexOf(selected); rollbackBackup = history.slice(selectedIndex + 1); history = history.slice(0, selectedIndex + 1); failedResponse = false; await saveState();
             }
             break;
           }
           if (choice === 'clear') {
-            previousResponseId = ''; lastUserMessage = ''; lastAssistantMessage = ''; pendingCliTranscript = ''; pendingToolCalls = []; history = []; failedResponse = false; sessionUsage = createUsageTotals(); await clearSession(statePath);
+            previousResponseId = ''; lastUserMessage = ''; lastAssistantMessage = ''; pendingCliTranscript = ''; pendingToolCalls = []; history = []; rollbackBackup = []; failedResponse = false; sessionUsage = createUsageTotals(); await clearSession(statePath);
             process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
             break;
           }
@@ -384,6 +389,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       pendingToolCalls = [];
       pendingCliTranscript = '';
       failedResponse = false;
+      rollbackBackup = [];
       if (response?.id) {
         history = [...history, { response_id: response.id, timestamp: new Date().toISOString(), user_preview: message.slice(0, 20), assistant_preview: lastAssistantMessage.slice(0, 20), usage: { ...sessionUsage }, last_user_message: lastUserMessage, last_assistant_message: lastAssistantMessage }].slice(-20);
       }
