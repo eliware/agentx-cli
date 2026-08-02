@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.4.1 - Recovery diagnostics and failure cleanup
+
+- Added bounded OpenAI/WebSocket failure diagnostics to recovery menus, including error code/type, status, parameter, request ID, and cause when available.
+- Fixed failed streamed requests leaving live status refresh timers active over recovery prompts.
+- Preserved transport error metadata for more actionable retry and recovery decisions.
+- Added regression coverage and CI lint validation.
+
 ## 1.4.0 - Cumulative rollup
 
 - Evolved from the initial Responses API CLI into a persistent, cross-platform terminal agent with cwd-aware prompts, commands, completion, usage reporting, and `AGENTS.md` discovery.
