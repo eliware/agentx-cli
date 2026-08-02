@@ -12,8 +12,10 @@ function normalizeServerError(event) {
   const message = payload?.message || event?.message || 'OpenAI websocket error';
   return makeTransportError(message, {
     code,
-    status: event?.status,
+    type: payload?.type || event?.type,
+    status: event?.status || payload?.status,
     param: payload?.param,
+    request_id: payload?.request_id || event?.request_id || event?.requestId,
     event,
   });
 }

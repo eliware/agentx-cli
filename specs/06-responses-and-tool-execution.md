@@ -24,3 +24,5 @@ Recoverable OpenAI/API and WebSocket errors must not terminate the interactive R
 If a request fails after a response ID or pending tool calls were persisted, do not repeatedly resume that failed continuation on restart. Mark it failed and present recovery choices: retry once, start a new response chain while preserving local context, rollback to a successful checkpoint, or clear the session. Starting a new chain or rolling back must clear pending tool calls.
 
 A failed response must not be added to successful response history. Tool side effects are not automatically undone by retry, new-chain recovery, or rollback.
+
+Failures shown by the recovery menu must include bounded diagnostics when available: error code/type, HTTP status, parameter, request ID, and a short cause. Do not print API keys, full request payloads, or unbounded raw events. Preserve the original error metadata for retry/new-chain decisions.

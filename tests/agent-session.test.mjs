@@ -926,3 +926,23 @@ line two
     expect(responseItemToTranscript({ role: 'user', type: 'message', content: [{ type: 'input_text', text: 'hello' }] })).toBe('user: hello');
   });
 });
+
+describe('status failure cleanup', () => {
+  test('stop halts refresh timer and clears temporary status', () => {
+    jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
+    try {
+      const writes = [];
+      const original = process.stdout.write;
+      process.stdout.write = (chunk) => { writes.push(String(chunk)); return true; };
+      const controller = createStatusLineController(Date.now());
+      controller.showReasoning();
+      controller.stop();
+      jest.advanceTimersByTime(1000);
+      expect(writes.join('')).toContain('\r\x1b[2K');
+      process.stdout.write = original;
+    } finally {
+      process.stdout.write = process.stdout.write;
+      jest.useRealTimers();
+    }
+  });
+});

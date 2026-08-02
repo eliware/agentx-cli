@@ -215,6 +215,16 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
       paused = false;
       suppressStatusAfterOutput = false;
     },
+    stop() {
+      // Failure path: unlike clear(), do not preserve a completion snapshot;
+      // only stop future renders and remove the temporary terminal line.
+      stopTimer();
+      clearRenderedLine();
+      state = null;
+      stateStartedAt = 0;
+      paused = true;
+      suppressStatusAfterOutput = false;
+    },
   };
 }
 
@@ -603,8 +613,13 @@ export async function sendMessage(openai, template, previousResponseId, userMess
       store: true,
     });
 
-  const response = await createStreamedResponse(openai, request, streamOptions?.liveStreaming ? { liveStreaming: true, statusController } : { statusController });
-  return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, { ...streamOptions, statusController });
+  try {
+    const response = await createStreamedResponse(openai, request, streamOptions?.liveStreaming ? { liveStreaming: true, statusController } : { statusController });
+    return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, { ...streamOptions, statusController });
+  } catch (error) {
+    statusController?.stop?.();
+    throw error;
+  }
 }
 
 export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport, formatElapsedStatus, formatSpinnerFrame, formatTransactionCompletionMessage, createStatusLineController, createStreamedResponse };

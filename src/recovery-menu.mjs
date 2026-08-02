@@ -1,3 +1,4 @@
+import { formatOpenAIError } from './error-details.mjs';
 import { emitKeypressEvents } from 'node:readline';
 import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 
@@ -16,7 +17,7 @@ export async function promptRecoveryMenu(error, { input = defaultInput, output =
   let selected = 0; let count = 0;
   const render = () => {
     if (count) output.write(`\x1b[${count - 1}A\r\x1b[0J`);
-    const rows = [`OpenAI request failed: ${error?.message || String(error)}`, 'Choose recovery:'];
+    const rows = [`OpenAI request failed: ${formatOpenAIError(error)}`, 'Choose recovery:'];
     OPTIONS.forEach((option, index) => rows.push(`${index === selected ? '>' : ' '} ${index + 1}. ${option.label}`));
     rows.push('', 'Use 1-5, ↑/↓, or Enter.');
     output.write(rows.join('\n')); count = rows.length;

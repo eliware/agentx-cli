@@ -9,3 +9,5 @@ The live status controller tracks total elapsed time and reasoning/writing/execu
 Resume, setup, and rollback menus use shared raw-mode behavior where available, hide/show cursor, redraw framed content, support numbered choices, arrows, Enter, and Ctrl-C, and clean up listeners/raw mode on completion.
 
 Usage reports show turns, input tokens, cached input tokens, output tokens, and calculated cost. Keep startup/status output concise; never dump complete tool results or encrypted reasoning.
+
+If a response or tool continuation fails, the live status controller must be stopped and its temporary line cleared before rendering recovery menus. Failed requests must not leave a refresh timer writing over interactive prompts.
