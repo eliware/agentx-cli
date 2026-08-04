@@ -1,5 +1,15 @@
 # AgentX Release Notes
 
+## 1.4.2 - Safe one-shot execution and tool-call deduplication
+
+- Added positional one-shot CLI requests: `agentx "message"` performs the request, prints the response and usage summary, then exits.
+- Added `--yolo` for explicitly bypassing model-requested CLI confirmation in interactive and one-shot modes.
+- Added yes/no/session/global confirmation policy for state-changing CLI tool calls.
+- Added isolated one-shot pending state and shared successful checkpoints, allowing concurrent subtasks in one directory without corrupting the interactive session.
+- Hardened interrupted tool-call recovery, execution journaling, transport admission, and per-turn deduplication.
+- Added focused regression coverage, smoke tests, documentation, and diagnostics for duplicate execution and token/context bloat.
+- Reached 100% statements, branches, functions, and lines coverage across the repository.
+
 ## 1.4.1 - Recovery diagnostics and failure cleanup
 
 - Added bounded OpenAI/WebSocket failure diagnostics to recovery menus, including error code/type, status, parameter, request ID, and cause when available.
