@@ -4,7 +4,7 @@ Use Node readline promises. Keep one active REPL interface for the session; its 
 
 Text wrapping must use terminal width with an 80-column fallback and preserve ANSI escape sequences sufficiently for readable output. System, command, info, and MCP messages use ANSI styling; plain functionality must still work when output is redirected.
 
-The live status controller tracks total elapsed time and reasoning/writing/executing phase durations. Render JSON-like fields such as `{"time":"1s","reasoning":"1s/1s",...}` with the active phase highlighted. Refresh roughly every 250ms, clear temporary lines before streamed output, pause during tool output, and never erase final response text.
+The live status controller tracks total elapsed time and reasoning/writing/executing phase durations. In one-shot/non-interactive mode, disable the refresh timer and print one status line for each state/progress change, followed by the final transaction summary. Render JSON-like fields such as `{"time":"1s","reasoning":"1s/1s",...}` with the active phase highlighted. Refresh roughly every 250ms, clear temporary lines before streamed output, pause during tool output, and never erase final response text.
 
 Resume, setup, and rollback menus use shared raw-mode behavior where available, hide/show cursor, redraw framed content, support numbered choices, arrows, Enter, and Ctrl-C, and clean up listeners/raw mode on completion.
 

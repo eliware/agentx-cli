@@ -35,7 +35,7 @@ function getLaunchPlan(command, platform = process.platform) {
   }));
 }
 
-function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr } = {}) {
+function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr, signal } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(plan.file, plan.args, {
       cwd,
@@ -49,7 +49,9 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
     let stderr = '';
     let finished = false;
     let timedOut = false;
+    let interrupted = false;
     let timer = null;
+    let onAbort = null;
 
     const finalizeChunk = (chunk, channel) => {
       if (!chunk) return;
@@ -72,6 +74,7 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
       if (finished) return;
       finished = true;
       if (timer) clearTimeout(timer);
+      signal?.removeEventListener?.('abort', onAbort);
       resolve(result);
     };
 
@@ -97,11 +100,13 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
     child.on('close', (code, signal) => {
       flushStream('stdout');
       flushStream('stderr');
-      const outcome = timedOut
+      const outcome = interrupted
+        ? { type: 'interrupted' }
+        : (timedOut
         ? { type: 'timeout' }
         : (signal
           ? { type: 'exit', exit_code: 1 }
-          : { type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 });
+          : { type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 }));
       done(makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength }));
     });
 
@@ -112,14 +117,21 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
         child.kill('SIGTERM');
       }, timeout);
     }
+    onAbort = () => {
+      if (finished) return;
+      interrupted = true;
+      child.kill('SIGTERM');
+    };
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener?.('abort', onAbort, { once: true });
   });
 }
 
-async function executeWithLaunchers(command, cwd, { timeoutMs, maxOutputLength, platform = process.platform, writeStdout, writeStderr } = {}) {
+async function executeWithLaunchers(command, cwd, { timeoutMs, maxOutputLength, platform = process.platform, writeStdout, writeStderr, signal } = {}) {
   let lastError = null;
   for (const plan of getLaunchPlan(command, platform)) {
     try {
-      return await runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr });
+      return await runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr, signal });
     } catch (error) {
       lastError = error;
       if (isMissingLauncherError(error)) continue;
@@ -148,7 +160,7 @@ function normalizeSteps(steps, defaultCwd = '', fallbackTimeoutMs = null, fallba
   }));
 }
 
-export async function runShellCommandSequence(steps, { callId, defaultCwd = '' } = {}) {
+export async function runShellCommandSequence(steps, { callId, defaultCwd = '', signal } = {}) {
   const normalizedSteps = normalizeSteps(steps, defaultCwd);
   const output = [];
   let status = 'completed';
@@ -158,13 +170,14 @@ export async function runShellCommandSequence(steps, { callId, defaultCwd = '' }
     const chunk = await executeWithLaunchers(step.command, step.cwd, {
       timeoutMs: step.timeoutMs,
       maxOutputLength: step.maxOutputLength,
+      signal,
     });
     output.push(chunk);
     const stepLimit = Number(step.maxOutputLength);
     if (Number.isFinite(stepLimit) && stepLimit > 0) {
       maxOutputLength = maxOutputLength == null ? stepLimit : Math.max(maxOutputLength, stepLimit);
     }
-    if (chunk.outcome?.type === 'timeout') {
+    if (chunk.outcome?.type === 'timeout' || chunk.outcome?.type === 'interrupted') {
       status = 'incomplete';
       break;
     }
@@ -179,14 +192,14 @@ export async function runShellCommandSequence(steps, { callId, defaultCwd = '' }
   };
 }
 
-export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLength, callId } = {}) {
+export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLength, callId, signal } = {}) {
   const steps = normalizeCommands(commands).map((command) => ({
     command,
     cwd,
     timeoutMs,
     maxOutputLength,
   }));
-  return await runShellCommandSequence(steps, { callId, defaultCwd: cwd });
+  return await runShellCommandSequence(steps, { callId, defaultCwd: cwd, signal });
 }
 
 export async function shellExec(command, cwd) {

@@ -56,7 +56,7 @@ function formatSpinnerFrame() {
   return '';
 }
 
-function createStatusLineController(sessionStartedAt = Date.now(), { quiet = false } = {}) {
+function createStatusLineController(sessionStartedAt = Date.now(), { quiet = false, transitionOnly = false } = {}) {
   let timer = null;
   let lastRendered = '';
   let state = null;
@@ -73,7 +73,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
     // lastRendered is only set while the cursor is on our temporary status
     // line. Clear that line, then leave the cursor at its beginning so the
     // next status frame or streamed output owns the terminal position.
-    if (quiet || !lastRendered) return;
+    if (quiet || transitionOnly || !lastRendered) return;
     process.stdout.write('\r\x1b[2K\r');
     lastRendered = '';
   }
@@ -84,7 +84,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   }
 
   function startTimer() {
-    if (quiet || timer || paused) return;
+    if (quiet || transitionOnly || timer || paused) return;
     timer = setInterval(render, STATUS_UPDATE_INTERVAL_MS);
   }
 
@@ -123,6 +123,11 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
 
   function writeLine(text) {
     if (text === lastRendered) return;
+    if (transitionOnly) {
+      process.stdout.write(`${text}\n`);
+      lastRendered = text;
+      return;
+    }
     clearRenderedLine();
     process.stdout.write(text);
     lastRendered = text;
@@ -145,7 +150,7 @@ function createStatusLineController(sessionStartedAt = Date.now(), { quiet = fal
   function transition(nextState, { renderNow = true, allowStatusAfterOutput = false } = {}) {
     const now = Date.now();
     if (state === nextState) {
-      if (!paused && renderNow) render();
+      if (!paused && renderNow && (transitionOnly || state !== 'writing')) render();
       return;
     }
     finalizeActive(now);
@@ -547,13 +552,14 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   let current = response;
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
-  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput) }) : null);
+  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus) }) : null);
   const onResponseState = streamOptions?.onResponseState;
   const skipInitialUsageAccounting = Boolean(streamOptions?.skipInitialUsageAccounting);
   const onToolExecutionState = streamOptions?.onToolExecutionState;
   const confirmToolCall = streamOptions?.confirmToolCall;
   const yolo = Boolean(streamOptions?.yolo);
   let isFirstResponse = true;
+  const executeToolCall = streamOptions?.runToolCall || runToolCallFn;
 
   for (; ;) {
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
@@ -591,7 +597,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           continue;
         }
         await onToolExecutionState?.({ call, response: current, status: 'started', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
-        const output = await runToolCallFn(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length });
+        const output = await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length });
         await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));
         completed += 1;
@@ -614,7 +620,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null, streamOptions = {}) {
   const baseRequest = JSON.parse(JSON.stringify(template));
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
-  const statusController = streamOptions?.statusController || createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput) });
+  const statusController = streamOptions?.statusController || createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus) });
   const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
       ...baseRequest,

@@ -101,6 +101,21 @@ describe('agent session helpers', () => {
     }
   });
 
+  test('status line controller prints transition lines without a refresh timer', () => {
+    jest.useFakeTimers({ now: Date.parse('2026-07-08T00:00:00Z') });
+    try {
+      const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'), { transitionOnly: true });
+      controller.showReasoning();
+      jest.advanceTimersByTime(1000);
+      controller.showExecuting(0, 1);
+      controller.updateExecuting(1, 1);
+      expect(stdoutWrites.filter((write) => write.endsWith('\n'))).toHaveLength(2);
+      expect(stdoutWrites.join('')).not.toContain('\r\x1b[2K');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('status line controller suppresses live renders when quiet', () => {
     const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'), { quiet: true });
     controller.showReasoning();

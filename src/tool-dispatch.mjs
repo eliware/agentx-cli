@@ -80,12 +80,13 @@ function parseShellActionCommands(call) {
   return Array.isArray(commands) || typeof commands === 'string' ? commands : [];
 }
 
-export async function runToolCall(call, cwd) {
+export async function runToolCall(call, cwd, options = {}) {
   if (call?.type === 'shell_call') {
     return await runShellCommands(parseShellActionCommands(call), cwd, {
       timeoutMs: call?.action?.timeout_ms,
       maxOutputLength: call?.action?.max_output_length,
       callId: call?.call_id || call?.id || '',
+      signal: options?.signal,
     });
   }
 

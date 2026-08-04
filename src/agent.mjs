@@ -1,4 +1,5 @@
 import { createInterface } from 'node:readline/promises';
+import { emitKeypressEvents } from 'node:readline';
 import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 import { log, registerHandlers, path } from '@eliware/common';
 import { createOpenAIResponsesTransport } from './openai-transport.mjs';
@@ -252,6 +253,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             onToolExecutionState: persistToolExecutionState,
             confirmToolCall,
             suppressStatusOutput: debugEnabled,
+            transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
+            runToolCall: runInteractiveToolCall,
             yolo: yoloEnabled,
           },
         );
@@ -280,6 +283,38 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   }
 
   let rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+
+  async function runInteractiveToolCall(call, toolCwd, options = {}) {
+    const controller = new AbortController();
+    const interactive = !oneShot && terminalInput?.isTTY && typeof terminalInput?.setRawMode === 'function' && typeof terminalInput?.on === 'function';
+    let interrupted = false;
+    const onKeypress = (_str, key = {}) => {
+      if (key?.ctrl && key?.name === 't') {
+        interrupted = true;
+        process.stdout.write(`${formatSystemMessage('User interrupted command (Ctrl-T)')}\n`);
+        controller.abort();
+      }
+    };
+    if (interactive) {
+      emitKeypressEvents(terminalInput);
+      terminalInput.setRawMode(true);
+      terminalInput.on('keypress', onKeypress);
+    }
+    try {
+      const { runToolCall } = await import('./tool-dispatch.mjs');
+      const output = await runToolCall(call, toolCwd, { ...options, signal: controller.signal });
+      if (interrupted && output?.type === 'shell_call_output') {
+        const first = output.output?.[0];
+        if (first) first.stderr = `${first.stderr || ''}${first.stderr ? '\n' : ''}User interrupted execution with Ctrl-T.`;
+      }
+      return output;
+    } finally {
+      if (interactive) {
+        terminalInput.removeListener?.('keypress', onKeypress);
+        terminalInput.setRawMode(false);
+      }
+    }
+  }
 
   let pendingInitialMessage = oneShot ? String(initialMessage ?? '') : null;
   try {
@@ -413,7 +448,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, yolo: yoloEnabled });
+          }, activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
         } catch (error) {
           if (error?.code === 'previous_response_not_found' && previousResponseId) {
             previousResponseId = '';
