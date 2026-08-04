@@ -7,6 +7,7 @@ Persist JSON to `.agentx_responseid` in the launch directory after meaningful st
 - `last_assistant_message`: string
 - `pending_cli_transcript`: string
 - `pending_tool_calls`: array of JSON-safe tool call objects
+- `execution_journal`: array of tool execution records `{ identity, status, response_id, updated_at }`
 - `history`: bounded array of successful response checkpoints
 - `rollback_backup`: single bounded array containing checkpoints discarded by the latest rollback
 
@@ -21,7 +22,7 @@ Only fully successful responses (`response.completed`, with no pending tool call
 
 Missing file returns null. Invalid JSON is treated as legacy state: its trimmed text becomes `response_id` and all other fields are defaults. Normalize malformed fields rather than crashing.
 
-On each completed user turn update response ID, last user/assistant messages, usage, and clear consumed CLI transcript. While tool execution is in flight, save the response ID and pending calls before execution finishes. Clear pending calls after successful completion.
+On each completed user turn update response ID, last user/assistant messages, usage, and clear consumed CLI transcript. While tool execution is in flight, save the response ID and pending calls before execution finishes. Record each tool identity as `pending`, `started`, or `completed` in `execution_journal`; preserve `started` records across crashes as possibly executed. Clear pending calls after successful completion.
 
 If pending calls exist at startup, show a four-choice menu (default option 1):
 1. Resume with interruption notice and let the agent decide whether to retry.
@@ -37,3 +38,8 @@ Options 1 and 2 must not re-run the interrupted call; instead return a synthetic
 The `/rollback` command opens an interactive checkpoint menu. Display each available checkpoint as a numbered row containing its number, local time, user preview, and assistant preview, plus a Cancel option. Support number keys, Up/Down arrows, Enter, and Ctrl-C using the same menu behavior as setup and session-resume menus.
 
 Selecting a checkpoint restores its `response_id`, messages, usage, and session metadata; clears pending tool calls; and removes newer history entries. Preserve the discarded newer entries in a single rollback backup until the next successful turn or session clear. The selected response becomes the active session checkpoint. If no history exists, report that rollback is unavailable. Rollback restores conversation state only and does not undo previously executed shell commands or external side effects.
+
+
+## Concurrent one-shot sessions
+
+One-shot invocations use a unique state file and never read or write the interactive session's pending tool calls. They inherit only the latest successful checkpoint from `.agentx_checkpoint` (falling back to the interactive state's newest successful history entry). Successful interactive turns and rollbacks update that checkpoint. One-shot state is removed after a successful exit and remains isolated if interrupted.

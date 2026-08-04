@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { existsSync } from 'node:fs';
-import { clearSession, persistResponseState, readSessionState } from '../src/session-state.mjs';
+import { clearSession, persistCheckpoint, persistResponseState, readLatestCheckpoint, readSessionState } from '../src/session-state.mjs';
 import { cleanupTempDir, makeTempDir, makeFile } from './test-helpers.mjs';
 
 describe('session state', () => {
@@ -131,6 +131,28 @@ describe('session state edge normalization', () => {
     } finally { cleanupTempDir(tmp); }
   });
 
+  test('normalizes execution journal records', async () => {
+    const tmp = makeTempDir('agentx-state-');
+    const statePath = `${tmp}/.agentx_responseid`;
+    try {
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({
+        response_id: 'resp-journal',
+        execution_journal: [null, { identity: 42, status: 'started', response_id: 7, updated_at: 9 }, { identity: 8 }, { identity: '', status: 'completed' }, { identity: null }],
+      }));
+      await expect(readSessionState(statePath)).resolves.toMatchObject({
+        execution_journal: [{ identity: '42', status: 'started', response_id: '7', updated_at: '9' }, { identity: '8', status: 'pending', response_id: '', updated_at: '' }],
+      });
+    } finally { cleanupTempDir(tmp); }
+  });
+
+  test('normalizes non-array execution journals', async () => {
+    const tmp = makeTempDir('agentx-state-journal-');
+    try {
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({ response_id: 'resp', execution_journal: 'bad' }));
+      await expect(readSessionState(`${tmp}/.agentx_responseid`)).resolves.toMatchObject({ execution_journal: [] });
+    } finally { cleanupTempDir(tmp); }
+  });
+
   test('handles non-array history and absent optional pending values', async () => {
     const tmp = makeTempDir('agentx-state-');
     const statePath = `${tmp}/.agentx_responseid`;
@@ -139,4 +161,31 @@ describe('session state edge normalization', () => {
       await expect(readSessionState(statePath)).resolves.toMatchObject({ response_id: 'resp', history: [], pending_tool_calls: [] });
     } finally { cleanupTempDir(tmp); }
   });
+  test('reads the shared checkpoint and falls back to the latest successful history entry', async () => {
+    const tmp = makeTempDir('agentx-checkpoint-');
+    try {
+      const checkpoint = `${tmp}/.agentx_checkpoint`;
+      const state = `${tmp}/.agentx_responseid`;
+      await persistResponseState(state, { history: [{ response_id: 'resp-history', usage: { turns: 2 }, last_user_message: 'u', last_assistant_message: 'a' }] });
+      await expect(readLatestCheckpoint(checkpoint, state)).resolves.toMatchObject({ response_id: 'resp-history', pending_tool_calls: [], history: [{ response_id: 'resp-history' }] });
+      await persistCheckpoint(checkpoint, { response_id: 'resp-checkpoint', usage: { turns: 3 }, last_user_message: 'u2', last_assistant_message: 'a2' });
+      await expect(readLatestCheckpoint(checkpoint, state)).resolves.toMatchObject({ response_id: 'resp-checkpoint', usage: { turns: 3 } });
+    } finally { cleanupTempDir(tmp); }
+  });
+
+  test('uses the checkpoint directly and returns null when fallback is omitted', async () => {
+    const tmp = makeTempDir('agentx-checkpoint-direct-');
+    try {
+      const checkpoint = `${tmp}/.agentx_checkpoint`;
+      await persistResponseState(checkpoint, { response_id: 'resp-direct' });
+      await expect(readLatestCheckpoint(checkpoint)).resolves.toMatchObject({ response_id: 'resp-direct' });
+      await expect(readLatestCheckpoint(`${tmp}/missing-checkpoint`)).resolves.toBeNull();
+    } finally { cleanupTempDir(tmp); }
+  });
+
+  test('returns no checkpoint when neither source has a successful response', async () => {
+    const tmp = makeTempDir('agentx-checkpoint-empty-');
+    try { await expect(readLatestCheckpoint(`${tmp}/missing-checkpoint`, `${tmp}/missing-state`)).resolves.toBeNull(); } finally { cleanupTempDir(tmp); }
+  });
+
 });

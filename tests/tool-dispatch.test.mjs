@@ -1,8 +1,24 @@
 import { describe, expect, test } from '@jest/globals';
-import { runToolCall, toolCallSummary, toolOutputForCall } from '../src/tool-dispatch.mjs';
+import { dedupeToolCalls, dedupeToolOutputs, requiresToolConfirmation, runToolCall, toolCallIdentity, toolCallSummary, toolOutputForCall } from '../src/tool-dispatch.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('tool dispatch', () => {
+  test('deduplicates calls by call ID or stable fallback identity', () => {
+    const first = { type: 'shell_call', call_id: 'call-1', action: { commands: ['echo one'] } };
+    const duplicateId = { type: 'shell_call', call_id: 'call-1', action: { commands: ['echo different'] } };
+    const noId = { type: 'shell_call', action: { commands: ['echo two'] } };
+    const noIdDuplicate = { type: 'shell_call', action: { commands: ['echo two'] } };
+    expect(toolCallIdentity(first, '/tmp')).toBe('id:call-1');
+    expect(toolCallIdentity({ type: 'function_call', name: 'lookup', input: { z: [2, { a: 1 }] } })).toContain(JSON.stringify('name') + ':' + JSON.stringify('lookup'));
+    expect(toolCallIdentity(null)).toBe(`hash:${JSON.stringify({ action: {}, arguments: '', cwd: '', name: '', type: '' })}`);
+    expect(dedupeToolCalls([])).toEqual([]);
+    expect(dedupeToolCalls([first, duplicateId, noId, noIdDuplicate], '/tmp')).toEqual([first, noId]);
+    expect(dedupeToolOutputs([{ call_id: 'call-1', output: 'one' }, { call_id: 'call-1', output: 'duplicate' }, { output: 'same' }, { output: 'same' }, { output: { nested: [1, { b: 2, a: 1 }] } }, { output: { nested: [1, { a: 1, b: 2 }] } }])).toEqual([{ call_id: 'call-1', output: 'one' }, { output: 'same' }, { output: { nested: [1, { b: 2, a: 1 }] } }]);
+    expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['xe vm-shutdown uuid=1'] } })).toBe(true);
+    expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['printf safe'] } })).toBe(false);
+    expect(requiresToolConfirmation({ type: 'function_call', name: 'shutdown' })).toBe(false);
+  });
+
   test('runs shell tool calls and rejects unsupported tool calls', async () => {
     const tmp = makeTempDir('agentx-dispatch-');
     try {

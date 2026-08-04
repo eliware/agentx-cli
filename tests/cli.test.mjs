@@ -6,6 +6,7 @@ const packageVersion = getPackageVersion();
 describe('cli helpers', () => {
   test('hasFlag matches any supported alias', () => {
     expect(hasFlag(['--debug', 'hello'], ['--debug'])).toBe(true);
+    expect(hasFlag(['--yolo'], ['--yolo'])).toBe(true);
     expect(hasFlag(['-h'], ['--help', '-h', '-?'])).toBe(true);
     expect(hasFlag(['hello'], ['--help', '-h', '-?'])).toBe(false);
   });
@@ -36,5 +37,6 @@ describe('cli helpers', () => {
     expect(help).toContain('--help, -h, -?');
     expect(help).toContain('--version, -v');
     expect(help).toContain('--debug');
+    expect(help).toContain('--yolo');
   });
 });

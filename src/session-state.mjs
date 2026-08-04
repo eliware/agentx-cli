@@ -47,6 +47,16 @@ function normalizePendingToolCalls(calls) {
   return calls.map(normalizePendingToolCall).filter(Boolean);
 }
 
+function normalizeExecutionJournal(records) {
+  if (!Array.isArray(records)) return [];
+  return records.filter((record) => record && typeof record === 'object').map((record) => ({
+    identity: String(record.identity ?? ''),
+    status: String(record.status ?? 'pending'),
+    response_id: String(record.response_id ?? ''),
+    updated_at: String(record.updated_at ?? ''),
+  })).filter((record) => record.identity);
+}
+
 function normalizeSessionState(state) {
   const normalized = {
     response_id: String(state?.response_id ?? ''),
@@ -56,6 +66,7 @@ function normalizeSessionState(state) {
     pending_cli_transcript: String(state?.pending_cli_transcript ?? ''),
     pending_tool_calls: normalizePendingToolCalls(state?.pending_tool_calls),
   };
+  if (Object.prototype.hasOwnProperty.call(state || {}, 'execution_journal')) normalized.execution_journal = normalizeExecutionJournal(state.execution_journal);
   if (Object.prototype.hasOwnProperty.call(state || {}, 'history')) normalized.history = normalizeHistory(state.history);
   if (Object.prototype.hasOwnProperty.call(state || {}, 'rollback_backup')) normalized.rollback_backup = normalizeHistory(state.rollback_backup);
   if (Object.prototype.hasOwnProperty.call(state || {}, 'failed_response')) normalized.failed_response = Boolean(state.failed_response);
@@ -68,6 +79,35 @@ export async function persistResponseState(statePath, state) {
 
 export async function clearSession(statePath) {
   await deleteOptional(statePath);
+}
+
+export async function readLatestCheckpoint(checkpointPath, fallbackStatePath = '') {
+  const checkpoint = await readSessionState(checkpointPath);
+  if (checkpoint?.response_id) return checkpoint;
+  if (!fallbackStatePath) return null;
+  const state = await readSessionState(fallbackStatePath);
+  const entry = state?.history?.at(-1);
+  return entry?.response_id ? {
+    response_id: entry.response_id,
+    usage: entry.usage,
+    last_user_message: entry.last_user_message,
+    last_assistant_message: entry.last_assistant_message,
+    pending_cli_transcript: '',
+    pending_tool_calls: [],
+    history: [entry],
+  } : null;
+}
+
+export async function persistCheckpoint(checkpointPath, state) {
+  await persistResponseState(checkpointPath, {
+    response_id: state?.response_id,
+    usage: state?.usage,
+    last_user_message: state?.last_user_message,
+    last_assistant_message: state?.last_assistant_message,
+    pending_cli_transcript: '',
+    pending_tool_calls: [],
+    history: state?.history,
+  });
 }
 
 export async function readSessionState(statePath) {

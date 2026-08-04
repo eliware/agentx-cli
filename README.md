@@ -10,7 +10,7 @@ It is designed to feel shell-like:
 - supports internal `cd`, `clear`, `/clear`, `/usage`, `/rollback`, `/setup`, `quit`, and `exit`
 - supports direct shell commands with a leading `!`
 - supports tab completion for local files and folders, including after changing directories
-- remembers session state in `.agentx_responseid`
+- remembers interactive session state in `.agentx_responseid` and successful checkpoints in `.agentx_checkpoint`
 - can prompt to resume interrupted tool execution on startup
 - includes quick CLI flags for help, version, and debug logging
 - handles temporary WebSocket connectivity failures and shuts down connections gracefully
@@ -26,6 +26,14 @@ agentx-setup
 agentx
 ```
 
+For a single request, run:
+
+```bash
+agentx "summarize this project"
+```
+
+One-shot mode prints the response and usage summary, then exits. Add `--yolo` to approve all model-requested CLI execution for that invocation.
+
 If you are working from the repository itself, run `node agentx.mjs`.
 
 Quick flags:
@@ -33,6 +41,8 @@ Quick flags:
 - `agentx --help`, `agentx -h`, or `agentx -?` prints quick help
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
+- `agentx --yolo` bypasses confirmation for model-requested CLI tool calls
+- `agentx "message"` sends one request, performs tool calls, prints the response and usage summary, then exits
 
 ## Behavior
 
@@ -45,6 +55,7 @@ Quick flags:
 - Type `/usage` to view token and cost totals.
 - Type `/rollback` to restore a successful response checkpoint.
 - Recoverable API failures keep the REPL alive and offer retry, new-chain, rollback, or clear options.
+- Successful turns update `.agentx_checkpoint`; one-shot invocations branch from that checkpoint and use isolated pending state, so multiple one-shots can run in the same folder without sharing interrupted tool calls.
 - Type `/setup` to edit the API key, model, reasoning, output, and compaction settings, then reload them without ending the session; setup errors return to the REPL.
 - Type `quit`, `exit`, `/quit`, or `/exit` to leave the app.
 

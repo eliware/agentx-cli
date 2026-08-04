@@ -1,7 +1,7 @@
 import { extractTextFromResponse, extractUsage } from './response.mjs';
-import { runToolCall, toolOutputForCall } from './tool-dispatch.mjs';
+import { dedupeToolCalls, dedupeToolOutputs, requiresToolConfirmation, runToolCall, toolCallIdentity, toolOutputForCall } from './tool-dispatch.mjs';
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
-import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
+import { clearSession, persistCheckpoint, persistResponseState, readLatestCheckpoint, readSessionState } from './session-state.mjs';
 import { formatTurnUsageReport, formatUsageReport } from './usage.mjs';
 import { createUsageTotals } from './response.mjs';
 import { formatCommandMessage, formatInfoMessage, formatMcpMessage, formatSystemMessage } from './shell-display.mjs';
@@ -550,12 +550,15 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput) }) : null);
   const onResponseState = streamOptions?.onResponseState;
   const skipInitialUsageAccounting = Boolean(streamOptions?.skipInitialUsageAccounting);
+  const onToolExecutionState = streamOptions?.onToolExecutionState;
+  const confirmToolCall = streamOptions?.confirmToolCall;
+  const yolo = Boolean(streamOptions?.yolo);
   let isFirstResponse = true;
 
   for (; ;) {
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
     const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
-    const calls = (current?.output ?? []).filter((item) => isShellToolCall(item));
+    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item)), cwd);
     const cumulativeUsage = shouldReportUsage && onResponseUsage ? onResponseUsage(usage, { skipIncrement: false }) : null;
     if (onResponseState) {
       await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
@@ -578,7 +581,18 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     let completed = 0;
     try {
       for (const [callIndex, call] of calls.entries()) {
+        let approved = true;
+        if (!yolo && requiresToolConfirmation(call) && confirmToolCall) {
+          statusController?.pause();
+          try { approved = await confirmToolCall(call, cwd); } finally { statusController?.resume({ renderNow: false }); }
+        }
+        if (!approved) {
+          outputs.push(toolOutputForCall(call, { type: 'shell_call_output', call_id: call.call_id || call.id || '', status: 'incomplete', output: [{ stdout: '', stderr: 'Tool execution declined by user.', outcome: { type: 'exit', exit_code: 1 } }] }));
+          continue;
+        }
+        await onToolExecutionState?.({ call, response: current, status: 'started', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         const output = await runToolCallFn(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length });
+        await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));
         completed += 1;
         statusController?.updateExecuting(completed, calls.length);
@@ -589,7 +603,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
 
     const request = {
       ...baseRequest,
-      input: outputs,
+      input: dedupeToolOutputs(outputs),
       previous_response_id: current.id,
       store: true,
     };
@@ -622,5 +636,5 @@ export async function sendMessage(openai, template, previousResponseId, userMess
   }
 }
 
-export { persistResponseState, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport, formatElapsedStatus, formatSpinnerFrame, formatTransactionCompletionMessage, createStatusLineController, createStreamedResponse };
+export { persistResponseState, persistCheckpoint, readLatestCheckpoint, clearSession, readSessionState, extractTextFromResponse, extractUsage, formatTurnUsageReport, formatElapsedStatus, formatSpinnerFrame, formatTransactionCompletionMessage, createStatusLineController, createStreamedResponse };
 export { formatUsageSummary } from './response.mjs';

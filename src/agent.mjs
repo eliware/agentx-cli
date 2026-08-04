@@ -14,6 +14,7 @@ import { promptRollbackMenu } from './rollback-menu.mjs';
 import { promptRecoveryMenu } from './recovery-menu.mjs';
 import { applySettings, formatStartupSettings, reloadSettings, settingsFromEnv } from './settings.mjs';
 import { runSetup } from './setup.mjs';
+import { confirmationKey, confirmationFilePath, loadGlobalConfirmations, saveGlobalConfirmations } from './confirmation-policy.mjs';
 
 registerHandlers({ log });
 
@@ -47,6 +48,26 @@ function getToolCallId(call) {
   return String(call?.call_id || call?.id || '').trim();
 }
 
+async function readLatestCheckpoint(checkpointPath, fallbackStatePath) {
+  const checkpoint = await readSessionState(checkpointPath);
+  if (checkpoint?.response_id) return checkpoint;
+  const state = await readSessionState(fallbackStatePath);
+  const entry = state?.history?.at(-1);
+  return entry?.response_id ? { ...entry, pending_cli_transcript: '', pending_tool_calls: [], history: [entry] } : null;
+}
+
+async function persistCheckpoint(checkpointPath, state) {
+  await persistResponseState(checkpointPath, {
+    response_id: state?.response_id,
+    usage: state?.usage,
+    last_user_message: state?.last_user_message,
+    last_assistant_message: state?.last_assistant_message,
+    pending_cli_transcript: '',
+    pending_tool_calls: [],
+    history: state?.history,
+  });
+}
+
 const INTERRUPTED_TOOL_OUTPUT_RETRY = `The previous transaction was interrupted while tool calls were in progress.
 
 The interrupted command may have completed successfully, failed, or only partially applied changes.
@@ -78,32 +99,38 @@ function buildInterruptedToolOutput(call, mode) {
   return message;
 }
 
-function createResumeToolCallRunner(mode, pendingCallIds = new Set()) {
+function createResumeToolCallRunner(mode, pendingCallIds = new Set(), uncertainCallIdentities = new Set()) {
   return async (call, cwd) => {
-    if (pendingCallIds.has(getToolCallId(call))) {
-      return buildInterruptedToolOutput(call, mode);
+    const identity = `id:${getToolCallId(call)}`;
+    if (pendingCallIds.has(getToolCallId(call)) || uncertainCallIdentities.has(identity)) {
+      return buildInterruptedToolOutput(call, mode === 'auto' ? 'request' : mode);
     }
     const { runToolCall } = await import('./tool-dispatch.mjs');
     return await runToolCall(call, cwd);
   };
 }
 
-export async function runAgent({ promptPath, cwd, input: terminalInput = defaultInput, output: terminalOutput = defaultOutput } = {}) {
+export async function runAgent({ promptPath, cwd, input: terminalInput = defaultInput, output: terminalOutput = defaultOutput, initialMessage = null, oneShot = false } = {}) {
   const launchCwd = cwd;
-  const statePath = path(launchCwd, '.agentx_responseid');
+  const sessionStatePath = path(launchCwd, '.agentx_responseid');
+  const checkpointPath = path(launchCwd, '.agentx_checkpoint');
+  const statePath = oneShot ? `${sessionStatePath}.oneshot-${process.pid}-${Date.now()}` : sessionStatePath;
   let template = applySettings(await loadPromptTemplate(promptPath), settingsFromEnv());
   const agentsText = await readAgentsFromCwdAndParents(cwd).catch((error) => {
     throw new Error(`Unable to read AGENTS.md files under ${cwd}: ${error?.message || String(error)}`);
   });
-  const savedState = await readSessionState(statePath);
+  const savedState = oneShot
+    ? ((await readLatestCheckpoint(checkpointPath, sessionStatePath)) || null)
+    : await readSessionState(statePath);
   const savedResponseId = savedState?.response_id || '';
   const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
   const debugEnabled = process.argv.includes('--debug');
+  const yoloEnabled = process.argv.includes('--yolo');
   const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
 
   process.stdout.write(`${formatStartupSettings(settingsFromEnv())}\n`);
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found; ask AgentX to generate one for this project.')}\n`);
-  process.stdout.write(`${formatSystemMessage(savedResponseId ? `Resuming conversation ${savedResponseId}` : 'Starting new session')}\n`);
+  process.stdout.write(`${formatSystemMessage(savedResponseId ? `${oneShot ? 'Branching from checkpoint' : 'Resuming conversation'} ${savedResponseId}` : 'Starting new session')}\n`);
   printResumeMessage('Last user message', savedState?.last_user_message || '');
   printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
   if (savedState?.failed_response) {
@@ -119,9 +146,13 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     ? { inputTokens: Number(savedState.usage.inputTokens ?? 0), cachedTokens: Number(savedState.usage.cachedTokens ?? 0), outputTokens: Number(savedState.usage.outputTokens ?? 0), turns: Number(savedState.usage.turns ?? 0) }
     : createUsageTotals();
   let pendingToolCalls = savedState?.failed_response ? [] : (Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : []);
+  let executionJournal = Array.isArray(savedState?.execution_journal) ? savedState.execution_journal : [];
   let history = Array.isArray(savedState?.history) ? savedState.history : [];
   let rollbackBackup = Array.isArray(savedState?.rollback_backup) ? savedState.rollback_backup : [];
   let failedResponse = Boolean(savedState?.failed_response);
+  const globalConfirmationPath = confirmationFilePath();
+  const globalConfirmations = await loadGlobalConfirmations(globalConfirmationPath);
+  const sessionConfirmations = new Set();
 
   async function saveState() {
     await persistResponseState(statePath, {
@@ -131,6 +162,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       last_assistant_message: lastAssistantMessage,
       pending_cli_transcript: pendingCliTranscript,
       pending_tool_calls: pendingToolCalls,
+      execution_journal: executionJournal,
       history,
       rollback_backup: rollbackBackup,
       failed_response: failedResponse,
@@ -142,6 +174,25 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     const nextCalls = Array.isArray(snapshot?.pendingToolCalls) ? snapshot.pendingToolCalls : [];
     previousResponseId = response?.id || previousResponseId;
     pendingToolCalls = nextCalls;
+    await saveState();
+  }
+
+  async function confirmToolCall(call, toolCwd) {
+    const key = confirmationKey(call, toolCwd);
+    if (sessionConfirmations.has(key) || globalConfirmations.has(key)) return true;
+    if (oneShot || !terminalInput?.isTTY) return false;
+    const summary = String(call?.action?.commands ?? '').replace(/\s+/g, ' ').trim();
+    const answer = await rl.question(`Allow state-changing command: ${summary} [y]es/[n]o/[s]ession/[g]lobal: `);
+    const choice = answer.trim().toLowerCase();
+    if (choice === 's' || choice === 'session') { sessionConfirmations.add(key); return true; }
+    if (choice === 'g' || choice === 'global') { globalConfirmations.add(key); await saveGlobalConfirmations(globalConfirmations, globalConfirmationPath); return true; }
+    return choice === 'y' || choice === 'yes';
+  }
+
+  async function persistToolExecutionState({ call, response, status, identity: suppliedIdentity }) {
+    const identity = suppliedIdentity || `id:${String(call?.call_id || call?.id || '')}`;
+    const record = { identity, status, response_id: String(response?.id || ''), updated_at: new Date().toISOString() };
+    executionJournal = [...executionJournal.filter((entry) => entry.identity !== identity), record].slice(-100);
     await saveState();
   }
 
@@ -168,12 +219,16 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       await clearSession(statePath);
       process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
     } else {
-      const runPendingToolCall = resumeChoice === 'auto-resume'
-        ? undefined
-        : createResumeToolCallRunner(
-          resumeChoice === 'interrupt-retry' ? 'retry' : 'request',
-          new Set((savedState?.pending_tool_calls || []).map((call) => getToolCallId(call)).filter(Boolean)),
-        );
+      const interruptedCallIds = new Set((savedState?.pending_tool_calls || []).map((call) => getToolCallId(call)).filter(Boolean));
+      const uncertainCallIdentities = new Set((savedState?.execution_journal || [])
+        .filter((entry) => entry?.status === 'started')
+        .map((entry) => String(entry.identity || ''))
+        .filter(Boolean));
+      const runPendingToolCall = createResumeToolCallRunner(
+        resumeChoice === 'auto-resume' ? 'auto' : resumeChoice === 'interrupt-retry' ? 'retry' : 'request',
+        resumeChoice === 'auto-resume' ? new Set() : interruptedCallIds,
+        uncertainCallIdentities,
+      );
       process.stdout.write(`${formatSystemMessage(resumeChoice === 'auto-resume' ? 'Resuming pending tool execution' : resumeChoice === 'interrupt-retry' ? 'Resuming pending tool execution with retry hint' : 'Resuming pending tool execution with interruption notice')}\n`);
       try {
         const resumedResponse = await handleToolCalls(
@@ -194,7 +249,10 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             sessionStartedAt: Date.now(),
             skipInitialUsageAccounting: true,
             onResponseState: persistResponseSnapshot,
+            onToolExecutionState: persistToolExecutionState,
+            confirmToolCall,
             suppressStatusOutput: debugEnabled,
+            yolo: yoloEnabled,
           },
         );
         previousResponseId = resumedResponse?.id || previousResponseId;
@@ -223,11 +281,13 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
 
   let rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
 
+  let pendingInitialMessage = oneShot ? String(initialMessage ?? '') : null;
   try {
     for (; ;) {
       let line;
       try {
-        line = await rl.question(formatPromptForCwd(cwd));
+        line = pendingInitialMessage !== null ? pendingInitialMessage : await rl.question(formatPromptForCwd(cwd));
+        pendingInitialMessage = null;
       } catch (error) {
         if (error?.name === 'AbortError' || error?.code === 'ABORT_ERR') {
           await exitWithSummary({ leadingNewline: true });
@@ -309,6 +369,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             history = history.slice(0, selectedIndex + 1);
             failedResponse = false;
             await saveState();
+            await persistCheckpoint(checkpointPath, selected);
             process.stdout.write(`${formatSystemMessage(`Rolled back to ${selected.response_id}`)}\n`);
           } else if (!history.length) {
             process.stdout.write(`${formatSystemMessage('No successful rollback checkpoints available.') }\n`);
@@ -352,7 +413,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, suppressStatusOutput: debugEnabled });
+          }, activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, yolo: yoloEnabled });
         } catch (error) {
           if (error?.code === 'previous_response_not_found' && previousResponseId) {
             previousResponseId = '';
@@ -362,6 +423,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           failedResponse = true;
           pendingToolCalls = [];
           await saveState();
+          if (oneShot) throw error;
           let choice;
           try { choice = await promptRecoveryMenu(error, { input: terminalInput, output: terminalOutput }); }
           catch (menuError) { if (menuError?.name === 'AbortError') { process.stdout.write(`${formatSystemMessage('Recovery cancelled; session preserved.')}\n`); break; } throw menuError; }
@@ -394,6 +456,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         history = [...history, { response_id: response.id, timestamp: new Date().toISOString(), user_preview: message.slice(0, 20), assistant_preview: lastAssistantMessage.slice(0, 20), usage: { ...sessionUsage }, last_user_message: lastUserMessage, last_assistant_message: lastAssistantMessage }].slice(-20);
       }
       await saveState();
+      if (!oneShot) await persistCheckpoint(checkpointPath, { response_id: response.id, usage: sessionUsage, last_user_message: lastUserMessage, last_assistant_message: lastAssistantMessage, history });
+      if (oneShot) {
+        await clearSession(statePath);
+        await exitWithSummary();
+        return;
+      }
     }
   } finally {
     rl.close();

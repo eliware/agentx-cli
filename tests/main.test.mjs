@@ -66,7 +66,7 @@ describe('entrypoint', () => {
       await import('../agentx.mjs');
 
       expect(runAgent).not.toHaveBeenCalled();
-      expect(writes.join('')).toContain('Usage: agentx [--help|-h|-?] [--version|-v] [--debug]');
+      expect(writes.join('')).toContain('Usage: agentx [--help|-h|-?] [--version|-v] [--debug] [--yolo]');
       expect(process.exit).toHaveBeenCalledWith(0);
     } finally {
       process.stdout.write = originalWrite;
@@ -111,7 +111,7 @@ describe('entrypoint', () => {
     const originalArgv = [...process.argv];
     process.stderr.write = (chunk) => { writes.push(String(chunk)); return true; };
     process.exit = jest.fn();
-    process.argv = [...process.argv];
+    process.argv = [process.argv[0], process.argv[1]];
 
     try {
       await jest.unstable_mockModule('../src/runtime.mjs', () => ({
@@ -207,6 +207,15 @@ describe('entrypoint', () => {
     }
   });
 
+  test('agentx.mjs sends positional text as one-shot input', async () => {
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({ isDirectInvocation: () => true, promptPath: '/tmp/prompt.json' }));
+    const runAgent = jest.fn().mockResolvedValue(undefined);
+    await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+    process.argv = [process.argv[0], process.argv[1], 'hello', 'world'];
+    await import('../agentx.mjs');
+    expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd(), initialMessage: 'hello world', oneShot: true });
+  });
+
   test('agentx.mjs starts the REPL when invoked directly', async () => {
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       isDirectInvocation: () => true,
@@ -216,6 +225,7 @@ describe('entrypoint', () => {
     await jest.unstable_mockModule('../src/agent.mjs', () => ({
       runAgent,
     }));
+    process.argv = [process.argv[0], process.argv[1]];
 
     await import('../agentx.mjs');
 

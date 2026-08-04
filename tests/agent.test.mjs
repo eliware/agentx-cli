@@ -558,7 +558,7 @@ Ask the user what they want to do next.`,
     const { runAgent } = await import('../src/agent.mjs');
     await runAgent({ promptPath, cwd });
 
-    expect(persistResponseState).toHaveBeenCalledTimes(4);
+    expect(persistResponseState).toHaveBeenCalledTimes(5);
     expect(persistResponseState.mock.calls[0][1]).toMatchObject({
       response_id: '',
       pending_cli_transcript: '! ls\none.txt\ntwo.txt',
@@ -576,6 +576,7 @@ Ask the user what they want to do next.`,
       response_id: 'resp-1',
       pending_cli_transcript: '',
     });
+    expect(persistResponseState.mock.calls[4][0]).toContain('.agentx_checkpoint');
     expect(sendMessage).toHaveBeenCalledTimes(1);
     const combinedWrites = writes.join('');
     expect(combinedWrites).not.toContain('Running shell command: ls');

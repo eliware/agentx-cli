@@ -203,6 +203,13 @@ describe('agent session helpers', () => {
     await expect(createStreamedResponse(openai, { model: 'test-model' })).resolves.toEqual({ id: 'resp-default', output: [] });
   });
 
+  test('sendMessage stops status controller when streaming fails', async () => {
+    const statusController = { showReasoning: jest.fn(), clear: jest.fn(), stop: jest.fn() };
+    const openai = { responses: { create: jest.fn().mockRejectedValue(new Error('stream failed')) } };
+    await expect(sendMessage(openai, { model: 'test-model', input: [], tools: [] }, '', 'hello', '', '/tmp/work', null, null, { statusController })).rejects.toThrow('stream failed');
+    expect(statusController.stop).toHaveBeenCalledTimes(1);
+  });
+
   test('sendMessage uses first-message templating on a fresh session', async () => {
     const template = {
       model: 'test-model',
@@ -840,6 +847,35 @@ describe('agent session helpers', () => {
     expect(output).toContain('\u001b[94m{"time":');
   });
 
+  test('handleToolCalls refuses unconfirmed state-changing calls', async () => {
+    const openai = { responses: { create: jest.fn(async (request) => ({ id: 'resp-next', output: [], request })) } };
+    const response = { id: 'resp-1', usage: { input_tokens: 1, output_tokens: 1 }, output: [
+      { type: 'shell_call', call_id: 'call-danger', action: { commands: ['shutdown now'] } },
+      { type: 'shell_call', id: 'call-danger-id', action: { commands: ['reboot now'] } },
+      { type: 'shell_call', action: { commands: ['poweroff now'] } },
+    ] };
+    const runToolCallFn = jest.fn();
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { confirmToolCall: async () => false });
+    expect(runToolCallFn).not.toHaveBeenCalled();
+    expect(openai.responses.create.mock.calls[0][0].input).toHaveLength(3);
+    expect(openai.responses.create.mock.calls[0][0].input.every((item) => item.status === 'incomplete')).toBe(true);
+  });
+
+  test('handleToolCalls executes duplicate calls only once', async () => {
+    const createCalls = [];
+    const openai = { responses: { create: async (request) => { createCalls.push(request); return { id: 'resp-next', output: [] }; } } };
+    const response = { id: 'resp-1', usage: { input_tokens: 1, output_tokens: 1 }, output: [
+      { type: 'shell_call', call_id: 'call-1', action: { commands: ['one'] } },
+      { type: 'shell_call', call_id: 'call-1', action: { commands: ['one'] } },
+    ] };
+    const runToolCallFn = jest.fn(async (call) => ({ type: 'shell_call_output', call_id: call.call_id, output: [], status: 'completed' }));
+
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn);
+
+    expect(runToolCallFn).toHaveBeenCalledTimes(1);
+    expect(createCalls[0].input).toHaveLength(1);
+  });
+
   test('handleToolCalls runs multiple tool calls sequentially and preserves output order', async () => {
     const createCalls = [];
     const openai = {
@@ -941,7 +977,6 @@ describe('status failure cleanup', () => {
       expect(writes.join('')).toContain('\r\x1b[2K');
       process.stdout.write = original;
     } finally {
-      process.stdout.write = process.stdout.write;
       jest.useRealTimers();
     }
   });

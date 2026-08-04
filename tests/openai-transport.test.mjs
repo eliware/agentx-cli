@@ -266,6 +266,24 @@ describe('openai transport', () => {
     await expect(responsePromise).rejects.toMatchObject({ message: 'OpenAI websocket error', cause: {} });
   });
 
+  test('rejects active requests when an intentional close emits a socket error', async () => {
+    const instances = [];
+    const { transport } = makeTransport({ instances });
+
+    const responsePromise = transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    await Promise.resolve();
+
+    transport.close();
+    instances[0].emit('error', new Error('intentional close failed'));
+
+    await expect(responsePromise).rejects.toMatchObject({
+      message: 'intentional close failed',
+      cause: expect.any(Error),
+    });
+    instances[0].emit('close', 1000, 'closed');
+  });
+
   test('rejects websocket closes before the connection opens', async () => {
     const instances = [];
     const sent = [];
@@ -313,6 +331,25 @@ describe('openai transport', () => {
     await expect(fallback).rejects.toMatchObject({ code: 'openai_websocket_error', message: 'OpenAI websocket error', status: 429 });
   });
 
+  test('normalizes fallback status from the nested server payload', async () => {
+    const instances = [];
+    const { transport } = makeTransport({ instances });
+    const responsePromise = transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    await Promise.resolve();
+    instances[0].emit('message', JSON.stringify({ type: 'error', error: { status: 503 } }), false);
+    await expect(responsePromise).rejects.toMatchObject({ status: 503 });
+  });
+
+  test('handles completion before the create continuation sends', async () => {
+    const instances = [];
+    const { transport } = makeTransport({ instances });
+    const responsePromise = transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    instances[0].emit('message', JSON.stringify({ type: 'response.completed', response: { id: 'early', output: [] } }), false);
+    await expect(responsePromise).resolves.toEqual({ id: 'early', output: [] });
+  });
+
   test('clears the close fallback when the server closes', () => {
     const instances = [];
     const { transport } = makeTransport({ instances });
@@ -322,6 +359,21 @@ describe('openai transport', () => {
     instances[0].emit('close', 1000, 'bye');
     jest.advanceTimersByTime(20);
     expect(instances[0].terminated).toBeUndefined();
+  });
+
+  test('ignores close timeout rejection after the response already completed', async () => {
+    jest.useFakeTimers();
+    const instances = [];
+    const { transport } = makeTransport({ instances });
+    const response = transport.responses.create({ model: 'gpt-test', input: [] });
+    instances[0].emit('open');
+    await Promise.resolve();
+    instances[0].emit('message', JSON.stringify({ type: 'response.completed', response: { id: 'done', output: [] } }), false);
+    await expect(response).resolves.toEqual({ id: 'done', output: [] });
+    transport.close();
+    jest.advanceTimersByTime(10);
+    expect(instances[0].terminated).toBe(true);
+    jest.useRealTimers();
   });
 
   test('forces socket termination when graceful close times out', async () => {

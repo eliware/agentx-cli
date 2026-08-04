@@ -32,3 +32,15 @@ Summarize the repository state
 ```text
 /clear
 ```
+
+## One-shot request
+
+```bash
+agentx "summarize the current repository"
+```
+
+Add `--yolo` when the request should approve all model-requested CLI execution:
+
+```bash
+agentx --yolo "run the tests and report failures"
+```

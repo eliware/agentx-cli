@@ -1,5 +1,53 @@
 import { runShellCommands } from './tool-shell.mjs';
 
+
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key])]));
+  }
+  return value;
+}
+
+export function requiresToolConfirmation(call) {
+  if (call?.type !== 'shell_call') return false;
+  const commands = normalizeCommandList(call?.action?.commands).join(' && ').toLowerCase();
+  return /(^|[;&|\s])(rm|mv|cp|mkdir|rmdir|shutdown|reboot|poweroff|systemctl|apt|dnf|yum|npm\s+(install|uninstall|update| ci)|git\s+(commit|push|reset)|terraform|kubectl|xe\s+vm-(create|destroy|shutdown)|snapshot|ssh)(\s|$)/.test(commands);
+}
+
+export function toolCallIdentity(call, cwd = '') {
+  const callId = call?.call_id || call?.id;
+  if (callId) return `id:${callId}`;
+  return `hash:${JSON.stringify(stableValue({
+    type: call?.type || '',
+    name: call?.name || '',
+    cwd: cwd || '',
+    action: call?.action || {},
+    arguments: call?.arguments ?? call?.input ?? '',
+  }))}`;
+}
+
+export function dedupeToolCalls(calls, cwd = '') {
+  const seen = new Set();
+  return calls.filter((call) => {
+    const identity = toolCallIdentity(call, cwd);
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
+export function dedupeToolOutputs(outputs) {
+  const seen = new Set();
+  return outputs.filter((output) => {
+    const callId = String(output?.call_id ?? '').trim();
+    const identity = callId || JSON.stringify(stableValue(output));
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
 function normalizeCommandList(commands) {
   if (Array.isArray(commands)) return commands.map((command) => String(command ?? ''));
   if (typeof commands === 'string') return [commands];

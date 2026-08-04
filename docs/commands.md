@@ -41,6 +41,16 @@ Any other input is sent to OpenAI as a user message.
 Tab completion suggests files and folders from the current directory. It follows the active directory after `cd` without creating duplicate input listeners.
 Paths with spaces are quoted.
 
+## One-shot mode
+
+Pass a quoted message after the command to send one request and exit after the response and usage summary:
+
+```bash
+agentx "review the current project status"
+```
+
+One-shot mode inherits the latest successful checkpoint, but uses its own pending-state file. Multiple one-shots can run concurrently in the same directory without resuming or overwriting the interactive session's pending tool calls.
+
 ## Startup flags
 
 These are command-line flags, not in-app commands:
@@ -48,3 +58,6 @@ These are command-line flags, not in-app commands:
 - `--help`, `-h`, `-?`: show quick help and exit
 - `--version`, `-v`: print the package version and exit
 - `--debug`: print raw websocket logs and suppress live status lines. MCP and reasoning argument deltas are filtered where appropriate to keep raw diagnostics readable.
+- `--yolo`: bypass confirmation for all model-requested CLI tool calls for this invocation. Use only when explicitly intended.
+
+Flags can be combined, for example `agentx --debug --yolo "run the test suite"`.

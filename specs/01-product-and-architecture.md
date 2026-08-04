@@ -23,4 +23,4 @@ AgentX is an ESM-only Node.js terminal chat agent. It sends user messages to the
 - `shell*.mjs`, `path-completion.mjs`: commands, prompt display, cwd, AGENTS discovery, completion.
 - `prompt.json`: request template.
 
-Only one Responses request may be in flight per transport. Tool calls can cause multiple sequential Responses requests as outputs are returned to the model.
+Only one Responses request may be in flight per transport. Tool calls execute sequentially by default; no parallel tool execution is allowed. Tool calls can cause multiple sequential Responses requests as outputs are returned to the model. Each assistant-turn tool call has one dispatch identity and must not be re-enqueued or executed more than once.

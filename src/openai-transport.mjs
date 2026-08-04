@@ -229,10 +229,7 @@ export function createOpenAIResponsesTransport({
       throw makeTransportError('Another response is already in flight');
     }
 
-    connect();
-    await readyPromise;
-
-    return await new Promise((resolve, reject) => {
+    const responsePromise = new Promise((resolve, reject) => {
       active = {
         resolve,
         reject,
@@ -240,14 +237,21 @@ export function createOpenAIResponsesTransport({
         request,
         responseId: '',
       };
-
-      try {
-        client.sendResponseCreate(request);
-      } catch (error) {
-        active = null;
-        reject(error);
-      }
     });
+    const requestState = active;
+
+    try {
+      connect();
+      await readyPromise;
+      // A reconnect or completion may have replaced/cleared the request.
+      if (active !== requestState) return await responsePromise;
+      client.sendResponseCreate(request);
+    } catch (error) {
+      if (active === requestState) active = null;
+      requestState.reject(error);
+    }
+
+    return await responsePromise;
   }
 
   return {

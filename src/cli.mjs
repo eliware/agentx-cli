@@ -16,10 +16,11 @@ export function getPackageVersion() {
 export function formatQuickHelp(version = getPackageVersion()) {
   return [
     `AgentX ${version}`,
-    'Usage: agentx [--help|-h|-?] [--version|-v] [--debug]',
+    'Usage: agentx [--help|-h|-?] [--version|-v] [--debug] [--yolo] [message...]',
     '',
     'Chat:',
     '  normal text  send a message to OpenAI',
+    "  agentx 'message'  send once, print summary, then exit",
     '  cd <path>    change the local working directory',
     '  !command     run a local shell command',
     '',
@@ -34,5 +35,6 @@ export function formatQuickHelp(version = getPackageVersion()) {
     '  --help, -h, -?   show this help',
     '  --version, -v    print the package version',
     '  --debug          print raw websocket logs and suppress live status lines',
+    '  --yolo           bypass all tool confirmation prompts',
   ].join('\n');
 }

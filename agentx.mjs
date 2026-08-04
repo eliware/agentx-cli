@@ -52,7 +52,8 @@ if (isDirectInvocation(import.meta.url)) {
   } else {
     try {
       await confirmSetup();
-      await runAgent({ promptPath, cwd: process.cwd() });
+      const messageArgs = argv.filter((arg) => arg !== '--debug' && arg !== '--yolo');
+      await runAgent({ promptPath, cwd: process.cwd(), ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
     } catch (error) {
       printStartupError(error);
       process.exit(1);

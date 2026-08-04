@@ -9,11 +9,13 @@ Flags are handled before the REPL:
 - `--help`, `-h`, `-?`: print help and exit 0.
 - `--version`, `-v`: print package version and exit 0.
 - `--debug`: retain for runtime diagnostics.
+- `--yolo`: bypass confirmation for all model-requested CLI tool calls; use only when explicitly intended.
+- Remaining arguments are joined with spaces as a one-shot chat message. `agentx "message"` sends one request, performs tool calls, prints the normal response/usage summary, then exits without opening the REPL.
 
 On interactive TTY startup, if configuration is absent, ask `AgentX is not configured. Run agentx-setup now? [Y/n] `. Declining continues to normal startup; accepting runs setup and reloads the resulting config. Noninteractive startup does not ask.
 
 ## Agent startup
-`runAgent({ promptPath, cwd, input, output })`:
+`runAgent({ promptPath, cwd, input, output, initialMessage, oneShot })` (when `oneShot` is true, process `initialMessage` once and exit after the normal usage summary):
 1. Load prompt template and optional MCP tools.
 2. Apply settings from environment.
 3. Discover AGENTS.md instructions.
@@ -22,7 +24,7 @@ On interactive TTY startup, if configuration is absent, ask `AgentX is not confi
 6. Create the WebSocket Responses transport.
 7. Print startup settings and whether the session is new/resuming.
 8. Print saved last user/assistant messages when present.
-9. If pending tool calls exist, show the resume menu and resolve them before the normal REPL.
+9. For one-shot mode, load only the latest successful checkpoint and use an isolated pending-state file; never resume interactive pending calls. Otherwise, if pending tool calls exist, show the resume menu and resolve them before the normal REPL.
 10. Create a readline interface with path completion and enter the prompt loop.
 
-Exit on EOF/AbortError or quit commands after printing usage totals. Startup failures go to stderr and process exit code 1.
+Exit on EOF/AbortError or quit commands after printing usage totals. One-shot failures do not open recovery menus; they go to stderr and process exit code 1. Startup failures go to stderr and process exit code 1.

@@ -9,7 +9,7 @@ describe('prompt text', () => {
     expect(text).toContain('Identity guidance: You are AgentX');
     expect(text).toContain('created by Eli Sterling (eliware.org)');
     expect(text).toContain('Role guidance: You are AgentX in the role of System Administrator, DevOps, and Developer.');
-    expect(text).toContain('Tool-use guidance: Always prefer bulk parallel tool calls whenever possible. Only use sequential command lists when the order of execution is important.');
+    expect(text).toContain('For shell commands, issue the tool call directly; never ask for conversational confirmation.');
     expect(text).toContain('Current working directory: /tmp/work');
     expect(text).toContain('Be extremely consice. Sacrifice grammar for concision.');
     expect(text).toMatch(/Be extremely consice\. Sacrifice grammar for concision\.[\s\S]*AGENTS\.md:/);
