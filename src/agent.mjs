@@ -296,6 +296,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
     };
     if (interactive) {
+      rl.pause();
       emitKeypressEvents(terminalInput);
       terminalInput.setRawMode(true);
       terminalInput.on('keypress', onKeypress);
@@ -312,6 +313,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       if (interactive) {
         terminalInput.removeListener?.('keypress', onKeypress);
         terminalInput.setRawMode(false);
+        rl.resume();
       }
     }
   }
