@@ -338,6 +338,15 @@ describe('agent session helpers', () => {
     expect(usageCalls).toEqual([{ inputTokens: 3, cachedTokens: 1, outputTokens: 2 }]);
   });
 
+  test('persists failed tool continuation for retry', async () => {
+    const retryStates = [];
+    const openai = { responses: { create: jest.fn().mockRejectedValue(new Error('overloaded')) } };
+    const response = { id: 'resp-tool', output: [{ type: 'shell_call', call_id: 'call-1', action: { commands: ['printf output'] } }] };
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'call-1', output: [], status: 'completed' }), { onRetryState: async (state) => retryStates.push(state) })).rejects.toThrow('overloaded');
+    expect(retryStates).toHaveLength(1);
+    expect(retryStates[0].request).toMatchObject({ previous_response_id: 'resp-tool', store: true, input: [{ call_id: 'call-1' }] });
+  });
+
   test('handleToolCalls prints turn and cumulative usage after each response', async () => {
     const cumulative = { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 };
     const openai = {

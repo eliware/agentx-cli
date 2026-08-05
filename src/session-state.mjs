@@ -74,6 +74,7 @@ function normalizeSessionState(state) {
   if (Object.prototype.hasOwnProperty.call(state || {}, 'history')) normalized.history = normalizeHistory(state.history);
   if (Object.prototype.hasOwnProperty.call(state || {}, 'rollback_backup')) normalized.rollback_backup = normalizeHistory(state.rollback_backup);
   if (Object.prototype.hasOwnProperty.call(state || {}, 'failed_response')) normalized.failed_response = Boolean(state.failed_response);
+  if (Object.prototype.hasOwnProperty.call(state || {}, 'pending_retry_request')) normalized.pending_retry_request = state.pending_retry_request && typeof state.pending_retry_request === 'object' ? JSON.parse(JSON.stringify(state.pending_retry_request)) : null;
   return normalized;
 }
 

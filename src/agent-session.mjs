@@ -613,7 +613,12 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       previous_response_id: current.id,
       store: true,
     };
-    current = await createStreamedResponse(openai, request, liveStreaming ? { liveStreaming, statusController } : { statusController });
+    try {
+      current = await createStreamedResponse(openai, request, liveStreaming ? { liveStreaming, statusController } : { statusController });
+    } catch (error) {
+      await streamOptions?.onRetryState?.({ request, response: current });
+      throw error;
+    }
   }
 }
 

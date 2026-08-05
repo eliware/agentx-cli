@@ -8,8 +8,11 @@ describe('session state', () => {
     const tmp = makeTempDir('agentx-state-');
     const statePath = `${tmp}/.agentx_responseid`;
     try {
-      await persistResponseState(statePath, { response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: 'hello', last_assistant_message: 'hi', pending_cli_transcript: '', pending_tool_calls: [{ type: 'function_call', name: 'custom_tool', call_id: 'call-1', arguments: '{"p":[{"s":["echo hi"]}]}' }] });
-      await expect(readSessionState(statePath)).resolves.toEqual({ response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: 'hello', last_assistant_message: 'hi', pending_cli_transcript: '', pending_tool_calls: [{ type: 'function_call', name: 'custom_tool', call_id: 'call-1', arguments: '{"p":[{"s":["echo hi"]}]}' }] });
+      await persistResponseState(statePath, { pending_retry_request: { previous_response_id: 'resp-tool', input: [] }, response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: 'hello', last_assistant_message: 'hi', pending_cli_transcript: '', pending_tool_calls: [{ type: 'function_call', name: 'custom_tool', call_id: 'call-1', arguments: '{"p":[{"s":["echo hi"]}]}' }] });
+      await expect(readSessionState(statePath)).resolves.toEqual({ pending_retry_request: { previous_response_id: 'resp-tool', input: [] }, response_id: 'resp-1', usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 }, last_user_message: 'hello', last_assistant_message: 'hi', pending_cli_transcript: '', pending_tool_calls: [{ type: 'function_call', name: 'custom_tool', call_id: 'call-1', arguments: '{"p":[{"s":["echo hi"]}]}' }] });
+
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({ pending_retry_request: null }));
+      await expect(readSessionState(statePath)).resolves.toMatchObject({ pending_retry_request: null });
 
       await makeFile(tmp, '.agentx_responseid', 'resp-legacy\n');
       await expect(readSessionState(statePath)).resolves.toEqual({ response_id: 'resp-legacy', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '', pending_tool_calls: [] });

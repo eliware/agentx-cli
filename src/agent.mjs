@@ -165,6 +165,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let history = Array.isArray(savedState?.history) ? savedState.history : [];
   let rollbackBackup = Array.isArray(savedState?.rollback_backup) ? savedState.rollback_backup : [];
   let failedResponse = Boolean(savedState?.failed_response);
+  let pendingRetryRequest = savedState?.pending_retry_request || null;
   const globalConfirmationPath = confirmationFilePath();
   const globalConfirmations = await loadGlobalConfirmations(globalConfirmationPath);
   const sessionConfirmations = new Set();
@@ -181,6 +182,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       history,
       rollback_backup: rollbackBackup,
       failed_response: failedResponse,
+      pending_retry_request: pendingRetryRequest,
     });
   }
 
@@ -452,8 +454,10 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       const sessionStartedAt = Date.now();
       cwdNote = '';
       lastUserMessage = message;
-      await saveState();
       let response;
+      let retryRequest = pendingRetryRequest;
+      pendingRetryRequest = null;
+      await saveState();
       let recoveryAttempts = 0;
       while (!response) {
         const activeOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
@@ -464,10 +468,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
+          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
         } catch (error) {
           if (error?.code === 'previous_response_not_found' && previousResponseId) {
             previousResponseId = '';
+            retryRequest = null;
+            pendingRetryRequest = null;
             process.stdout.write(`${formatSystemMessage('Previous response not found; starting a new chain.')}\n`);
             continue;
           }
@@ -478,8 +484,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           let choice;
           try { choice = await promptRecoveryMenu(error, { input: terminalInput, output: terminalOutput }); }
           catch (menuError) { if (menuError?.name === 'AbortError') { process.stdout.write(`${formatSystemMessage('Recovery cancelled; session preserved.')}\n`); break; } throw menuError; }
-          if (choice === 'retry' && recoveryAttempts < 1) { recoveryAttempts += 1; continue; }
-          if (choice === 'new-chain' && recoveryAttempts < 2) { recoveryAttempts += 1; previousResponseId = ''; continue; }
+          if (choice === 'retry' && recoveryAttempts < 1) { recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue; }
+          if (choice === 'new-chain' && recoveryAttempts < 2) { recoveryAttempts += 1; previousResponseId = ''; retryRequest = null; pendingRetryRequest = null; continue; }
           if (choice === 'rollback') {
             const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });
             if (selected) {
@@ -489,7 +495,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             break;
           }
           if (choice === 'clear') {
-            previousResponseId = ''; lastUserMessage = ''; lastAssistantMessage = ''; pendingCliTranscript = ''; pendingToolCalls = []; history = []; rollbackBackup = []; failedResponse = false; sessionUsage = createUsageTotals(); await clearSession(statePath);
+            previousResponseId = ''; retryRequest = null; pendingRetryRequest = null; lastUserMessage = ''; lastAssistantMessage = ''; pendingCliTranscript = ''; pendingToolCalls = []; history = []; rollbackBackup = []; failedResponse = false; sessionUsage = createUsageTotals(); await clearSession(statePath);
             process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
             break;
           }
@@ -500,6 +506,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       previousResponseId = response?.id || previousResponseId;
       lastAssistantMessage = extractTextFromResponse(response);
       pendingToolCalls = [];
+      pendingRetryRequest = null;
+      retryRequest = null;
       pendingCliTranscript = '';
       failedResponse = false;
       rollbackBackup = [];

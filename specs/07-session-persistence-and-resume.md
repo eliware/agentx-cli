@@ -46,3 +46,6 @@ One-shot invocations use a unique state file and never read or write the interac
 
 
 Startup removes stale one-shot session-state files (`.agentx_responseid.oneshot-*`) older than one hour. Recent files are preserved to avoid disrupting active one-shot processes.
+
+
+When a tool-output continuation fails, persist the exact continuation request as `pending_retry_request`. Retry must replay that request, including its `previous_response_id` and tool outputs, instead of resending the original user message. Clear it only after successful continuation or explicit session reset.
