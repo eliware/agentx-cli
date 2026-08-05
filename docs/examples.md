@@ -23,7 +23,7 @@ cd /var/log
 ## Combine shell output with the next prompt
 
 ```text
-> git status
+! git status
 Summarize the repository state
 ```
 

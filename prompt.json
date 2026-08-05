@@ -75,6 +75,10 @@
               "execute"
             ],
             "description": "Worker permission level. Defaults to execute."
+          },
+          "debug": {
+            "type": "boolean",
+            "description": "Enable --debug output in the worker. Defaults to false."
           }
         },
         "required": [

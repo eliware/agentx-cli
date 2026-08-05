@@ -2,8 +2,8 @@
 
 ## 1.4.6 - Parallel worker delegation
 
-- Added asynchronous `spawn_agent` and `agent_status` tools for delegating up to 10 independent tasks.
-- Workers run as separate AgentX processes with independent conversations, shared current working directory, and `--yolo` execution.
+- Added asynchronous `spawn_agent`, `agent_status`, and `cancel_agent` tools for delegating up to 3 independent tasks.
+- Workers run as separate AgentX processes with independent conversations, shared current working directory, with automatic approval by default.
 - Added non-blocking worker status polling with partial output, line counts, elapsed time, usage, and optional wait/timeout behavior.
 - Made tool confirmation opt-in via `--confirm`; `--yolo` remains a legacy alias.
 - Added prompt, documentation, specification, and regression-test coverage for worker delegation.

@@ -26,10 +26,10 @@ function snapshot(worker) {
   return { id: worker.id, task: worker.task, status: worker.status, elapsed_ms: (worker.finishedAt || Date.now()) - worker.startedAt, lines: worker.lines, output: worker.output.slice(-10000), usage: worker.usage, ...(worker.error ? { error: worker.error } : {}) };
 }
 
-function startWorker(task, cwd, permissions) {
-  const worker = { id: `agent-${randomUUID()}`, task, status: 'running', startedAt: Date.now(), lines: 0, output: '', usage: null };
+function startWorker(task, cwd, permissions, debug = false) {
+  const worker = { id: `agent-${randomUUID()}`, task, status: 'running', startedAt: Date.now(), lines: 0, output: '', usage: null, exited: false, killTimer: null };
   workers.set(worker.id, worker);
-  const child = spawn(process.execPath, [entrypoint, task], { cwd, env: { ...process.env, AGENTX_WORKER_ID: worker.id, AGENTX_PERMISSION: permissions }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [entrypoint, ...(debug ? ['--debug'] : []), task], { cwd, env: { ...process.env, AGENTX_WORKER_ID: worker.id, AGENTX_PERMISSION: permissions }, stdio: ['ignore', 'pipe', 'pipe'] });
   workerChildren.set(worker.id, child);
   const append = (chunk) => {
     const text = String(chunk);
@@ -41,11 +41,12 @@ function startWorker(task, cwd, permissions) {
     worker.status = 'timed_out';
     worker.error = `worker exceeded ${WORKER_TIMEOUT_MS}ms`;
     child.kill('SIGTERM');
+    worker.killTimer = setTimeout(() => { if (!worker.exited) child.kill('SIGKILL'); }, SHUTDOWN_GRACE_MS);
   }, WORKER_TIMEOUT_MS);
   child.stdout.on('data', append);
   child.stderr.on('data', append);
-  child.on('error', (error) => { clearTimeout(worker.timeout); worker.status = 'failed'; worker.error = error.message; worker.finishedAt = Date.now(); });
-  child.on('close', (code, signal) => { clearTimeout(worker.timeout); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (code === 0 ? 'completed' : 'failed'); worker.exitCode = code; worker.signal = signal; worker.finishedAt = Date.now(); });
+  child.on('error', (error) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); worker.status = 'failed'; worker.error = error.message; worker.finishedAt = Date.now(); });
+  child.on('close', (code, signal) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (worker.status === 'cancelled' ? 'cancelled' : (code === 0 ? 'completed' : 'failed')); worker.exitCode = code; worker.signal = signal; worker.finishedAt = Date.now(); });
   return worker;
 }
 
@@ -63,8 +64,9 @@ export async function terminateWorkers() {
   }
   if (!active.length) return;
   await new Promise((resolve) => setTimeout(resolve, SHUTDOWN_GRACE_MS));
-  for (const [, child] of active) {
-    if (!child.killed) child.kill('SIGKILL');
+  for (const [id, child] of active) {
+    const worker = workers.get(id);
+    if (worker && !worker.exited) child.kill('SIGKILL');
   }
 }
 
@@ -77,9 +79,10 @@ export async function runParallelWorkerFunction(call, cwd) {
   if (call?.name === 'spawn_agent') {
     if (process.env.AGENTX_WORKER_ID) return { error: 'nested worker spawning is disabled' };
     const permissions = ['read', 'write', 'execute'].includes(args.permissions) ? args.permissions : 'execute';
+    const debug = args.debug === true;
     const tasks = Array.isArray(args.tasks) ? args.tasks.filter((task) => typeof task === 'string' && task.trim()).slice(0, MAX_WORKERS) : [];
     if (!tasks.length) return { error: 'tasks must contain 1-3 non-empty strings' };
-    return { agents: tasks.map((task) => { const worker = startWorker(task, cwd, permissions); return { id: worker.id, task, permissions, status: worker.status }; }) };
+    return { agents: tasks.map((task) => { const worker = startWorker(task, cwd, permissions, debug); return { id: worker.id, task, permissions, debug, status: worker.status }; }) };
   }
   if (call?.name === 'cancel_agent') {
     const ids = Array.isArray(args.agent_ids) ? args.agent_ids.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_WORKERS) : [];
@@ -93,6 +96,7 @@ export async function runParallelWorkerFunction(call, cwd) {
       worker.error = 'cancelled by request';
       worker.finishedAt = Date.now();
       child.kill('SIGTERM');
+      worker.killTimer = setTimeout(() => { if (!worker.exited) child.kill('SIGKILL'); }, SHUTDOWN_GRACE_MS);
       agents.push(snapshot(worker));
     }
     return { agents };
