@@ -23,22 +23,22 @@ export function parseWorkerUsage(text) {
 }
 
 export function selectWorkerOutput(text, options = {}) {
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  const count = Math.min(Math.max(Number(options.output_lines) || 10, 1), 100);
-  const offset = Math.max(Number(options.output_offset) || 0, 0);
+  const maxBytes = Math.min(Math.max(Number(options.output_bytes) || 2048, 1), 8192);
+  const offsetBytes = Math.max(Number(options.output_offset) || 0, 0);
   let output;
   if (options.search !== undefined) {
     try {
       const pattern = new RegExp(options.search, 'i');
-      output = lines.filter((line) => pattern.test(line)).slice(-100);
+      output = text.split(/\r?\n/).filter(Boolean).filter((line) => pattern.test(line)).join('\n');
     } catch {
-      output = [];
+      output = '';
     }
   } else {
-    const end = lines.length - offset;
-    output = lines.slice(Math.max(0, end - count), Math.max(0, end));
+    const bytes = Buffer.from(text);
+    const end = Math.max(0, bytes.length - offsetBytes);
+    output = bytes.subarray(Math.max(0, end - maxBytes), end).toString();
   }
-  return output.join('\n');
+  return Buffer.from(output).subarray(0, maxBytes).toString();
 }
 
 function snapshot(worker, options = {}) {

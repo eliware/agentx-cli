@@ -8,8 +8,9 @@ describe('parallel workers', () => {
   });
   test('selects bounded log tails and regex matches', () => {
     const log = Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join('\n');
-    expect(selectWorkerOutput(log)).toBe('line 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12');
-    expect(selectWorkerOutput(log, { output_lines: 2, output_offset: 2 })).toBe('line 9\nline 10');
+    expect(selectWorkerOutput(log)).toBe(log);
+    expect(selectWorkerOutput(log, { output_bytes: 14, output_offset: 16 })).toBe('line 9\nline 10');
+    expect(Buffer.byteLength(selectWorkerOutput('x'.repeat(10000)))).toBe(2048);
     expect(selectWorkerOutput(log, { search: '^line (1|2|11|12)$' })).toBe('line 1\nline 2\nline 11\nline 12');
   });
 
