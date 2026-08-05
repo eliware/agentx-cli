@@ -53,6 +53,22 @@ describe('tool shell', () => {
     }
   });
 
+  test('reports Ctrl-T-style aborts as timeout outcomes', async () => {
+    const tmp = makeTempDir('agentx-shell-');
+    const controller = new AbortController();
+    try {
+      const resultPromise = runShellCommands([
+        'node -e "setTimeout(() => {}, 1000)"',
+      ], tmp, { callId: 'call-abort', signal: controller.signal });
+      setTimeout(() => controller.abort(), 25);
+      const result = await resultPromise;
+      expect(result.status).toBe('incomplete');
+      expect(result.output[0].outcome).toEqual({ type: 'timeout' });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
   test('shellExec streams and returns command output', async () => {
     if (process.platform === 'win32') return;
     const tmp = makeTempDir('agentx-shell-');

@@ -101,7 +101,7 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
       flushStream('stdout');
       flushStream('stderr');
       const outcome = interrupted
-        ? { type: 'interrupted' }
+        ? { type: 'timeout' }
         : (timedOut
         ? { type: 'timeout' }
         : (signal
@@ -177,7 +177,7 @@ export async function runShellCommandSequence(steps, { callId, defaultCwd = '', 
     if (Number.isFinite(stepLimit) && stepLimit > 0) {
       maxOutputLength = maxOutputLength == null ? stepLimit : Math.max(maxOutputLength, stepLimit);
     }
-    if (chunk.outcome?.type === 'timeout' || chunk.outcome?.type === 'interrupted') {
+    if (chunk.outcome?.type === 'timeout') {
       status = 'incomplete';
       break;
     }
