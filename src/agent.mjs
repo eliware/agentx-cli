@@ -306,6 +306,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     const onRawData = (chunk) => {
       if (String(chunk).includes('\x14')) {
         interrupted = true;
+        options?.statusController?.pause?.();
         process.stdout.write(`${formatSystemMessage('User interrupted command (Ctrl-T)')}\n`);
         controller.abort();
       }
@@ -314,6 +315,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       rl?.close?.();
       terminalInput.setRawMode(true);
       terminalInput.on('data', onRawData);
+      terminalInput.resume?.();
     }
     try {
       const { runToolCall } = await import('./tool-dispatch.mjs');

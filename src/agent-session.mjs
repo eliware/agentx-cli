@@ -597,7 +597,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           continue;
         }
         await onToolExecutionState?.({ call, response: current, status: 'started', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
-        const output = await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length });
+        const output = await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController });
         await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));
         completed += 1;

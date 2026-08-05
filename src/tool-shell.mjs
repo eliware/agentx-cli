@@ -6,6 +6,13 @@ import { getShellLaunchers, isMissingLauncherError } from './platform.mjs';
 const DEFAULT_TIMEOUT_MS = 30_000;
 const OUTPUT_TRUNCATION_NOTE = '\n[output truncated]';
 
+function killChildProcess(child, signal = 'SIGTERM') {
+  if (process.platform !== 'win32' && child?.pid) {
+    try { process.kill(-child.pid, signal); return; } catch { }
+  }
+  child?.kill(signal);
+}
+
 function normalizeLimit(value, fallback = MAX_TOOL_OUTPUT) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
@@ -41,6 +48,7 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
+      detached: process.platform !== 'win32',
     });
 
     const stdoutDecoder = new StringDecoder('utf8');
@@ -114,13 +122,13 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
     if (timeout > 0) {
       timer = setTimeout(() => {
         timedOut = true;
-        child.kill('SIGTERM');
+        killChildProcess(child, 'SIGTERM');
       }, timeout);
     }
     onAbort = () => {
       if (finished) return;
       interrupted = true;
-      child.kill('SIGTERM');
+      killChildProcess(child, 'SIGTERM');
     };
     if (signal?.aborted) onAbort();
     else signal?.addEventListener?.('abort', onAbort, { once: true });
