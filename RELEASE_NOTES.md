@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.4.6 - Parallel worker delegation
+
+- Added asynchronous `spawn_agent` and `agent_status` tools for delegating up to 10 independent tasks.
+- Workers run as separate AgentX processes with independent conversations, shared current working directory, and `--yolo` execution.
+- Added non-blocking worker status polling with partial output, line counts, elapsed time, usage, and optional wait/timeout behavior.
+- Made tool confirmation opt-in via `--confirm`; `--yolo` remains a legacy alias.
+- Added prompt, documentation, specification, and regression-test coverage for worker delegation.
+
 ## 1.4.5 - Readline state preservation
 
 - Fixed duplicate input echo and broken Up/Down command history after interactive shell execution.
