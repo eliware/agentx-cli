@@ -2,7 +2,7 @@
 
 Target Node.js environments include Linux/macOS and Windows. Use ESM and Node built-ins; avoid shell-specific assumptions outside the shell launcher abstraction.
 
-Home resolution: Windows prefers `USERPROFILE`, then `HOMEDRIVE + HOMEPATH`; other platforms use `HOME` with `USERPROFILE` fallback. Prompt identity uses `USER`/`USERNAME` and `HOSTNAME`/`COMPUTERNAME`, with `root` and `dev` fallbacks.
+Home resolution: Windows prefers `HOME`, then `USERPROFILE`, then `HOMEDRIVE + HOMEPATH`; other platforms use `HOME` with `USERPROFILE` fallback. Prompt identity uses `USER`/`USERNAME` and `HOSTNAME`/`COMPUTERNAME`, with `root` and `dev` fallbacks.
 
 Shell launchers: POSIX `/bin/sh -lc`; Windows try `pwsh -NoLogo -NoProfile -Command`, then `powershell.exe`, then `cmd.exe /d /s /c`. If a launcher is missing, try the next. Preserve command exit status, stdout, stderr, timeout, and signal information in tool output.
 

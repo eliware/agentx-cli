@@ -22,6 +22,7 @@ describe('platform helpers', () => {
   test('resolves home directories across platforms', () => {
     expect(getHomeDirectory()).toBe(String(process.env.HOME || process.env.USERPROFILE || ''));
     expect(getHomeDirectory({ USERPROFILE: 'C:\\Users\\alice' }, 'win32')).toBe('C:\\Users\\alice');
+    expect(getHomeDirectory({ HOME: '/home/alice', USERPROFILE: 'C:\\Users\\alice' }, 'win32')).toBe('/home/alice');
     expect(getHomeDirectory({ HOMEDRIVE: 'C:', HOMEPATH: '\\Users\\alice' }, 'win32')).toBe('C:\\Users\\alice');
     expect(getHomeDirectory({ HOMEDRIVE: 'C:' }, 'win32')).toBe('C:');
     expect(getHomeDirectory({ HOMEPATH: '\\Users\\alice' }, 'win32')).toBe('\\Users\\alice');
