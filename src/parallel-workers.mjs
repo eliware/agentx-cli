@@ -70,8 +70,8 @@ export async function terminateWorkers() {
   }
 }
 
-process.once('exit', () => {
-  for (const child of workerChildren.values()) child.kill('SIGKILL');
+process.once('beforeExit', () => {
+  if (workerChildren.size) void terminateWorkers();
 });
 
 export async function runParallelWorkerFunction(call, cwd) {
