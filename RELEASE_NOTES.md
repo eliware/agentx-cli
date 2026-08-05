@@ -1,5 +1,9 @@
 # AgentX Release Notes
 
+## 1.5.1 - Worker status prompt schema
+
+- Updated the `agent_status` tool schema to expose byte-based output limits and pagination.
+
 ## 1.5.0 - Byte-bounded worker status output
 
 - Changed `agent_status` output pagination from lines to bytes.
