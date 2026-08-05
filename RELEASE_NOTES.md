@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.4.8 - Resume readline hotfix
+
+- Fixed resume-time confirmation prompts accessing an uninitialized readline interface.
+- Prevented interrupted tool continuations from failing with `Cannot access 'rl' before initialization`.
+- Added lifecycle specification coverage for readline initialization ordering.
+
 ## 1.4.7 - Worker hardening and recovery
 
 - Added worker permissions (`read`, `write`, `execute`), optional debug mode, and `cancel_agent`.
