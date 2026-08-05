@@ -10,6 +10,8 @@ export function getPathModule(platform = process.platform) {
 
 export function getHomeDirectory(env = process.env, platform = process.platform) {
   if (isWindowsPlatform(platform)) {
+    // Respect HOME when provided by Git Bash/CI on Windows.
+    if (env?.HOME) return String(env.HOME);
     if (env?.USERPROFILE) return String(env.USERPROFILE);
     const homeDrive = String(env?.HOMEDRIVE || '');
     const homePath = String(env?.HOMEPATH || '');
