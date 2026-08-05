@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.4.9 - Agent status and Windows path improvements
+
+- Prioritized `HOME` over `USERPROFILE` for Windows home-directory resolution, including Git Bash and CI environments.
+- Improved `agent_status` to return the last 10 log lines by default instead of a large output tail.
+- Added paginated log viewing with `output_lines` and `output_offset`.
+- Added regex searching across retained worker output with `search`.
+- Updated specifications, prompt schemas, documentation, and regression tests.
+
 ## 1.4.8 - Resume readline hotfix
 
 - Fixed resume-time confirmation prompts accessing an uninitialized readline interface.
