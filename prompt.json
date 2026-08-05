@@ -112,7 +112,7 @@
     {
       "type": "function",
       "name": "agent_status",
-      "description": "Get worker status and a small log view. Defaults to the last 10 lines; supports pagination and regex search.",
+      "description": "Get worker status and a small log view. Defaults to the last 2048 bytes; supports byte-based pagination and regex search.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -133,15 +133,15 @@
             "description": "Maximum wait time when wait is true. 0 means no limit.",
             "minimum": 0
           },
-          "output_lines": {
+          "output_bytes": {
             "type": "integer",
-            "description": "Number of output lines to return. Defaults to 10; maximum 100.",
+            "description": "Number of output bytes to return. Defaults to 2048; maximum 8192.",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 8192
           },
           "output_offset": {
             "type": "integer",
-            "description": "Number of lines to skip backward from the end. Defaults to 0. Ignored when search is set.",
+            "description": "Number of bytes to skip backward from the end. Defaults to 0. Ignored when search is set.",
             "minimum": 0
           },
           "search": {
