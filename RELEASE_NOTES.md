@@ -3,7 +3,7 @@
 ## 1.4.3 - Terminal status and command interruption
 
 - Changed one-shot/non-interactive status output to disable live refresh timers and print one line per state transition, followed by the final transaction summary.
-- Added interactive Ctrl-T interruption for active shell commands, including distinct interrupted outcomes and model-visible user interruption notes.
+- Added interactive Ctrl-T interruption for active shell commands, with timeout outcomes and model-visible user interruption notes.
 - Added specifications and regression coverage for both behaviors.
 
 ## 1.4.2 - Safe one-shot execution and tool-call deduplication
