@@ -56,7 +56,7 @@ if (isDirectInvocation(import.meta.url)) {
       await runAgent({ promptPath, cwd: process.cwd(), ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
     } catch (error) {
       printStartupError(error);
-      process.exit(1);
+      process.exitCode = 1;
     }
   }
 }

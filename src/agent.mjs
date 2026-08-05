@@ -470,7 +470,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             return sessionUsage;
           }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
         } catch (error) {
-          if (error?.code === 'previous_response_not_found' && previousResponseId) {
+          if (error?.code === 'previous_response_not_found' && previousResponseId && recoveryAttempts < 1) {
+            recoveryAttempts += 1;
             previousResponseId = '';
             retryRequest = null;
             pendingRetryRequest = null;

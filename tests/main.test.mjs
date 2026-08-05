@@ -109,6 +109,7 @@ describe('entrypoint', () => {
     const originalErrWrite = process.stderr.write;
     const originalExit = process.exit;
     const originalArgv = [...process.argv];
+    const originalExitCode = process.exitCode;
     process.stderr.write = (chunk) => { writes.push(String(chunk)); return true; };
     process.exit = jest.fn();
     process.argv = [process.argv[0], process.argv[1]];
@@ -125,10 +126,11 @@ describe('entrypoint', () => {
 
       expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd() });
       expect(writes.join('')).toContain('missing API key');
-      expect(process.exit).toHaveBeenCalledWith(1);
+      expect(process.exitCode).toBe(1);
     } finally {
       process.stderr.write = originalErrWrite;
       process.exit = originalExit;
+      process.exitCode = originalExitCode;
       process.argv = originalArgv;
     }
   });
@@ -138,6 +140,7 @@ describe('entrypoint', () => {
     const originalErrWrite = process.stderr.write;
     const originalExit = process.exit;
     const originalArgv = [...process.argv];
+    const originalExitCode = process.exitCode;
     process.stderr.write = (chunk) => { writes.push(String(chunk)); return true; };
     process.exit = jest.fn();
     process.argv = [...process.argv];
@@ -153,10 +156,11 @@ describe('entrypoint', () => {
       await import('../agentx.mjs');
 
       expect(writes.join('')).toContain('boom');
-      expect(process.exit).toHaveBeenCalledWith(1);
+      expect(process.exitCode).toBe(1);
     } finally {
       process.stderr.write = originalErrWrite;
       process.exit = originalExit;
+      process.exitCode = originalExitCode;
       process.argv = originalArgv;
     }
   });
