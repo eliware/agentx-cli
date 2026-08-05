@@ -24,7 +24,7 @@ On interactive TTY startup, if configuration is absent, ask `AgentX is not confi
 6. Create the WebSocket Responses transport.
 7. Print startup settings and whether the session is new/resuming.
 8. Print saved last user/assistant messages when present.
-9. For one-shot mode, load only the latest successful checkpoint and use an isolated pending-state file; never resume interactive pending calls, create readline, read stdin, enter raw mode, or open any menu. Otherwise, if pending tool calls exist, show the resume menu and resolve them before the normal REPL.
+9. For one-shot mode, load only the latest successful checkpoint and use an isolated pending-state file; never resume interactive pending calls, create readline, read stdin, enter raw mode, or open any menu. Otherwise, create the interactive readline interface before resolving pending tool calls, then show the resume menu and resolve them before the normal REPL. This prevents resume-time confirmation prompts from accessing an uninitialized readline binding.
 10. Create a readline interface with path completion only for interactive mode and enter the prompt loop.
 11. One-shot API failures retry automatically once; a second failure prints the error and exits nonzero. `previous_response_not_found` recovery also consumes that single retry and must not loop indefinitely.
 

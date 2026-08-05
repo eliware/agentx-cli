@@ -168,6 +168,9 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const globalConfirmationPath = confirmationFilePath();
   const globalConfirmations = await loadGlobalConfirmations(globalConfirmationPath);
   const sessionConfirmations = new Set();
+  // Resume may execute confirmation-gated tools before entering the prompt loop.
+  // Initialize readline first so confirmToolCall never hits the TDZ.
+  let rl = oneShot ? null : createReplInterface(() => cwd, terminalInput, terminalOutput);
 
   async function saveState() {
     await persistResponseState(statePath, {
@@ -296,8 +299,6 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
     }
   }
-
-  let rl = oneShot ? null : createReplInterface(() => cwd, terminalInput, terminalOutput);
 
   async function runInteractiveToolCall(call, toolCwd, options = {}) {
     const controller = new AbortController();
