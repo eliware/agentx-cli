@@ -162,7 +162,7 @@ describe('entrypoint', () => {
   });
 
   test('agentx.mjs exercises the interactive setup decline path', async () => {
-    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY;
+    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv; process.argv = [process.argv[0], process.argv[1]];
     process.env.NODE_ENV = '';
     Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true });
     Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
@@ -180,12 +180,12 @@ describe('entrypoint', () => {
     } finally {
       if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
       Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn });
-      Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut });
+      Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
     }
   });
 
   test('agentx.mjs exercises successful interactive setup', async () => {
-    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY;
+    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv; process.argv = [process.argv[0], process.argv[1]];
     const oldKey = process.env.agentx_api_key; process.env.NODE_ENV = ''; delete process.env.agentx_api_key; delete process.env.AGENTX_API_KEY;
     Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true });
     Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
@@ -203,7 +203,7 @@ describe('entrypoint', () => {
     } finally {
       if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
       if (oldKey === undefined) delete process.env.agentx_api_key; else process.env.agentx_api_key = oldKey;
-      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut });
+      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
     }
   });
 

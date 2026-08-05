@@ -214,12 +214,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
 
   async function exitWithSummary({ leadingNewline = false } = {}) {
     printUsageReport(sessionUsage, { leadingNewline, model: template.model });
-    rl.close();
+    rl?.close?.();
     process.exit(0);
   }
 
   const hasPendingToolCalls = Boolean(previousResponseId && pendingToolCalls.length > 0);
-  if (hasPendingToolCalls) {
+  if (hasPendingToolCalls && !oneShot) {
     const resumeChoice = await promptResumeMenu(savedState, { input: terminalInput, output: terminalOutput });
 
     if (resumeChoice === 'new-session') {
@@ -297,7 +297,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     }
   }
 
-  let rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+  let rl = oneShot ? null : createReplInterface(() => cwd, terminalInput, terminalOutput);
 
   async function runInteractiveToolCall(call, toolCwd, options = {}) {
     const controller = new AbortController();
@@ -370,7 +370,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         // The setup menu creates its own interface and raw-mode input handler;
         // leaving the REPL interface open here can strand its pending question
         // when setup exits, producing an unsettled top-level await warning.
-        rl.close();
+        rl?.close?.();
       try {
         await runSetup({ stdin: terminalInput, stdout: terminalOutput });
       } catch (error) {
@@ -406,7 +406,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       if (internal?.type === 'rollback') {
         // The pending readline prompt must not remain attached while the raw-mode menu runs.
         // Otherwise readline can redraw/echo the next line after the menu exits.
-        rl.close();
+        rl?.close?.();
         try {
           const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });
           if (selected) {
@@ -478,7 +478,10 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           failedResponse = true;
           pendingToolCalls = [];
           await saveState();
-          if (oneShot) throw error;
+          if (oneShot) {
+            if (recoveryAttempts < 1) { recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue; }
+            throw error;
+          }
           let choice;
           try { choice = await promptRecoveryMenu(error, { input: terminalInput, output: terminalOutput }); }
           catch (menuError) { if (menuError?.name === 'AbortError') { process.stdout.write(`${formatSystemMessage('Recovery cancelled; session preserved.')}\n`); break; } throw menuError; }
@@ -521,7 +524,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
     }
   } finally {
-    rl.close();
+    rl?.close?.();
     await terminateWorkers();
   }
 }

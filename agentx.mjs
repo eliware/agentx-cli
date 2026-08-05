@@ -51,8 +51,8 @@ if (isDirectInvocation(import.meta.url)) {
     printAndExit(getPackageVersion());
   } else {
     try {
-      await confirmSetup();
       const messageArgs = argv.filter((arg) => !['--debug', '--yolo', '--confirm'].includes(arg));
+      if (!messageArgs.length) await confirmSetup();
       await runAgent({ promptPath, cwd: process.cwd(), ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
     } catch (error) {
       printStartupError(error);

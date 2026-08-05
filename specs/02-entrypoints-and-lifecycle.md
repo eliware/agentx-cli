@@ -10,7 +10,7 @@ Flags are handled before the REPL:
 - `--version`, `-v`: print package version and exit 0.
 - `--debug`: retain for runtime diagnostics.
 - `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Approval is the default; `--yolo` remains a legacy alias.
-- Remaining arguments are joined with spaces as a one-shot chat message. `agentx "message"` sends one request, performs tool calls, prints the normal response/usage summary, then exits without opening the REPL.
+- Remaining arguments are joined with spaces as a one-shot chat message. `agentx "message"` sends one request, performs tool calls, prints the normal response/usage summary, then exits without opening the REPL or reading stdin.
 
 On interactive TTY startup, if configuration is absent, ask `AgentX is not configured. Run agentx-setup now? [Y/n] `. Declining continues to normal startup; accepting runs setup and reloads the resulting config. Noninteractive startup does not ask.
 
@@ -24,7 +24,8 @@ On interactive TTY startup, if configuration is absent, ask `AgentX is not confi
 6. Create the WebSocket Responses transport.
 7. Print startup settings and whether the session is new/resuming.
 8. Print saved last user/assistant messages when present.
-9. For one-shot mode, load only the latest successful checkpoint and use an isolated pending-state file; never resume interactive pending calls. Otherwise, if pending tool calls exist, show the resume menu and resolve them before the normal REPL.
-10. Create a readline interface with path completion and enter the prompt loop.
+9. For one-shot mode, load only the latest successful checkpoint and use an isolated pending-state file; never resume interactive pending calls, create readline, read stdin, enter raw mode, or open any menu. Otherwise, if pending tool calls exist, show the resume menu and resolve them before the normal REPL.
+10. Create a readline interface with path completion only for interactive mode and enter the prompt loop.
+11. One-shot API failures retry automatically once; a second failure prints the error and exits nonzero.
 
 Exit on EOF/AbortError or quit commands after printing usage totals. One-shot failures do not open recovery menus; they go to stderr and process exit code 1. Startup failures go to stderr and process exit code 1.
