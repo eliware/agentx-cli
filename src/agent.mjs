@@ -311,7 +311,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
     };
     if (interactive) {
-      rl.pause();
+      rl?.close?.();
       terminalInput.setRawMode(true);
       terminalInput.on('data', onRawData);
     }
@@ -327,7 +327,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       if (interactive) {
         terminalInput.removeListener?.('data', onRawData);
         terminalInput.setRawMode(false);
-        rl.resume();
+        rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
       }
     }
   }
