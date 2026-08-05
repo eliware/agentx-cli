@@ -50,6 +50,60 @@
       "environment": {
         "type": "local"
       }
+    },
+    {
+      "type": "function",
+      "name": "spawn_agent",
+      "description": "Start independent AgentX workers asynchronously. Returns agent IDs immediately.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "description": "Independent worker instructions.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "tasks"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "agent_status",
+      "description": "Get progress, partial output, timing, and usage for spawned workers.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 10
+          },
+          "wait": {
+            "type": "boolean",
+            "description": "Wait until all requested workers finish. Defaults false."
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "description": "Maximum wait time when wait is true. 0 means no limit.",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "agent_ids"
+        ],
+        "additionalProperties": false
+      }
     }
   ],
   "store": true,

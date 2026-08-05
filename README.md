@@ -32,7 +32,7 @@ For a single request, run:
 agentx "summarize this project"
 ```
 
-One-shot mode prints the response and usage summary, then exits. Add `--yolo` to approve all model-requested CLI execution for that invocation.
+One-shot mode prints the response and usage summary, then exits. Tool execution is approved by default; use `--confirm` to enable confirmation prompts.
 
 If you are working from the repository itself, run `node agentx.mjs`.
 
@@ -41,7 +41,7 @@ Quick flags:
 - `agentx --help`, `agentx -h`, or `agentx -?` prints quick help
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
-- `agentx --yolo` bypasses confirmation for model-requested CLI tool calls
+- `agentx --confirm` enables confirmation prompts; approval is the default
 - `agentx "message"` sends one request, performs tool calls, prints the response and usage summary, then exits
 
 ## Behavior
@@ -121,3 +121,12 @@ rm -f $HOME/.agentx*
 ```
 
 See [AGENTS.md behavior](./docs/agents.md) for discovery, inheritance, prompt-cost implications, and maintenance guidance.
+
+## Parallel workers
+
+AgentX exposes asynchronous worker tools:
+
+- `spawn_agent`: starts 1-10 independent AgentX workers and returns IDs immediately.
+- `agent_status`: reports status, elapsed time, line count, partial output, and usage. Use `wait` and optional `timeout_ms` to block until completion or return partial progress.
+
+Workers use `--yolo`, have independent conversations, and share the parent working directory. Use workspace files for intentional coordination; avoid simultaneous edits to the same file.

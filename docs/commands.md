@@ -58,6 +58,6 @@ These are command-line flags, not in-app commands:
 - `--help`, `-h`, `-?`: show quick help and exit
 - `--version`, `-v`: print the package version and exit
 - `--debug`: print raw websocket logs and suppress live status lines. MCP and reasoning argument deltas are filtered where appropriate to keep raw diagnostics readable.
-- `--yolo`: bypass confirmation for all model-requested CLI tool calls for this invocation. Use only when explicitly intended.
+- `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Without it, approval is automatic. `--yolo` remains a legacy alias.
 
-Flags can be combined, for example `agentx --debug --yolo "run the test suite"`.
+Flags can be combined, for example `agentx --debug --confirm "run the test suite"`.

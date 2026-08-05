@@ -22,3 +22,5 @@ Before sending a normal user request, prepend optional local context in this ord
 3. The actual user message.
 
 MCP config is optional at `$HOME/.agentx.mcp.json`. Accept either a top-level array or `{ tools: [...] }`; merge entries after template tools. Missing file is allowed; invalid JSON is fatal and should be reported as a prompt-template load error.
+
+The default template also defines asynchronous worker functions `spawn_agent` and `agent_status`. `spawn_agent` accepts 1-10 independent task strings and returns worker IDs without waiting. `agent_status` accepts worker IDs and may use `wait` plus optional `timeout_ms`; it returns status, elapsed time, line count, partial output, usage, and errors.

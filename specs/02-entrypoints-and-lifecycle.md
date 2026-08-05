@@ -9,7 +9,7 @@ Flags are handled before the REPL:
 - `--help`, `-h`, `-?`: print help and exit 0.
 - `--version`, `-v`: print package version and exit 0.
 - `--debug`: retain for runtime diagnostics.
-- `--yolo`: bypass confirmation for all model-requested CLI tool calls; use only when explicitly intended.
+- `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Approval is the default; `--yolo` remains a legacy alias.
 - Remaining arguments are joined with spaces as a one-shot chat message. `agentx "message"` sends one request, performs tool calls, prints the normal response/usage summary, then exits without opening the REPL.
 
 On interactive TTY startup, if configuration is absent, ask `AgentX is not configured. Run agentx-setup now? [Y/n] `. Declining continues to normal startup; accepting runs setup and reloads the resulting config. Noninteractive startup does not ask.

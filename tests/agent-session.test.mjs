@@ -891,6 +891,16 @@ describe('agent session helpers', () => {
     expect(createCalls[0].input).toHaveLength(1);
   });
 
+  test('handleToolCalls dispatches worker function calls', async () => {
+    const openai = { responses: { create: async () => ({ id: 'resp-next', output: [] }) } };
+    const response = { id: 'resp-1', usage: { input_tokens: 1, output_tokens: 1 }, output: [
+      { type: 'function_call', name: 'agent_status', call_id: 'worker-status', arguments: JSON.stringify({ agent_ids: ['missing-agent'] }) },
+    ] };
+    const runToolCallFn = jest.fn(async () => ({ agents: [{ id: 'missing-agent', status: 'unknown' }], waited: false, timed_out: false }));
+    await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn)).resolves.toEqual({ id: 'resp-next', output: [] });
+    expect(runToolCallFn).toHaveBeenCalledTimes(1);
+  });
+
   test('handleToolCalls runs multiple tool calls sequentially and preserves output order', async () => {
     const createCalls = [];
     const openai = {

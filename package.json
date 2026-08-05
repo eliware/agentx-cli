@@ -38,7 +38,8 @@
             "/src/agent\\.mjs$",
             "/src/completion\\.mjs$",
             "/src/shell\\.mjs$",
-            "/src/tool-shell\\.mjs$"
+            "/src/tool-shell\\.mjs$",
+            "/src/parallel-workers\\.mjs$"
         ],
         "testMatch": [
             "**/?(*.)+(spec|test).[jt]s?(x)",

@@ -52,7 +52,7 @@ if (isDirectInvocation(import.meta.url)) {
   } else {
     try {
       await confirmSetup();
-      const messageArgs = argv.filter((arg) => arg !== '--debug' && arg !== '--yolo');
+      const messageArgs = argv.filter((arg) => !['--debug', '--yolo', '--confirm'].includes(arg));
       await runAgent({ promptPath, cwd: process.cwd(), ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
     } catch (error) {
       printStartupError(error);

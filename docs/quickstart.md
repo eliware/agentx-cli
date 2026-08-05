@@ -29,7 +29,7 @@ Use that to save your OpenAI API key and runtime settings in `~/.agentx`.
 - `agentx --help` or `agentx -h` shows quick help
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
-- `agentx --yolo` bypasses confirmation for model-requested CLI tool calls
+- `agentx --confirm` enables confirmation prompts; approval is the default
 - `agentx "message"` runs one request, performs tool calls, prints the response and usage summary, then exits
 - MCP calls and streamed arguments are shown in cyan when configured
 

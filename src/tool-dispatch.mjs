@@ -1,4 +1,5 @@
 import { runShellCommands } from './tool-shell.mjs';
+import { runParallelWorkerFunction } from './parallel-workers.mjs';
 
 
 function stableValue(value) {
@@ -81,6 +82,10 @@ function parseShellActionCommands(call) {
 }
 
 export async function runToolCall(call, cwd, options = {}) {
+  if (call?.type === 'function_call' && ['spawn_agent', 'agent_status'].includes(call?.name)) {
+    return await runParallelWorkerFunction(call, cwd);
+  }
+
   if (call?.type === 'shell_call') {
     return await runShellCommands(parseShellActionCommands(call), cwd, {
       timeoutMs: call?.action?.timeout_ms,

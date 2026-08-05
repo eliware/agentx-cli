@@ -126,7 +126,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const savedResponseId = savedState?.response_id || '';
   const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
   const debugEnabled = process.argv.includes('--debug');
-  const yoloEnabled = process.argv.includes('--yolo');
+  const yoloEnabled = !process.argv.includes('--confirm');
   const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
 
   process.stdout.write(`${formatStartupSettings(settingsFromEnv())}\n`);

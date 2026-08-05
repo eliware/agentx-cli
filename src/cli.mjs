@@ -16,7 +16,7 @@ export function getPackageVersion() {
 export function formatQuickHelp(version = getPackageVersion()) {
   return [
     `AgentX ${version}`,
-    'Usage: agentx [--help|-h|-?] [--version|-v] [--debug] [--yolo] [message...]',
+    'Usage: agentx [--help|-h|-?] [--version|-v] [--debug] [--yolo] [--confirm] [message...]',
     '',
     'Chat:',
     '  normal text  send a message to OpenAI',
@@ -35,6 +35,7 @@ export function formatQuickHelp(version = getPackageVersion()) {
     '  --help, -h, -?   show this help',
     '  --version, -v    print the package version',
     '  --debug          print raw websocket logs and suppress live status lines',
-    '  --yolo           bypass all tool confirmation prompts',
+    '  --confirm        enable tool confirmation prompts',
+    '  --yolo           legacy alias; bypass tool confirmation prompts',
   ].join('\n');
 }

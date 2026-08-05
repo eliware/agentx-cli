@@ -564,7 +564,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   for (; ;) {
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
     const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
-    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item)), cwd);
+    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && ['spawn_agent', 'agent_status'].includes(item?.name))), cwd);
     const cumulativeUsage = shouldReportUsage && onResponseUsage ? onResponseUsage(usage, { skipIncrement: false }) : null;
     if (onResponseState) {
       await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });

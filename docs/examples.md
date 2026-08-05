@@ -39,8 +39,8 @@ Summarize the repository state
 agentx "summarize the current repository"
 ```
 
-Add `--yolo` when the request should approve all model-requested CLI execution:
+Add `--confirm` when the request should require confirmation for model-requested CLI execution:
 
 ```bash
-agentx --yolo "run the tests and report failures"
+agentx --confirm "run the tests and report failures"
 ```
