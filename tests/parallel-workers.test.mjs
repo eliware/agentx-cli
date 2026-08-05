@@ -7,7 +7,14 @@ describe('parallel workers', () => {
     expect(parseWorkerUsage('no usage')).toBeNull();
   });
   test('rejects malformed spawn requests', async () => {
-    await expect(runParallelWorkerFunction({ type: 'function_call', name: 'spawn_agent', arguments: '{}' }, process.cwd())).resolves.toEqual({ error: 'tasks must contain 1-10 non-empty strings' });
+    await expect(runParallelWorkerFunction({ type: 'function_call', name: 'spawn_agent', arguments: '{}' }, process.cwd())).resolves.toEqual({ error: 'tasks must contain 1-3 non-empty strings' });
+  });
+
+  test('rejects nested worker spawning', async () => {
+    const previous = process.env.AGENTX_WORKER_ID;
+    process.env.AGENTX_WORKER_ID = 'parent';
+    await expect(runParallelWorkerFunction({ type: 'function_call', name: 'spawn_agent', arguments: JSON.stringify({ tasks: ['task'] }) }, process.cwd())).resolves.toEqual({ error: 'nested worker spawning is disabled' });
+    if (previous === undefined) delete process.env.AGENTX_WORKER_ID; else process.env.AGENTX_WORKER_ID = previous;
   });
 
   test('reports unknown agents', async () => {

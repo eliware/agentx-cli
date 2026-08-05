@@ -1,4 +1,5 @@
 import { createInterface } from 'node:readline/promises';
+import { readdir, stat, unlink } from 'node:fs/promises';
 import { emitKeypressEvents } from 'node:readline';
 import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 import { log, registerHandlers, path } from '@eliware/common';
@@ -16,8 +17,20 @@ import { promptRecoveryMenu } from './recovery-menu.mjs';
 import { applySettings, formatStartupSettings, reloadSettings, settingsFromEnv } from './settings.mjs';
 import { runSetup } from './setup.mjs';
 import { confirmationKey, confirmationFilePath, loadGlobalConfirmations, saveGlobalConfirmations } from './confirmation-policy.mjs';
+import { terminateWorkers } from './parallel-workers.mjs';
 
 registerHandlers({ log });
+
+async function cleanupStaleOneShotStates(directory, now = Date.now()) {
+  let entries;
+  try { entries = await readdir(directory, { withFileTypes: true }); }
+  catch (error) { if (error?.code === 'ENOENT') return; throw error; }
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.startsWith('.agentx_responseid.oneshot-')) continue;
+    const filePath = path(directory, entry.name);
+    if (now - (await stat(filePath)).mtimeMs >= 60 * 60 * 1000) await unlink(filePath).catch((error) => { if (error?.code !== 'ENOENT') throw error; });
+  }
+}
 
 function printAgentText(text) {
   const wrapped = wrapText(text, getTerminalWidth());
@@ -114,6 +127,7 @@ function createResumeToolCallRunner(mode, pendingCallIds = new Set(), uncertainC
 export async function runAgent({ promptPath, cwd, input: terminalInput = defaultInput, output: terminalOutput = defaultOutput, initialMessage = null, oneShot = false } = {}) {
   const launchCwd = cwd;
   const sessionStatePath = path(launchCwd, '.agentx_responseid');
+  await cleanupStaleOneShotStates(launchCwd);
   const checkpointPath = path(launchCwd, '.agentx_checkpoint');
   const statePath = oneShot ? `${sessionStatePath}.oneshot-${process.pid}-${Date.now()}` : sessionStatePath;
   let template = applySettings(await loadPromptTemplate(promptPath), settingsFromEnv());
@@ -502,5 +516,6 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     }
   } finally {
     rl.close();
+    await terminateWorkers();
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
-import { existsSync } from 'node:fs';
-import { clearSession, persistCheckpoint, persistResponseState, readLatestCheckpoint, readSessionState } from '../src/session-state.mjs';
+import { existsSync, mkdirSync, utimesSync } from 'node:fs';
+import { cleanupStaleOneShotStates, clearSession, persistCheckpoint, persistResponseState, readLatestCheckpoint, readSessionState } from '../src/session-state.mjs';
 import { cleanupTempDir, makeTempDir, makeFile } from './test-helpers.mjs';
 
 describe('session state', () => {
@@ -22,6 +22,29 @@ describe('session state', () => {
     } finally {
       cleanupTempDir(tmp);
     }
+  });
+
+  test('cleans stale one-shot state files but preserves recent files', async () => {
+    const tmp = makeTempDir('agentx-state-cleanup-');
+    try {
+      const stale = makeFile(tmp, '.agentx_responseid.oneshot-old', 'old');
+      const recent = makeFile(tmp, '.agentx_responseid.oneshot-new', 'new');
+      mkdirSync(`${tmp}/.agentx_responseid.oneshot-directory`);
+      const now = Date.now();
+      utimesSync(stale, new Date(now - 2 * 60 * 60 * 1000), new Date(now - 2 * 60 * 60 * 1000));
+      expect(await cleanupStaleOneShotStates(tmp, now)).toBe(1);
+      expect(existsSync(stale)).toBe(false);
+      expect(existsSync(recent)).toBe(true);
+    } finally { cleanupTempDir(tmp); }
+  });
+
+  test('handles missing and invalid cleanup paths', async () => {
+    const tmp = makeTempDir('agentx-state-missing-');
+    const file = makeFile(tmp, 'not-a-directory', 'x');
+    try {
+      await expect(cleanupStaleOneShotStates(`${tmp}/missing`)).resolves.toBe(0);
+      await expect(cleanupStaleOneShotStates(file)).rejects.toBeTruthy();
+    } finally { cleanupTempDir(tmp); }
   });
 
   test('persists empty values when no state is supplied', async () => {

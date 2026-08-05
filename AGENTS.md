@@ -20,6 +20,7 @@
 
 ## Tooling
 - Use `npm run lint` for a fast static check and `npm test` to verify changes; `npm test` runs coverage by default.
+- Run specific focused tests during development. Avoid running the full test suite unless the requestor explicitly asks; suggest that the requestor run it when full validation is genuinely needed.
 - When working on coverage gaps, inspect `coverage/coverage-final.json` (or the generated coverage report) first so you are debugging real misses instead of guessing.
 - Keep runtime output concise and purposeful.
 - If you add a new module under `src/`, give it a single responsibility.

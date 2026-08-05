@@ -126,7 +126,7 @@ See [AGENTS.md behavior](./docs/agents.md) for discovery, inheritance, prompt-co
 
 AgentX exposes asynchronous worker tools:
 
-- `spawn_agent`: starts 1-10 independent AgentX workers and returns IDs immediately.
-- `agent_status`: reports status, elapsed time, line count, partial output, and usage. Use `wait` and optional `timeout_ms` to block until completion or return partial progress.
+- `spawn_agent`: starts 1-3 independent AgentX workers and returns IDs immediately; use `read`, `write`, or `execute` permissions (default: `execute`). Nested spawning is disabled.
+- `agent_status`: reports status, elapsed time, line count, partial output, and usage. Workers have bounded output, a finite lifetime, and are terminated when the parent exits. Use `wait` and optional `timeout_ms` to block until completion or return partial progress.
 
 Workers use `--yolo`, have independent conversations, and share the parent working directory. Use workspace files for intentional coordination; avoid simultaneous edits to the same file.

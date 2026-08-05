@@ -10,6 +10,23 @@ function stableValue(value) {
   return value;
 }
 
+export function commandPermission(call) {
+  if (call?.type !== 'shell_call') return 'execute';
+  const commands = normalizeCommandList(call?.action?.commands).join(' && ').toLowerCase().trim();
+  if (!commands) return 'read';
+  if (/[>]|\b(sed|perl|ruby|python|python3)\s+[^;&|]*\s-i(?:\s|$)/.test(commands)) return 'write';
+  if (/(^|[;&|\s])(rm|mv|cp|mkdir|rmdir|touch|tee|chmod|chown|truncate|dd|install|shutdown|reboot|poweroff|systemctl|apt|dnf|yum|npm\s+(install|uninstall|update|ci)|git\s+(commit|push|reset)|terraform|kubectl|ssh)(\s|$)/.test(commands)) return 'write';
+  if (!/(^|[;&|\s])(cat|cut|diff|du|env|file|find|git\s+(branch|diff|log|show|status)|grep|head|less|ls|printf|pwd|rg|sed|sort|stat|tail|tree|uniq| wc)(\s|$)/.test(commands)) return 'execute';
+  if (/(^|[;&|\s])(node|python|python3|perl|ruby|bash|sh|zsh|make|cargo|gradle|mvn|pytest|npx)(\s|$)/.test(commands)) return 'execute';
+  return 'read';
+}
+
+export function permissionAllows(permission, call) {
+  const level = permission === 'read' || permission === 'write' || permission === 'execute' ? permission : 'execute';
+  const required = commandPermission(call);
+  return level === 'execute' || (level === 'write' && required !== 'execute') || (level === 'read' && required === 'read');
+}
+
 export function requiresToolConfirmation(call) {
   if (call?.type !== 'shell_call') return false;
   const commands = normalizeCommandList(call?.action?.commands).join(' && ').toLowerCase();
@@ -87,6 +104,19 @@ export async function runToolCall(call, cwd, options = {}) {
   }
 
   if (call?.type === 'shell_call') {
+    const permission = options?.permission || process.env.AGENTX_PERMISSION || 'execute';
+    if (!permissionAllows(permission, call)) {
+      return {
+        type: 'shell_call_output',
+        call_id: call?.call_id || call?.id || '',
+        status: 'incomplete',
+        output: [{
+          stdout: '',
+          stderr: `Command blocked: worker permission '${permission}' does not allow ${commandPermission(call)} operations.`,
+          outcome: { type: 'exit', exit_code: 126 },
+        }],
+      };
+    }
     return await runShellCommands(parseShellActionCommands(call), cwd, {
       timeoutMs: call?.action?.timeout_ms,
       maxOutputLength: call?.action?.max_output_length,

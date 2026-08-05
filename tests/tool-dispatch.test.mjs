@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { dedupeToolCalls, dedupeToolOutputs, requiresToolConfirmation, runToolCall, toolCallIdentity, toolCallSummary, toolOutputForCall } from '../src/tool-dispatch.mjs';
+import { commandPermission, dedupeToolCalls, dedupeToolOutputs, permissionAllows, requiresToolConfirmation, runToolCall, toolCallIdentity, toolCallSummary, toolOutputForCall } from '../src/tool-dispatch.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('tool dispatch', () => {
@@ -14,6 +14,19 @@ describe('tool dispatch', () => {
     expect(dedupeToolCalls([])).toEqual([]);
     expect(dedupeToolCalls([first, duplicateId, noId, noIdDuplicate], '/tmp')).toEqual([first, noId]);
     expect(dedupeToolOutputs([{ call_id: 'call-1', output: 'one' }, { call_id: 'call-1', output: 'duplicate' }, { output: 'same' }, { output: 'same' }, { output: { nested: [1, { b: 2, a: 1 }] } }, { output: { nested: [1, { a: 1, b: 2 }] } }])).toEqual([{ call_id: 'call-1', output: 'one' }, { output: 'same' }, { output: { nested: [1, { b: 2, a: 1 }] } }]);
+    expect(commandPermission({ type: 'function_call', name: 'x' })).toBe('execute');
+    expect(commandPermission({ type: 'shell_call', action: { commands: ['cat file'] } })).toBe('read');
+    expect(commandPermission({ type: 'shell_call', action: { commands: ['touch file'] } })).toBe('write');
+    expect(commandPermission({ type: 'shell_call', action: { commands: ['node script.js'] } })).toBe('execute');
+    expect(commandPermission({ type: 'shell_call', action: { commands: ['echo hi > file'] } })).toBe('write');
+    expect(commandPermission({ type: 'shell_call', action: { commands: ['unknown-tool arg'] } })).toBe('execute');
+    expect(commandPermission({ type: 'shell_call', action: { commands: ['cat file | node script.js'] } })).toBe('execute');
+    expect(commandPermission({ type: 'shell_call', action: { commands: ['ls && cat file'] } })).toBe('read');
+    expect(permissionAllows('invalid', { type: 'shell_call', action: { commands: ['cat file'] } })).toBe(true);
+    expect(permissionAllows('read', { type: 'shell_call', action: { commands: ['cat file'] } })).toBe(true);
+    expect(permissionAllows('read', { type: 'shell_call', action: { commands: ['touch file'] } })).toBe(false);
+    expect(permissionAllows('write', { type: 'shell_call', action: { commands: ['node script.js'] } })).toBe(false);
+    expect(permissionAllows('read', { type: 'shell_call', action: { commands: ['echo hi > file'] } })).toBe(false);
     expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['xe vm-shutdown uuid=1'] } })).toBe(true);
     expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['printf safe'] } })).toBe(false);
     expect(requiresToolConfirmation({ type: 'function_call', name: 'shutdown' })).toBe(false);
@@ -30,6 +43,8 @@ describe('tool dispatch', () => {
       expect(await runToolCall({ type: 'shell_call', id: 'call-3', action: { commands: 'node -e "process.stdout.write(\'ok\')"' } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: 'call-3', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] });
       expect(await runToolCall({ type: 'shell_call', action: { commands: 'node -e "process.stdout.write(\'ok\')"' } }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: '', output: [{ stdout: 'ok', stderr: '', outcome: { type: 'exit', exit_code: 0 } }] });
       expect(await runToolCall({ type: 'shell_call', call_id: 'call-empty', action: {} }, tmp)).toMatchObject({ type: 'shell_call_output', call_id: 'call-empty', output: [] });
+      expect(await runToolCall({ type: 'shell_call', call_id: 'call-blocked', action: { commands: ['touch blocked'] } }, tmp, { permission: 'read' })).toMatchObject({ type: 'shell_call_output', call_id: 'call-blocked', status: 'incomplete', output: [{ outcome: { exit_code: 126 } }] });
+      expect(await runToolCall({ type: 'shell_call', action: { commands: ['touch blocked'] } }, tmp, { permission: 'read' })).toMatchObject({ type: 'shell_call_output', call_id: '', status: 'incomplete', output: [{ outcome: { exit_code: 126 } }] });
       expect(toolCallSummary({ type: 'shell_call', action: { commands: ['node -e "process.stdout.write(\'ok\')"'] } }, null)).toBe('node -e "process.stdout.write(\'ok\')"');
       expect(toolCallSummary({ type: 'shell_call', action: { commands: ['first', '', null] } }, null)).toBe('first');
       expect(toolCallSummary({ type: 'shell_call', action: {} }, null)).toBe('');

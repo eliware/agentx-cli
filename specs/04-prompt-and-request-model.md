@@ -7,6 +7,7 @@ The developer prompt starts from the template developer input text and appends:
 - first instruction to "Be extremely consice. Sacrifice grammar for concision."
 - system administrator/DevOps/developer role guidance;
 - parallel-tool preference;
+- always-on instruction to run focused tests, never run the full test suite unless explicitly requested, and suggest that the requestor run it when full validation is needed;
 - current working directory;
 - concatenated AGENTS.md instructions, or a fallback saying none were found;
 - terminal/plain-text guidance.
@@ -23,4 +24,4 @@ Before sending a normal user request, prepend optional local context in this ord
 
 MCP config is optional at `$HOME/.agentx.mcp.json`. Accept either a top-level array or `{ tools: [...] }`; merge entries after template tools. Missing file is allowed; invalid JSON is fatal and should be reported as a prompt-template load error.
 
-The default template also defines asynchronous worker functions `spawn_agent` and `agent_status`. `spawn_agent` accepts 1-10 independent task strings and returns worker IDs without waiting. `agent_status` accepts worker IDs and may use `wait` plus optional `timeout_ms`; it returns status, elapsed time, line count, partial output, usage, and errors.
+The default template also defines asynchronous worker functions `spawn_agent` and `agent_status`. `spawn_agent` accepts 1-3 independent task strings plus optional `permissions` (`read`, `write`, or `execute`, default `execute`) and returns worker IDs without waiting. Worker processes cannot spawn nested workers. Workers launch the AgentX entrypoint without a `--yolo` flag because default mode is already non-interactive. Worker output is bounded and workers have a finite lifetime. `agent_status` accepts worker IDs and may use `wait` plus optional `timeout_ms`; it returns status, elapsed time, line count, partial output, usage, and errors.

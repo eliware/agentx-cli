@@ -43,3 +43,6 @@ Selecting a checkpoint restores its `response_id`, messages, usage, and session 
 ## Concurrent one-shot sessions
 
 One-shot invocations use a unique state file and never read or write the interactive session's pending tool calls. They inherit only the latest successful checkpoint from `.agentx_checkpoint` (falling back to the interactive state's newest successful history entry). Successful interactive turns and rollbacks update that checkpoint. One-shot state is removed after a successful exit and remains isolated if interrupted.
+
+
+Startup removes stale one-shot session-state files (`.agentx_responseid.oneshot-*`) older than one hour. Recent files are preserved to avoid disrupting active one-shot processes.

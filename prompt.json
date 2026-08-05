@@ -54,7 +54,7 @@
     {
       "type": "function",
       "name": "spawn_agent",
-      "description": "Start independent AgentX workers asynchronously. Returns agent IDs immediately.",
+      "description": "Start independent AgentX workers asynchronously with read, write, or execute permissions. Returns agent IDs immediately.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -65,7 +65,16 @@
               "type": "string"
             },
             "minItems": 1,
-            "maxItems": 10
+            "maxItems": 3
+          },
+          "permissions": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "execute"
+            ],
+            "description": "Worker permission level. Defaults to execute."
           }
         },
         "required": [
