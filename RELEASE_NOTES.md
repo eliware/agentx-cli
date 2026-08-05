@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.4.5 - Readline state preservation
+
+- Fixed duplicate input echo and broken Up/Down command history after interactive shell execution.
+- Paused and resumed the readline interface while Ctrl-T raw-mode handling owns terminal input.
+- Added terminal UX specification coverage; lint and tests pass.
+
 ## 1.4.3 - Terminal status and command interruption
 
 - Changed one-shot/non-interactive status output to disable live refresh timers and print one line per state transition, followed by the final transaction summary.
