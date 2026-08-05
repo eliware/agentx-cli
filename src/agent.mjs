@@ -1,6 +1,5 @@
 import { createInterface } from 'node:readline/promises';
 import { readdir, stat, unlink } from 'node:fs/promises';
-import { emitKeypressEvents } from 'node:readline';
 import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 import { log, registerHandlers, path } from '@eliware/common';
 import { createOpenAIResponsesTransport } from './openai-transport.mjs';
@@ -304,8 +303,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     const controller = new AbortController();
     const interactive = !oneShot && terminalInput?.isTTY && typeof terminalInput?.setRawMode === 'function' && typeof terminalInput?.on === 'function';
     let interrupted = false;
-    const onKeypress = (_str, key = {}) => {
-      if (key?.ctrl && key?.name === 't') {
+    const onRawData = (chunk) => {
+      if (String(chunk).includes('\x14')) {
         interrupted = true;
         process.stdout.write(`${formatSystemMessage('User interrupted command (Ctrl-T)')}\n`);
         controller.abort();
@@ -313,9 +312,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     };
     if (interactive) {
       rl.pause();
-      emitKeypressEvents(terminalInput);
       terminalInput.setRawMode(true);
-      terminalInput.on('keypress', onKeypress);
+      terminalInput.on('data', onRawData);
     }
     try {
       const { runToolCall } = await import('./tool-dispatch.mjs');
@@ -327,7 +325,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       return output;
     } finally {
       if (interactive) {
-        terminalInput.removeListener?.('keypress', onKeypress);
+        terminalInput.removeListener?.('data', onRawData);
         terminalInput.setRawMode(false);
         rl.resume();
       }
