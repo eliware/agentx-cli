@@ -22,8 +22,27 @@ export function parseWorkerUsage(text) {
   return match ? { turns: +match[4], inputTokens: +match[1], cachedTokens: +match[2], outputTokens: +match[3] } : null;
 }
 
-function snapshot(worker) {
-  return { id: worker.id, task: worker.task, status: worker.status, elapsed_ms: (worker.finishedAt || Date.now()) - worker.startedAt, lines: worker.lines, output: worker.output.slice(-10000), usage: worker.usage, ...(worker.error ? { error: worker.error } : {}) };
+export function selectWorkerOutput(text, options = {}) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  const count = Math.min(Math.max(Number(options.output_lines) || 10, 1), 100);
+  const offset = Math.max(Number(options.output_offset) || 0, 0);
+  let output;
+  if (options.search !== undefined) {
+    try {
+      const pattern = new RegExp(options.search, 'i');
+      output = lines.filter((line) => pattern.test(line)).slice(-100);
+    } catch {
+      output = [];
+    }
+  } else {
+    const end = lines.length - offset;
+    output = lines.slice(Math.max(0, end - count), Math.max(0, end));
+  }
+  return output.join('\n');
+}
+
+function snapshot(worker, options = {}) {
+  return { id: worker.id, task: worker.task, status: worker.status, elapsed_ms: (worker.finishedAt || Date.now()) - worker.startedAt, lines: worker.lines, output: selectWorkerOutput(worker.output, options), usage: worker.usage, ...(worker.error ? { error: worker.error } : {}) };
 }
 
 function startWorker(task, cwd, permissions, debug = false) {
@@ -106,7 +125,7 @@ export async function runParallelWorkerFunction(call, cwd) {
     const wait = args.wait === true;
     const timeout = Number(args.timeout_ms);
     const deadline = Number.isFinite(timeout) && timeout > 0 ? Date.now() + timeout : 0;
-    const read = () => ids.map((id) => workers.has(id) ? snapshot(workers.get(id)) : { id, status: 'unknown' });
+    const read = () => ids.map((id) => workers.has(id) ? snapshot(workers.get(id), args) : { id, status: 'unknown' });
     const done = (items) => items.every((item) => ['completed', 'failed', 'timed_out', 'terminated', 'cancelled', 'unknown'].includes(item.status));
     let agents = read();
     while (wait && !done(agents) && (!deadline || Date.now() < deadline)) { await new Promise((resolve) => setTimeout(resolve, 100)); agents = read(); }

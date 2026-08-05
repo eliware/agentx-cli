@@ -1,11 +1,18 @@
 import { describe, expect, test } from '@jest/globals';
-import { parseWorkerUsage, runParallelWorkerFunction } from '../src/parallel-workers.mjs';
+import { parseWorkerUsage, runParallelWorkerFunction, selectWorkerOutput } from '../src/parallel-workers.mjs';
 
 describe('parallel workers', () => {
   test('parses structured usage summaries', () => {
     expect(parseWorkerUsage('{"in":"12 ($0.000)","cache":"3 ($0.000)","out":"7 ($0.000)","turns":"2"}')).toEqual({ turns: 2, inputTokens: 12, cachedTokens: 3, outputTokens: 7 });
     expect(parseWorkerUsage('no usage')).toBeNull();
   });
+  test('selects bounded log tails and regex matches', () => {
+    const log = Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join('\n');
+    expect(selectWorkerOutput(log)).toBe('line 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12');
+    expect(selectWorkerOutput(log, { output_lines: 2, output_offset: 2 })).toBe('line 9\nline 10');
+    expect(selectWorkerOutput(log, { search: '^line (1|2|11|12)$' })).toBe('line 1\nline 2\nline 11\nline 12');
+  });
+
   test('rejects malformed spawn requests', async () => {
     await expect(runParallelWorkerFunction({ type: 'function_call', name: 'spawn_agent', arguments: '{}' }, process.cwd())).resolves.toEqual({ error: 'tasks must contain 1-3 non-empty strings' });
   });
@@ -27,3 +34,4 @@ describe('parallel workers', () => {
 
 
 });
+

@@ -96,19 +96,23 @@
         "properties": {
           "agent_ids": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "minItems": 1,
             "maxItems": 3
           }
         },
-        "required": ["agent_ids"],
+        "required": [
+          "agent_ids"
+        ],
         "additionalProperties": false
       }
     },
     {
       "type": "function",
       "name": "agent_status",
-      "description": "Get progress, partial output, timing, and usage for spawned workers.",
+      "description": "Get worker status and a small log view. Defaults to the last 10 lines; supports pagination and regex search.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -128,6 +132,21 @@
             "type": "integer",
             "description": "Maximum wait time when wait is true. 0 means no limit.",
             "minimum": 0
+          },
+          "output_lines": {
+            "type": "integer",
+            "description": "Number of output lines to return. Defaults to 10; maximum 100.",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "output_offset": {
+            "type": "integer",
+            "description": "Number of lines to skip backward from the end. Defaults to 0. Ignored when search is set.",
+            "minimum": 0
+          },
+          "search": {
+            "type": "string",
+            "description": "Regular expression applied to the retained log; returns matching lines instead of a paginated tail."
           }
         },
         "required": [
