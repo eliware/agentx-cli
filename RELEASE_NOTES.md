@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.5.0 - Byte-bounded worker status output
+
+- Changed `agent_status` output pagination from lines to bytes.
+- Default output is the last 2048 bytes; callers may request up to 8192 bytes with `output_bytes` and `output_offset`.
+- Updated regex search handling, specifications, documentation, and regression tests.
+
 ## 1.4.9 - Agent status and Windows path improvements
 
 - Prioritized `HOME` over `USERPROFILE` for Windows home-directory resolution, including Git Bash and CI environments.
