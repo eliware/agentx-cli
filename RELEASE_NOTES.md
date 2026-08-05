@@ -1,5 +1,15 @@
 # AgentX Release Notes
 
+## 1.4.7 - Worker hardening and recovery
+
+- Added worker permissions (`read`, `write`, `execute`), optional debug mode, and `cancel_agent`.
+- Limited delegation to 3 workers, disabled nested spawning, capped worker output at 1 MB, and added a 10-minute timeout.
+- Added graceful worker cancellation and shutdown with SIGTERM-to-SIGKILL escalation.
+- Hardened shell execution by enforcing worker permissions and terminating POSIX process groups on timeout or interruption.
+- Made one-shot mode strictly noninteractive, with isolated state cleanup and improved retry/recovery for tool continuations.
+- Improved Ctrl-T interruption and readline stability after shell/tool execution.
+- Updated prompts, specifications, documentation, examples, and regression tests.
+
 ## 1.4.6 - Parallel worker delegation
 
 - Added asynchronous `spawn_agent`, `agent_status`, and `cancel_agent` tools for delegating up to 3 independent tasks.
