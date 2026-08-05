@@ -99,7 +99,7 @@ function parseShellActionCommands(call) {
 }
 
 export async function runToolCall(call, cwd, options = {}) {
-  if (call?.type === 'function_call' && ['spawn_agent', 'agent_status'].includes(call?.name)) {
+  if (call?.type === 'function_call' && ['spawn_agent', 'agent_status', 'cancel_agent'].includes(call?.name)) {
     return await runParallelWorkerFunction(call, cwd);
   }
 

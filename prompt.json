@@ -85,6 +85,24 @@
     },
     {
       "type": "function",
+      "name": "cancel_agent",
+      "description": "Cancel active AgentX workers that are hung, stalled, or off task.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1,
+            "maxItems": 3
+          }
+        },
+        "required": ["agent_ids"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
       "name": "agent_status",
       "description": "Get progress, partial output, timing, and usage for spawned workers.",
       "parameters": {

@@ -17,6 +17,10 @@ describe('parallel workers', () => {
     if (previous === undefined) delete process.env.AGENTX_WORKER_ID; else process.env.AGENTX_WORKER_ID = previous;
   });
 
+  test('cancels unknown agents without throwing', async () => {
+    await expect(runParallelWorkerFunction({ type: 'function_call', name: 'cancel_agent', arguments: JSON.stringify({ agent_ids: ['missing-agent'] }) }, process.cwd())).resolves.toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }] });
+  });
+
   test('reports unknown agents', async () => {
     await expect(runParallelWorkerFunction({ type: 'function_call', name: 'agent_status', arguments: JSON.stringify({ agent_ids: ['missing-agent'] }) }, process.cwd())).resolves.toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }], waited: false, timed_out: false });
   });

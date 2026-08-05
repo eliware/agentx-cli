@@ -10,7 +10,7 @@ export function resolveAgentApiKey(env = process.env) {
   throw new Error('Set agentx_api_key or AGENTX_API_KEY in your shell environment.');
 }
 
-export async function loadPromptTemplate(promptPath, mcpPath = join(getHomeDirectory() || homedir(), '.agentx.mcp.json')) {
+export async function loadPromptTemplate(promptPath, mcpPath = join(getHomeDirectory() || homedir(), '.agentx.mcp.json'), env = process.env) {
   try {
     const template = await readJson(promptPath);
     let mcpTools = null;
@@ -20,7 +20,9 @@ export async function loadPromptTemplate(promptPath, mcpPath = join(getHomeDirec
     } catch (error) {
       if (error?.code !== 'ENOENT') throw error;
     }
-    return mcpTools === null ? template : { ...template, tools: [...(template.tools || []), ...mcpTools] };
+    const merged = mcpTools === null ? template : { ...template, tools: [...(template.tools || []), ...mcpTools] };
+    if (!env?.AGENTX_WORKER_ID) return merged;
+    return { ...merged, tools: (merged.tools || []).filter((tool) => !['spawn_agent', 'agent_status', 'cancel_agent'].includes(tool?.name)) };
   } catch (error) {
     throw new Error(`Unable to read prompt template at ${promptPath}: ${error?.message || String(error)}`);
   }

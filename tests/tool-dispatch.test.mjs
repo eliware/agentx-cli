@@ -50,6 +50,7 @@ describe('tool dispatch', () => {
       expect(toolCallSummary({ type: 'shell_call', action: {} }, null)).toBe('');
       expect(await runToolCall({ type: 'weird' }, tmp)).toBe('ERROR: unsupported tool weird');
       expect(await runToolCall({ name: 'unknown', arguments: '{}' }, tmp)).toBe('ERROR: unsupported tool unknown');
+      expect(await runToolCall({ type: 'function_call', name: 'cancel_agent', arguments: JSON.stringify({ agent_ids: ['missing-agent'] }) }, tmp)).toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }] });
       expect(await runToolCall({ type: 'function_call', name: 'agent_status', arguments: JSON.stringify({ agent_ids: ['missing-agent'] }) }, tmp)).toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }], waited: false, timed_out: false });
       expect(toolOutputForCall({ type: 'shell_call', call_id: 'call-shell', action: {} }, { type: 'shell_call_output', call_id: 'present', output: [] })).toEqual({ type: 'shell_call_output', call_id: 'present', output: [] });
     } finally {

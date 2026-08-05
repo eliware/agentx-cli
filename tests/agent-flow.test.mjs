@@ -96,6 +96,26 @@ describe('agent flow helpers', () => {
     }
   });
 
+  test('loadPromptTemplate removes worker orchestration tools for spawned agents', async () => {
+    const tmp = makeTempDir('agentx-worker-prompt-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'missing-mcp.json');
+      writeFileSync(promptPath, JSON.stringify({ input: [], tools: [{ type: 'function', name: 'spawn_agent' }, { type: 'function', name: 'agent_status' }, { type: 'function', name: 'cancel_agent' }, { type: 'local' }] }));
+      await expect(loadPromptTemplate(promptPath, mcpPath, { AGENTX_WORKER_ID: 'worker-1' })).resolves.toEqual({ input: [], tools: [{ type: 'local' }] });
+    } finally { cleanupTempDir(tmp); }
+  });
+
+  test('loadPromptTemplate gives workers an empty tool list when no tools are configured', async () => {
+    const tmp = makeTempDir('agentx-worker-empty-tools-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'missing-mcp.json');
+      writeFileSync(promptPath, JSON.stringify({ input: [] }));
+      await expect(loadPromptTemplate(promptPath, mcpPath, { AGENTX_WORKER_ID: 'worker-1' })).resolves.toEqual({ input: [], tools: [] });
+    } finally { cleanupTempDir(tmp); }
+  });
+
   test('loadPromptTemplate returns parsed JSON when the prompt file is valid', async () => {
     const tmp = makeTempDir('agentx-prompt-');
     try {

@@ -81,13 +81,29 @@ export async function runParallelWorkerFunction(call, cwd) {
     if (!tasks.length) return { error: 'tasks must contain 1-3 non-empty strings' };
     return { agents: tasks.map((task) => { const worker = startWorker(task, cwd, permissions); return { id: worker.id, task, permissions, status: worker.status }; }) };
   }
+  if (call?.name === 'cancel_agent') {
+    const ids = Array.isArray(args.agent_ids) ? args.agent_ids.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_WORKERS) : [];
+    const agents = [];
+    for (const id of ids) {
+      const worker = workers.get(id);
+      const child = workerChildren.get(id);
+      if (!worker) { agents.push({ id, status: 'unknown' }); continue; }
+      if (!child || !['running', 'timed_out'].includes(worker.status)) { agents.push(snapshot(worker)); continue; }
+      worker.status = 'cancelled';
+      worker.error = 'cancelled by request';
+      worker.finishedAt = Date.now();
+      child.kill('SIGTERM');
+      agents.push(snapshot(worker));
+    }
+    return { agents };
+  }
   if (call?.name === 'agent_status') {
     const ids = Array.isArray(args.agent_ids) ? args.agent_ids.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_WORKERS) : [];
     const wait = args.wait === true;
     const timeout = Number(args.timeout_ms);
     const deadline = Number.isFinite(timeout) && timeout > 0 ? Date.now() + timeout : 0;
     const read = () => ids.map((id) => workers.has(id) ? snapshot(workers.get(id)) : { id, status: 'unknown' });
-    const done = (items) => items.every((item) => ['completed', 'failed', 'timed_out', 'terminated', 'unknown'].includes(item.status));
+    const done = (items) => items.every((item) => ['completed', 'failed', 'timed_out', 'terminated', 'cancelled', 'unknown'].includes(item.status));
     let agents = read();
     while (wait && !done(agents) && (!deadline || Date.now() < deadline)) { await new Promise((resolve) => setTimeout(resolve, 100)); agents = read(); }
     return { agents, waited: wait, timed_out: wait && !done(agents) };
