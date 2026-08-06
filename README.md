@@ -92,7 +92,7 @@ Set your OpenAI key in the shell environment, or let `agentx-setup` write it to 
 
 ```bash
 export agentx_api_key="your-key-here"
-# or: export AGENTX_API_KEY="your-key-here"
+# or: export AGENTX_API_KEY="your-key-here" [![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli) [![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE) [![build status](https://github.com/eliware/agentx-cli/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx-cli/actions)
 ```
 
 The launchers load `~/.agentx` when present.
@@ -131,3 +131,16 @@ AgentX exposes asynchronous worker tools:
 - `cancel_agent`: terminates hung, stalled, or off-task workers.
 
 Workers use automatic approval by default, have independent conversations, and share the parent working directory. Use workspace files for intentional coordination; avoid simultaneous edits to the same file. Cancel workers that become hung or go off task.
+
+## Support
+
+For help, questions, or community chat:
+
+[eliware.org on Discord](https://discord.gg/M6aTR9eTwN)
+
+## Links
+
+- [Home Page](https://eliware.org)
+- [GitHub Repo](https://github.com/eliware/agentx-cli)
+- [GitHub Org](https://github.com/eliware)
+- [Discord](https://discord.gg/M6aTR9eTwN)
