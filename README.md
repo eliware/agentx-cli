@@ -103,6 +103,13 @@ The launchers load `~/.agentx` when present.
 
 AgentX automatically loads an optional `.agentx.mcp.json` from your home directory and merges its MCP tool definitions into the request. Start with [`.agentx.mcp.json.example`](./.agentx.mcp.json.example), then copy it to `~/.agentx.mcp.json` and add your server configuration. The example file is ignored by Git when copied or customized locally. MCP calls and streamed arguments are displayed in cyan.
 
+## Security
+
+- Never commit `agentx_api_key`, `AGENTX_API_KEY`, MCP credentials, or other secrets.
+- Store the API key in the environment or in the user-owned `~/.agentx` configuration file.
+- Keep `~/.agentx.mcp.json` user-owned and protect any credentials referenced by MCP servers.
+- AgentX does not use a project `.env.example`; configuration is intentionally user-local or environment-based.
+
 ## License
 
 [MIT © 2025 Eli Sterling, eliware.org](LICENSE)

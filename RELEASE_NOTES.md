@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.5.6 - Convention alignment
+
+- Removed the stale `.agentx.example` package-file entry.
+- Added the standard `npm pack --dry-run` script.
+- Added README security and configuration guidance.
+- Aligned test and coverage scripts with Eliware conventions.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.5 - Dependency refresh
 
 - Updated `@eliware/common` to 1.1.7.

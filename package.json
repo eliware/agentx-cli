@@ -1,15 +1,16 @@
 {
     "name": "@eliware/agentx-cli",
     "type": "module",
-    "version": "1.5.5",
+    "version": "1.5.6",
     "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
     "main": "agentx.mjs",
     "scripts": {
         "start": "node agentx.mjs",
         "lint": "npx oxlint .",
-        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --coverage --detectOpenHandles --silent --runInBand",
+        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent --coverage",
         "setup": "node agentx-setup.mjs",
-        "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'"
+        "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'",
+        "pack": "npm pack --dry-run"
     },
     "repository": {
         "type": "git",
@@ -67,7 +68,6 @@
         "agentx-setup.mjs",
         "prompt.json",
         "src/",
-        "docs/",
-        ".agentx.example"
+        "docs/"
     ]
 }
