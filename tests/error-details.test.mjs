@@ -13,6 +13,15 @@ describe('OpenAI error details', () => {
     expect(formatOpenAIError(error)).toContain('server said no [');
   });
 
+  test('unwraps JSON-encoded API errors', () => {
+    const error = new Error(JSON.stringify({ type: 'error', error: { type: 'server_error', code: 'server_error', message: 'An error occurred while processing your request.' } }));
+    expect(formatOpenAIError(error)).toBe('An error occurred while processing your request. [code=server_error]');
+  });
+
+  test('ignores valid JSON without nested error details', () => {
+    expect(formatOpenAIError(new Error(JSON.stringify({ type: 'notice', message: 'plain failure' })))).toBe(JSON.stringify({ type: 'notice', message: 'plain failure' }));
+  });
+
   test('omits absent metadata and falls back safely', () => {
     expect(describeOpenAIError({ message: 'x' })).toEqual([]);
     expect(formatOpenAIError({ message: 'x' })).toBe('x');

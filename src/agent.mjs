@@ -486,7 +486,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       cwdNote = '';
       lastUserMessage = message;
       let response;
-      let retryRequest = pendingRetryRequest;
+      let retryRequest = null;
       pendingRetryRequest = null;
       await saveState();
       let recoveryAttempts = 0;
