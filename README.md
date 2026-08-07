@@ -1,5 +1,7 @@
 # [![eliware.org](https://eliware.org/logos/brand.png)](https://discord.gg/M6aTR9eTwN)
 
+[![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli) [![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE) [![build status](https://github.com/eliware/agentx-cli/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx-cli)
+
 ## @eliware/agentx-cli
 
 `agentx` is a lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.
@@ -92,7 +94,7 @@ Set your OpenAI key in the shell environment, or let `agentx-setup` write it to 
 
 ```bash
 export agentx_api_key="your-key-here"
-# or: export AGENTX_API_KEY="your-key-here" [![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli) [![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE) [![build status](https://github.com/eliware/agentx-cli/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx-cli/actions)
+# or: export AGENTX_API_KEY="your-key-here"
 ```
 
 The launchers load `~/.agentx` when present.
