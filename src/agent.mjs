@@ -5,7 +5,10 @@ import { log, registerHandlers, registerSignals, path } from '@eliware/common';
 import { createOpenAI } from '@eliware/openai';
 import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
-import { clearSession, extractTextFromResponse, handleToolCalls, persistResponseState, readSessionState, sendMessage } from './agent-session.mjs';
+import { clearSession, persistResponseState, readSessionState } from './session-state.mjs';
+import { extractTextFromResponse } from './response.mjs';
+import { handleToolCalls } from './agent-session/tool-loop.mjs';
+import { sendMessage } from './agent-session/session-service.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
@@ -148,6 +151,11 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const debugEnabled = process.argv.includes('--debug');
   const yoloEnabled = !process.argv.includes('--confirm');
   const openai = createOpenAI({ apiKey, transport: 'websocket' });
+  if (debugEnabled && typeof openai.responses.on === 'function') {
+    for (const event of ['connecting', 'open', 'reconnecting', 'reconnected', 'close', 'error']) {
+      openai.responses.on(event, (detail) => process.stderr.write(`[openai:${event}] ${JSON.stringify(detail ?? {})}\n`));
+    }
+  }
   activeOpenAI = openai;
 
   process.stdout.write(`${formatStartupSettings(settingsFromEnv())}\n`);
@@ -288,6 +296,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             onToolExecutionState: persistToolExecutionState,
             confirmToolCall,
             suppressStatusOutput: debugEnabled,
+            debug: debugEnabled,
             transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
             runToolCall: runInteractiveToolCall,
             yolo: yoloEnabled,
@@ -514,7 +523,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
+          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
         } catch (error) {
           if (error?.code === 'previous_response_not_found' && previousResponseId && recoveryAttempts < 1) {
             recoveryAttempts += 1;

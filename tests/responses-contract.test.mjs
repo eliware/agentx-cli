@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { extractTextFromResponse, extractUsage } from '../src/response.mjs';
-import { responseItemToTranscript } from '../src/agent-session.mjs';
+import { responseItemToTranscript } from '../src/agent-session/response-format.mjs';
 import { toolOutputForCall } from '../src/tool-dispatch.mjs';
 
 describe('responses contract', () => {

@@ -1,0 +1,244 @@
+import { describe, expect, jest, test } from '@jest/globals';
+import { sendMessage } from '../src/agent-session/session-service.mjs';
+import { createStatusLineController } from '../src/agent-session/status-controller.mjs';
+import { createStreamedResponse } from '../src/agent-session/response-stream.mjs';
+import { createLiveResponseHandlers } from '../src/agent-session/response-events.mjs';
+
+describe('agent session modules', () => {
+  let originalStdoutWrite;
+  let stdoutWrites;
+
+  beforeEach(() => {
+    originalStdoutWrite = process.stdout.write;
+    stdoutWrites = [];
+    process.stdout.write = (chunk) => { stdoutWrites.push(String(chunk)); return true; };
+  });
+
+  afterEach(() => { process.stdout.write = originalStdoutWrite; });
+
+  test('sendMessage streams live output, streamed arguments, and reasoning transcripts', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const calls = [];
+    const openai = {
+      responses: {
+        create: async (request, handlers) => {
+          calls.push({ request, handlers: Boolean(handlers) });
+          handlers?.onTextDelta(undefined);
+          handlers?.onTextDelta('Hi');
+          handlers?.onTextDelta(' there');
+          handlers?.onEvent?.(
+            { type: 'response.function_call_arguments.delta', delta: '{"p":[{"s":["echo ' },
+            { raw: '{"type":"response.function_call_arguments.delta","delta":"{\\"p\\":[{\\"s\\":[\\"echo "}', json: { type: 'response.function_call_arguments.delta', delta: '{"p":[{"s":["echo ' } },
+          );
+          handlers?.onEvent?.(
+            { type: 'response.function_call_arguments.delta', delta: 'live"]}]}'},
+            { raw: '{"type":"response.function_call_arguments.delta","delta":"live\\"]}]}"}', json: { type: 'response.function_call_arguments.delta', delta: 'live"]}]}' } },
+          );
+          handlers?.onItemDone({ type: 'shell_call', call_id: 'call-1', action: { commands: ['echo live'] } });
+          handlers?.onItemDone({ type: 'reasoning', summary: [] });
+          handlers?.onItemDone({ type: 'reasoning', summary: [{ type: 'input_text', text: 'thinking' }] });
+          handlers?.onEvent?.(
+            { type: 'response.completed', response: { id: 'resp-live', output: [] } },
+            { raw: '{"type":"response.completed","response":{"id":"resp-live","output":[]}}', json: { type: 'response.completed', response: { id: 'resp-live', output: [] } } },
+          );
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].handlers).toBe(true);
+    expect(stdoutWrites.join('')).toContain('Hi there');
+    expect(stdoutWrites.join('')).toContain('[32m{"p":[{"s":["echo ');
+    expect(stdoutWrites.join('')).toContain('[32mlive"]}]}');
+    expect(stdoutWrites.join('')).toContain('\n');
+    expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
+    expect(stdoutWrites.join('')).not.toContain('response.output_item.done');
+    expect(stdoutWrites.join('')).not.toContain('response.completed');
+    expect(stdoutWrites.join('')).toContain('thinking');
+  });
+  test('sendMessage ignores unrelated live events and empty streamed deltas', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers?.onEvent?.({ type: 'response.output_item.added' }, { raw: '{"type":"response.output_item.added"}' });
+          handlers?.onEvent?.({ type: 'response.function_call_arguments.delta', delta: '' }, { raw: '{"type":"response.function_call_arguments.delta","delta":""}' });
+          handlers?.onEvent?.({ type: 'response.function_call_arguments.delta' }, { raw: '{"type":"response.function_call_arguments.delta"}' });
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
+
+    expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
+  });
+  test('sendMessage handles reasoning, MCP, and web-search live event branches', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const statusController = {
+      showReasoning: jest.fn(), showExecuting: jest.fn(), pause: jest.fn(),
+      resume: jest.fn(), clear: jest.fn(), beginWriting: jest.fn(),
+    };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onEvent({ type: 'response.reasoning_summary_part.delta', delta: '' });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.delta', delta: 'thinking' });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.done' });
+          handlers.onEvent({ type: 'response.mcp_call.in_progress' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'half' });
+          handlers.onEvent({ type: 'response.mcp_call.update', progress_update: 2 });
+          handlers.onEvent({ type: 'response.mcp_call.progress', message: 'message' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', data: 'data' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', payload: 'payload' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', status: 'status' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', delta: 'delta' });
+          handlers.onEvent({ type: 'response.mcp_call.progress' });
+          handlers.onEvent({ type: 'response.mcp_call.completed' });
+          handlers.onEvent({ type: 'response.mcp_call.failed' });
+          handlers.onEvent({ type: 'response.web_search_call.completed' });
+          handlers.onEvent({ type: 'response.web_search_call.unknown' });
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+    await sendMessage(openai, template, '', 'hello', '', '/tmp/work', null, null, {
+      liveStreaming: true, statusController,
+    });
+    const output = stdoutWrites.join('');
+    expect(output).toContain('thinking');
+    expect(output).toContain('"mcp":"half"');
+    expect(output).toContain('"mcp":"2"');
+    expect(output).toContain('"mcp":"delta"');
+    expect(statusController.pause).toHaveBeenCalled();
+    expect(statusController.resume).toHaveBeenCalled();
+    expect(statusController.showExecuting).toHaveBeenCalled();
+    expect(statusController.showReasoning).toHaveBeenCalled();
+  });
+  test('live handlers stream MCP calls and suppress debug-only output', async () => {
+    const template = { model: 'test-model', input: [], tools: [] };
+    const statusController = {
+      showReasoning: jest.fn(), showExecuting: jest.fn(), pause: jest.fn(),
+      resume: jest.fn(), clear: jest.fn(), beginWriting: jest.fn(),
+    };
+    const originalArgv = process.argv;
+    try {
+      const normalOpenai = {
+        responses: {
+          create: async (_request, handlers) => {
+            handlers.onItemAdded({ type: 'mcp_call', name: 'lookup' });
+            handlers.onItemAdded({ type: 'mcp_call', server_label: 'server' });
+            handlers.onItemAdded({ type: 'mcp_call' });
+            handlers.onItemAdded({ type: 'message' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: 'abc' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: '' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta' });
+            handlers.onEvent({ type: 'response.reasoning_summary_text.delta' });
+            handlers.onItemDone({ type: 'mcp_call' });
+            handlers.onItemDone({ type: 'reasoning', summary: [{ type: 'output_text', text: 'plan' }] });
+            return { id: 'resp-mcp', output: [] };
+          },
+        },
+      };
+      await createStreamedResponse(normalOpenai, template, { liveStreaming: true, statusController });
+      expect(stdoutWrites.join('')).toContain('lookup(');
+      expect(stdoutWrites.join('')).toContain('\u001b[36mlookup(\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m\u001b[36m)\u001b[0m\n');
+      expect(stdoutWrites.join('')).not.toContain('assistant mcp call:');
+      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m');
+      expect(statusController.pause).toHaveBeenCalled();
+      expect(statusController.resume).toHaveBeenCalled();
+      expect(stdoutWrites.join('')).toContain('plan');
+
+      stdoutWrites.length = 0;
+      process.argv = [...originalArgv, '--debug'];
+      const debugOpenai = {
+        responses: {
+          create: async (_request, handlers) => {
+            handlers.onEvent({ type: 'response.reasoning_summary_part.delta', delta: 'hidden' });
+            handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: 'hidden' });
+            handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'hidden' });
+            handlers.onItemDone({ type: 'reasoning', summary: [{ type: 'output_text', text: 'hidden' }] });
+            return { id: 'resp-debug', output: [] };
+          },
+        },
+      };
+      await createStreamedResponse(debugOpenai, template, { liveStreaming: true, statusController });
+      expect(stdoutWrites.join('')).toContain('{"mcp":"hidden"}');
+      expect(stdoutWrites.join('')).not.toContain('\u001b[95mhidden\u001b[0m');
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+  test('live handlers cover optional status branches and web-search shapes', async () => {
+    const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'), { quiet: true });
+    controller.showReasoning();
+    controller.showReasoning({ renderNow: false });
+    controller.pause();
+    controller.showExecuting(0, 0);
+    controller.resume();
+    controller.resume();
+    controller.beginWriting();
+    controller.resume();
+    controller.pause();
+    controller.beginWriting();
+    controller.resume();
+    controller.pause();
+    controller.showExecuting(0, 0);
+    controller.showExecuting(0, 0);
+    controller.pause();
+    controller.resume();
+    controller.beginWriting();
+    controller.resume();
+    controller.clear();
+
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onEvent({ type: 'response.web_search_call.in_progress' });
+          handlers.onEvent({ type: 'response.web_search_call.searching' });
+          handlers.onItemDone({ type: 'web_search_call', action: { queries: ['q', '', 1], sources: [{ url: 'https://x.test' }, 'plain', ''] } });
+          handlers.onItemDone({ type: 'web_search_call', action: {} });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.done' });
+          return { id: 'resp-live', output: [] };
+        },
+      },
+    };
+    await createStreamedResponse(openai, { model: 'test-model' }, { liveStreaming: true, statusController: controller });
+    expect(stdoutWrites.join('')).toContain('https://x.test');
+    expect(stdoutWrites.join('')).toContain('plain');
+
+    const noStatusOpenai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onEvent({ type: 'response.web_search_call.in_progress' });
+          handlers.onEvent({ type: 'response.web_search_call.searching' });
+          handlers.onItemDone({ type: 'web_search_call', action: { queries: ['q'] } });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.done' });
+          handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'p' });
+          handlers.onEvent({ type: 'response.mcp_call.other' });
+          handlers.onEvent({ type: 'response.reasoning_summary_part.other' });
+          return { id: 'resp-no-status', output: [] };
+        },
+      },
+    };
+    await createStreamedResponse(noStatusOpenai, { model: 'test-model' }, { liveStreaming: true });
+  });
+
+  test('non-live handlers are absent', () => {
+    expect(createLiveResponseHandlers({ liveStreaming: false }).handlers).toBeNull();
+  });
+
+  test('debug handlers suppress reasoning and MCP argument output', () => {
+    const statusController = { pause: jest.fn(), beginWriting: jest.fn(), resume: jest.fn() };
+    const live = createLiveResponseHandlers({ liveStreaming: true, statusController, debug: true });
+    live.handlers.onEvent({ type: 'response.reasoning_summary_text.delta', delta: 'hidden' });
+    live.handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: 'hidden' });
+    live.handlers.onItemDone({ type: 'reasoning', summary: [{ type: 'output_text', text: 'hidden' }] });
+    expect(stdoutWrites.join('')).toBe('');
+    expect(live.sawOutput()).toBe(false);
+  });
+});

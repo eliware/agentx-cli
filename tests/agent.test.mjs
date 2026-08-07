@@ -128,7 +128,7 @@ describe('agent loop', () => {
       };
     });
 
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession,
       extractTextFromResponse,
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
@@ -137,6 +137,10 @@ describe('agent loop', () => {
       handleToolCalls: jest.fn(),
       sendMessage,
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
@@ -198,7 +202,7 @@ describe('agent loop', () => {
       };
     });
 
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession,
       extractTextFromResponse,
       handleToolCalls,
@@ -207,6 +211,10 @@ describe('agent loop', () => {
       readSessionState,
       sendMessage: jest.fn(),
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
@@ -303,7 +311,7 @@ Ask the user what they want to do next.`,
       };
     });
 
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession,
       extractTextFromResponse,
       handleToolCalls,
@@ -312,6 +320,10 @@ Ask the user what they want to do next.`,
       readSessionState,
       sendMessage: jest.fn(),
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
@@ -370,7 +382,7 @@ Ask the user what they want to do next.`,
         usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 0 }, output_tokens: 2 },
       });
 
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession,
       extractTextFromResponse,
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
@@ -379,6 +391,10 @@ Ask the user what they want to do next.`,
       handleToolCalls: jest.fn(),
       sendMessage,
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
@@ -446,7 +462,7 @@ Ask the user what they want to do next.`,
         };
     });
 
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession,
       extractTextFromResponse,
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
@@ -464,6 +480,10 @@ Ask the user what they want to do next.`,
       ],
       tools: [],
     }));
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
+
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson,
     }));
@@ -532,7 +552,7 @@ Ask the user what they want to do next.`,
       };
     });
 
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession,
       extractTextFromResponse,
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
@@ -541,6 +561,10 @@ Ask the user what they want to do next.`,
       handleToolCalls: jest.fn(),
       sendMessage,
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
@@ -623,7 +647,7 @@ Ask the user what they want to do next.`,
       };
     });
 
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession,
       extractTextFromResponse,
       extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
@@ -632,6 +656,10 @@ Ask the user what they want to do next.`,
       handleToolCalls: jest.fn(),
       sendMessage,
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
@@ -680,7 +708,7 @@ Ask the user what they want to do next.`,
     }));
 
     const noop = jest.fn(async () => { });
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession: noop,
       extractTextFromResponse: () => '',
       extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
@@ -689,6 +717,10 @@ Ask the user what they want to do next.`,
       handleToolCalls: noop,
       sendMessage: noop,
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
@@ -727,7 +759,7 @@ Ask the user what they want to do next.`,
     }));
 
     const noop = jest.fn(async () => { });
-    await jest.unstable_mockModule('../src/agent-session.mjs', () => ({
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
       clearSession: noop,
       extractTextFromResponse: () => '',
       extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
@@ -736,6 +768,10 @@ Ask the user what they want to do next.`,
       handleToolCalls: noop,
       sendMessage: noop,
     }));
+
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: typeof clearSession === 'undefined' ? jest.fn(async () => {}) : clearSession, persistResponseState: typeof persistResponseState === 'undefined' ? jest.fn(async () => {}) : persistResponseState, readSessionState: typeof readSessionState === 'undefined' ? jest.fn(async () => null) : readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: typeof extractTextFromResponse === 'undefined' ? jest.fn(() => '') : extractTextFromResponse, createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; }, formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }), formatTurnUsageReport: () => '' }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: typeof handleToolCalls === 'undefined' ? jest.fn(async (_openai, response) => response) : handleToolCalls }));
 
     await jest.unstable_mockModule('../src/runtime.mjs', () => ({
       readJson: async () => ({
