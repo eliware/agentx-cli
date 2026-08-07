@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const packagePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+const packagePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', 'package.json');
 
 export function hasFlag(argv, flags) {
   return argv.some((arg) => flags.includes(arg));

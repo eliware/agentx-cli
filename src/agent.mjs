@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline/promises';
 import { readdir, stat, unlink } from 'node:fs/promises';
 import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
-import { log, registerHandlers, path } from '@eliware/common';
+import { log, registerHandlers, registerSignals, path } from '@eliware/common';
 import { createOpenAIResponsesTransport } from './openai-transport.mjs';
 import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
@@ -19,6 +19,7 @@ import { confirmationKey, confirmationFilePath, loadGlobalConfirmations, saveGlo
 import { terminateWorkers } from './parallel-workers.mjs';
 
 registerHandlers({ log });
+const signalRegistration = registerSignals({ log, shutdownHook: async () => terminateWorkers() });
 
 async function cleanupStaleOneShotStates(directory, now = Date.now()) {
   let entries;
@@ -530,5 +531,6 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   } finally {
     rl?.close?.();
     await terminateWorkers();
+    signalRegistration.removeHandlers?.();
   }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { config as loadDotenv } from 'dotenv';
-import { join } from 'node:path';
+import { path } from '@eliware/common';
 import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { getHomeDirectory } from './src/platform.mjs';
@@ -8,7 +8,7 @@ import { getHomeDirectory } from './src/platform.mjs';
 const homeDirectory = getHomeDirectory();
 /* istanbul ignore else -- dotenv bootstrap is environment-dependent. */
 if (homeDirectory) {
-  loadDotenv({ path: join(homeDirectory, '.agentx'), quiet: true });
+  loadDotenv({ path: path(homeDirectory, '.agentx'), quiet: true });
 }
 
 
@@ -25,7 +25,7 @@ function printAndExit(text, code = 0) {
 async function confirmSetup() {
   if (process.env.NODE_ENV === 'test') return false;
   if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
-  const configFile = homeDirectory ? join(homeDirectory, '.agentx') : '';
+  const configFile = homeDirectory ? path(homeDirectory, '.agentx') : '';
   if (configFile && existsSync(configFile) && (process.env.agentx_api_key || process.env.AGENTX_API_KEY)) return false;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {

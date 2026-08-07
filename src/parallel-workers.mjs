@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { path } from '@eliware/common';
 
 const MAX_WORKERS = 3;
 const MAX_OUTPUT_LENGTH = 1_000_000;
@@ -9,7 +8,7 @@ const WORKER_TIMEOUT_MS = 10 * 60 * 1000;
 const workers = new Map();
 const workerChildren = new Map();
 const SHUTDOWN_GRACE_MS = 2_000;
-const entrypoint = join(dirname(fileURLToPath(import.meta.url)), '..', 'agentx.mjs');
+const entrypoint = path(import.meta, '../agentx.mjs');
 
 function argsFor(call) {
   const raw = call?.arguments ?? call?.input ?? '{}';

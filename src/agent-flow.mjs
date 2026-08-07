@@ -1,5 +1,5 @@
 import { applyFirstUserMessage, buildInputMessage } from './prompt-builder.mjs';
-import { join } from 'node:path';
+import { path } from '@eliware/common';
 import { homedir } from 'node:os';
 import { readJson } from './runtime.mjs';
 import { getHomeDirectory } from './platform.mjs';
@@ -10,7 +10,7 @@ export function resolveAgentApiKey(env = process.env) {
   throw new Error('Set agentx_api_key or AGENTX_API_KEY in your shell environment.');
 }
 
-export async function loadPromptTemplate(promptPath, mcpPath = join(getHomeDirectory() || homedir(), '.agentx.mcp.json'), env = process.env) {
+export async function loadPromptTemplate(promptPath, mcpPath = path(getHomeDirectory() || homedir(), '.agentx.mcp.json'), env = process.env) {
   try {
     const template = await readJson(promptPath);
     let mcpTools = null;

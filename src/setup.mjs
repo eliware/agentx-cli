@@ -1,17 +1,17 @@
 import { createInterface } from 'node:readline/promises';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import nodePath from 'node:path';
+import { path } from '@eliware/common';
 import { readFileSync } from 'node:fs';
 import { getHomeDirectory } from './platform.mjs';
 import { reloadSettings } from './settings.mjs';
 
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const packageVersion = JSON.parse(readFileSync(path.join(rootDir, 'package.json'), 'utf8')).version;
+const rootDir = path(import.meta, '..');
+const packageVersion = JSON.parse(readFileSync(path(rootDir, 'package.json'), 'utf8')).version;
 const homeDirectory = getHomeDirectory();
 /* istanbul ignore next -- root fallback is only relevant on platforms without a home directory. */
-const envPath = path.join(homeDirectory || rootDir, '.agentx');
-const mcpConfigPath = path.join(homeDirectory || rootDir, '.agentx.mcp.json');
+const envPath = path(homeDirectory || rootDir, '.agentx');
+const mcpConfigPath = path(homeDirectory || rootDir, '.agentx.mcp.json');
 
 const DEFAULTS = {
   AGENTX_MODEL: 'gpt-5.6-luna',
@@ -70,7 +70,7 @@ export async function writeEnvState(filePath, values, baseText = null) {
   const text = baseText === null ? await readOptionalText(filePath) : baseText;
   const updates = Object.fromEntries(Object.keys(values).map((key) => [key, values[key]]));
   const nextText = updateEnvText(text ?? '', updates);
-  await mkdir(path.dirname(filePath), { recursive: true }); await writeFile(filePath, nextText, 'utf8'); return nextText;
+  await mkdir(nodePath.dirname(filePath), { recursive: true }); await writeFile(filePath, nextText, 'utf8'); return nextText;
 }
 async function ask(rl, prompt) { return String(await rl.question(prompt)); }
 

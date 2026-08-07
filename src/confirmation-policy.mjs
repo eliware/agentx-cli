@@ -1,10 +1,10 @@
-import { join } from 'node:path';
+import { path } from '@eliware/common';
 import { readFile, writeFile } from 'node:fs/promises';
 import { getHomeDirectory } from './platform.mjs';
 
 export function confirmationFilePath(env = process.env) {
   const home = getHomeDirectory(env);
-  return home ? join(home, '.agentx-confirmations.json') : '';
+  return home ? path(home, '.agentx-confirmations.json') : '';
 }
 
 export function confirmationKey(call, cwd = '') {
