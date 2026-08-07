@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.5.4 - Responses WebSocket lifetime recovery
+
+- Registered a transport error listener to prevent unhandled WebSocket rejection noise.
+- Recreated expired or closed Responses WebSocket clients and retried the request once without discarding session state.
+- Added lifecycle specification coverage for WebSocket lifetime failures.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.3 - Interactive shell and recovery reliability
 
 - Removed automatic timeouts from interactive `!` commands.
