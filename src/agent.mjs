@@ -47,8 +47,10 @@ function printResumeMessage(label, text) {
   printAgentText(text);
 }
 
-function createReplInterface(getCwd, input = defaultInput, output = defaultOutput) {
-  return createInterface({ input, output, completer: (line) => completePath(line, getCwd()) });
+function createReplInterface(getCwd, input = defaultInput, output = defaultOutput, history = []) {
+  const rl = createInterface({ input, output, completer: (line) => completePath(line, getCwd()) });
+  if (Array.isArray(history)) rl.history = [...history];
+  return rl;
 }
 
 function printUsageReport(totals, { leadingNewline = false, model } = {}) {
@@ -176,7 +178,16 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const sessionConfirmations = new Set();
   // Resume may execute confirmation-gated tools before entering the prompt loop.
   // Initialize readline first so confirmToolCall never hits the TDZ.
-  let rl = oneShot ? null : createReplInterface(() => cwd, terminalInput, terminalOutput);
+  let replHistory = [];
+  let rl = oneShot ? null : createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
+  const preserveReplHistory = () => {
+    if (Array.isArray(rl?.history)) replHistory = [...rl.history];
+  };
+  const replaceReplInterface = () => {
+    preserveReplHistory();
+    rl?.close?.();
+    rl = createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
+  };
 
   async function saveState() {
     await persistResponseState(statePath, {
@@ -319,6 +330,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
     };
     if (interactive) {
+      preserveReplHistory();
       rl?.close?.();
       terminalInput.setRawMode(true);
       terminalInput.on('data', onRawData);
@@ -336,7 +348,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       if (interactive) {
         terminalInput.removeListener?.('data', onRawData);
         terminalInput.setRawMode(false);
-        rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+        replaceReplInterface();
       }
     }
   }
@@ -376,6 +388,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           controller.abort();
         };
         if (interactiveShell) {
+          preserveReplHistory();
           rl?.close?.();
           terminalInput.setRawMode(true);
           terminalInput.on('data', onShellInput);
@@ -389,7 +402,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           if (interactiveShell) {
             terminalInput.removeListener?.('data', onShellInput);
             terminalInput.setRawMode(false);
-            rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+            replaceReplInterface();
           }
         }
         pendingCliTranscript = appendCliTranscript(pendingCliTranscript, command, result);
@@ -403,6 +416,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         // The setup menu creates its own interface and raw-mode input handler;
         // leaving the REPL interface open here can strand its pending question
         // when setup exits, producing an unsettled top-level await warning.
+        preserveReplHistory();
         rl?.close?.();
       try {
         await runSetup({ stdin: terminalInput, stdout: terminalOutput });
@@ -413,7 +427,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
         template = applySettings(await loadPromptTemplate(promptPath), await reloadSettings());
         process.stdout.write(`${formatSystemMessage('Settings reloaded')}\n`);
-        rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+        rl = createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
         continue;
       }
       if (internal?.type === 'exit') {
@@ -439,6 +453,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       if (internal?.type === 'rollback') {
         // The pending readline prompt must not remain attached while the raw-mode menu runs.
         // Otherwise readline can redraw/echo the next line after the menu exits.
+        preserveReplHistory();
         rl?.close?.();
         try {
           const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });
@@ -461,7 +476,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         } catch (error) {
           if (error?.name !== 'AbortError') process.stdout.write(`${formatSystemMessage(error?.message || String(error))}\n`);
         }
-        rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+        rl = createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
         continue;
       }
 
