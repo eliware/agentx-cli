@@ -20,7 +20,7 @@ Inputs over 272,000 tokens use long-context pricing: 2x input/cached input and 1
 
 ## Local shell commands
 
-Prefix a line with `!` to run it locally.
+Prefix a line with `!` to run it locally. Direct commands have no automatic timeout. While one runs, press Ctrl-C to terminate it and return to AgentX; Ctrl-C does not exit AgentX in this case. Ctrl-T remains reserved for interrupting model-requested `shell_call` tools; the resulting tool message tells the agent to stop, avoid retries, and report current status.
 
 Example:
 

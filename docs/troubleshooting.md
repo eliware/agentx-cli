@@ -26,6 +26,10 @@ That means there is no `AGENTS.md` in the current directory or any parent direct
 
 Remember that lines starting with `!` run locally and are buffered for the next AI request. If you want the output included in the next reply, send a normal message after the command.
 
+## Stop a local shell command
+
+Press Ctrl-C while a `!` command is running. AgentX terminates that command and returns to its prompt without exiting. Ctrl-T is separate and interrupts model-requested `shell_call` execution. The tool result tells the agent not to retry or run additional commands, and to report current status.
+
 ## One-shot state and concurrent subtasks
 
 One-shot requests inherit the latest successful checkpoint but do not resume `.agentx_responseid` pending calls. Each request has isolated temporary state, so concurrent one-shots in the same folder are safe. If an interrupted one-shot needs investigation, inspect `.agentx_responseid.oneshot-*` files after the process exits.

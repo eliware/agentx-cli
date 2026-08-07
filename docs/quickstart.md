@@ -71,6 +71,7 @@ To enable MCP tools, place an `.agentx.mcp.json` file in your home directory. Co
 - The prompt shows your user, short hostname, current working directory, and a `#` marker.
 - AgentX waits for your first message before contacting OpenAI.
 - Tool calls may stream command arguments and shell summaries live.
+- Interactive `!` commands have no automatic timeout; Ctrl-C stops the local command and returns to AgentX. Ctrl-T interrupts model-requested `shell_call` tools and tells the agent to stop, avoid retries, and report current status.
 - If `.agentx_responseid` exists, the session resumes automatically. If it contains pending tool calls, AgentX asks how you want to continue.
 
 ## Install or update

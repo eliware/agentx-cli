@@ -20,6 +20,8 @@ cd /var/log
 ! pwd
 ```
 
+Press Ctrl-C during a long-running `!` command to stop that command and return to AgentX.
+
 ## Combine shell output with the next prompt
 
 ```text
