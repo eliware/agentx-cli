@@ -21,7 +21,7 @@ On interactive TTY startup, if configuration is absent, ask `AgentX is not confi
 3. Discover AGENTS.md instructions.
 4. Read `.agentx_responseid` in the launch cwd.
 5. Resolve API key or fail with a human-readable error.
-6. Create the WebSocket Responses transport.
+6. Create the official `@eliware/openai` client with its supported Responses transport. AgentX must not create WebSocket objects, frame protocol messages, parse transport events, or implement reconnect/close behavior.
 7. Print startup settings and whether the session is new/resuming.
 8. Print saved last user/assistant messages when present.
 9. For one-shot mode, load only the latest successful checkpoint and use an isolated pending-state file; never resume interactive pending calls, create readline, read stdin, enter raw mode, or open any menu. Otherwise, create the interactive readline interface before resolving pending tool calls, then show the resume menu and resolve them before the normal REPL. This prevents resume-time confirmation prompts from accessing an uninitialized readline binding.

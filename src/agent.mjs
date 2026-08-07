@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline/promises';
 import { readdir, stat, unlink } from 'node:fs/promises';
 import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 import { log, registerHandlers, registerSignals, path } from '@eliware/common';
-import { createOpenAIResponsesTransport } from './openai-transport.mjs';
+import { createOpenAI } from '@eliware/openai';
 import { shellExec } from './tool-shell.mjs';
 import { completePath } from './completion.mjs';
 import { clearSession, extractTextFromResponse, handleToolCalls, persistResponseState, readSessionState, sendMessage } from './agent-session.mjs';
@@ -19,7 +19,11 @@ import { confirmationKey, confirmationFilePath, loadGlobalConfirmations, saveGlo
 import { terminateWorkers } from './parallel-workers.mjs';
 
 registerHandlers({ log });
-const signalRegistration = registerSignals({ log, shutdownHook: async () => terminateWorkers() });
+let activeOpenAI = null;
+const signalRegistration = registerSignals({ log, shutdownHook: async () => {
+  try { await activeOpenAI?.responses?.close?.(); } catch { /* shutdown is best effort */ }
+  await terminateWorkers();
+} });
 
 async function cleanupStaleOneShotStates(directory, now = Date.now()) {
   let entries;
@@ -141,7 +145,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
   const debugEnabled = process.argv.includes('--debug');
   const yoloEnabled = !process.argv.includes('--confirm');
-  const openai = createOpenAIResponsesTransport({ apiKey, debug: debugEnabled });
+  const openai = createOpenAI({ apiKey, transport: 'websocket' });
+  activeOpenAI = openai;
 
   process.stdout.write(`${formatStartupSettings(settingsFromEnv())}\n`);
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found; ask AgentX to generate one for this project.')}\n`);
@@ -530,6 +535,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     }
   } finally {
     rl?.close?.();
+    try { await openai?.responses?.close?.(); } catch { /* shutdown is best effort */ }
+    activeOpenAI = null;
     await terminateWorkers();
     signalRegistration.removeHandlers?.();
   }

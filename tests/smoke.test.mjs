@@ -7,13 +7,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-function makeLoader(tmp, transportStub, readlineStub) {
+function makeLoader(tmp, openaiStub, readlineStub) {
   const loaderPath = path.join(tmp, 'loader.mjs');
   writeFileSync(loaderPath, `
     import { pathToFileURL } from 'node:url';
     export async function resolve(specifier, context, nextResolve) {
-      if (specifier.endsWith('openai-transport.mjs')) {
-        return { url: pathToFileURL(${JSON.stringify(transportStub)}).href, shortCircuit: true };
+      if (specifier === '@eliware/openai') {
+        return { url: pathToFileURL(${JSON.stringify(openaiStub)}).href, shortCircuit: true };
       }
       if (specifier === 'node:readline/promises') {
         return { url: pathToFileURL(${JSON.stringify(readlineStub)}).href, shortCircuit: true };
@@ -27,12 +27,12 @@ function makeLoader(tmp, transportStub, readlineStub) {
 describe('CLI smoke test', () => {
   test('starts, completes one turn, and persists session state', () => {
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'agentx-smoke-'));
-    const transportStub = path.join(tmp, 'transport-stub.mjs');
+    const openaiStub = path.join(tmp, 'openai-stub.mjs');
     const readlineStub = path.join(tmp, 'readline-stub.mjs');
 
     try {
-      writeFileSync(transportStub, `
-        export function createOpenAIResponsesTransport() {
+      writeFileSync(openaiStub, `
+        export function createOpenAI() {
           return {
             responses: {
               create: async (_request, handlers = {}) => {
@@ -61,7 +61,7 @@ describe('CLI smoke test', () => {
       const result = spawnSync(process.execPath, [
         '--no-warnings',
         '--experimental-loader',
-        pathToFileURL(makeLoader(tmp, transportStub, readlineStub)).href,
+        pathToFileURL(makeLoader(tmp, openaiStub, readlineStub)).href,
         path.join(repoRoot, 'agentx.mjs'),
       ], {
         cwd: tmp,

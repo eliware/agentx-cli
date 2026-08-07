@@ -41,6 +41,9 @@ describe('agent loop', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    jest.unstable_mockModule('@eliware/openai', () => ({
+      createOpenAI: () => ({ responses: { close: jest.fn() } }),
+    }));
     cwd = mkdtempSync(path.join(os.tmpdir(), 'agentx-loop-'));
     promptPath = path.join(cwd, 'prompt.json');
     writeFileSync(promptPath, JSON.stringify({
