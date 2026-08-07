@@ -118,7 +118,7 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
       done(makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength }));
     });
 
-    const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
+    const timeout = timeoutMs === null ? 0 : (Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS);
     if (timeout > 0) {
       timer = setTimeout(() => {
         timedOut = true;
@@ -210,8 +210,10 @@ export async function runShellCommands(commands, cwd, { timeoutMs, maxOutputLeng
   return await runShellCommandSequence(steps, { callId, defaultCwd: cwd, signal });
 }
 
-export async function shellExec(command, cwd) {
+export async function shellExec(command, cwd, { signal } = {}) {
   const result = await executeWithLaunchers(command, cwd, {
+    timeoutMs: null,
+    signal,
     maxOutputLength: MAX_TOOL_OUTPUT,
     writeStdout: (chunk) => process.stdout.write(chunk),
     writeStderr: (chunk) => process.stderr.write(chunk),

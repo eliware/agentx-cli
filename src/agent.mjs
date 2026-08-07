@@ -367,7 +367,31 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       if (message.startsWith('!')) {
         const command = message.slice(1).trim();
         if (!command) continue;
-        const result = await shellExec(command, cwd);
+        const controller = new AbortController();
+        const interactiveShell = !oneShot && terminalInput?.isTTY && typeof terminalInput?.setRawMode === 'function' && typeof terminalInput?.on === 'function';
+        let interruptedShell = false;
+        const onShellInput = (chunk) => {
+          if (!String(chunk).includes('\x03')) return;
+          interruptedShell = true;
+          controller.abort();
+        };
+        if (interactiveShell) {
+          rl?.close?.();
+          terminalInput.setRawMode(true);
+          terminalInput.on('data', onShellInput);
+          terminalInput.resume?.();
+        }
+        let result;
+        try {
+          result = await shellExec(command, cwd, { signal: controller.signal });
+          if (interruptedShell) process.stdout.write(`${formatSystemMessage('User interrupted command (Ctrl-C)')}\n`);
+        } finally {
+          if (interactiveShell) {
+            terminalInput.removeListener?.('data', onShellInput);
+            terminalInput.setRawMode(false);
+            rl = createReplInterface(() => cwd, terminalInput, terminalOutput);
+          }
+        }
         pendingCliTranscript = appendCliTranscript(pendingCliTranscript, command, result);
         await saveState();
         continue;

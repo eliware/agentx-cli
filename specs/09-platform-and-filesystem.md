@@ -4,7 +4,7 @@ Target Node.js environments include Linux/macOS and Windows. Use ESM and Node bu
 
 Home resolution: Windows prefers `HOME`, then `USERPROFILE`, then `HOMEDRIVE + HOMEPATH`; other platforms use `HOME` with `USERPROFILE` fallback. Prompt identity uses `USER`/`USERNAME` and `HOSTNAME`/`COMPUTERNAME`, with `root` and `dev` fallbacks.
 
-Shell launchers: POSIX `/bin/sh -lc`; Windows try `pwsh -NoLogo -NoProfile -Command`, then `powershell.exe`, then `cmd.exe /d /s /c`. If a launcher is missing, try the next. Preserve command exit status, stdout, stderr, timeout, and signal information in tool output.
+Shell launchers: POSIX `/bin/sh -lc`; Windows try `pwsh -NoLogo -NoProfile -Command`, then `powershell.exe`, then `cmd.exe /d /s /c`. If a launcher is missing, try the next. Preserve command exit status, stdout, stderr, timeout, and signal information in tool output. Direct interactive `!` commands have no timeout; Ctrl-C terminates the POSIX process group (or Windows child process), and the shell runner reports completion/interruption after the process stops.
 
 User paths expand a leading `~`, resolve relative to active cwd, and normalize using the platform path module. `cd` must reject nonexistent paths and non-directories with a shell-like error.
 
