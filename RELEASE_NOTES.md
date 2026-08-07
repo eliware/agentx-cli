@@ -1,5 +1,16 @@
 # AgentX Release Notes
 
+## 1.5.3 - Interactive shell and recovery reliability
+
+- Removed automatic timeouts from interactive `!` commands.
+- Added Ctrl-C handling for local `!` commands: terminate the command/process group and return to AgentX without exiting.
+- Kept Ctrl-T separate for model-requested `shell_call` interruption, with explicit guidance to stop execution, avoid retries, and report current status.
+- Fixed stale failed tool-continuation retries being silently replayed as the next user message.
+- Improved OpenAI error formatting by unwrapping JSON-encoded API errors and showing concise metadata instead of raw JSON.
+- Preserved readline history across shell execution, interruption, setup, and recovery interface replacement; Up/Down, Home/End, and arrow editing remain available.
+- Updated specifications, README, user documentation, release notes, and regression coverage.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.2 - Shared libraries and official OpenAI client
 
 - Replaced AgentX’s custom OpenAI WebSocket transport, framing, reconnect, and lifecycle code with `@eliware/openai`.
