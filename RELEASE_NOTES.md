@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.5.5 - Dependency refresh
+
+- Updated `@eliware/common` to 1.1.7.
+- Updated `@eliware/openai` to 1.1.11.
+- Refreshed transitive lockfile dependencies.
+- Moved README badges to the top of the document.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.4 - Responses WebSocket lifetime recovery
 
 - Registered a transport error listener to prevent unhandled WebSocket rejection noise.
