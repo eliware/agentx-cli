@@ -150,12 +150,24 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
   const debugEnabled = process.argv.includes('--debug');
   const yoloEnabled = !process.argv.includes('--confirm');
-  const openai = createOpenAI({ apiKey, transport: 'websocket' });
-  if (debugEnabled && typeof openai.responses.on === 'function') {
-    for (const event of ['connecting', 'open', 'reconnecting', 'reconnected', 'close', 'error']) {
-      openai.responses.on(event, (detail) => process.stderr.write(`[openai:${event}] ${JSON.stringify(detail ?? {})}\n`));
+  const attachOpenAIListeners = (client) => {
+    if (typeof client?.responses?.on !== 'function') return;
+    // Always bind error: the SDK otherwise reports transport errors as unhandled rejections.
+    client.responses.on('error', (detail) => {
+      if (debugEnabled) process.stderr.write(`[openai:error] ${JSON.stringify(detail ?? {})}\n`);
+    });
+    if (debugEnabled) {
+      for (const event of ['connecting', 'open', 'reconnecting', 'reconnected', 'close']) {
+        client.responses.on(event, (detail) => process.stderr.write(`[openai:${event}] ${JSON.stringify(detail ?? {})}\n`));
+      }
     }
-  }
+  };
+  const createSessionClient = () => {
+    const client = createOpenAI({ apiKey, transport: 'websocket' });
+    attachOpenAIListeners(client);
+    return client;
+  };
+  let openai = createSessionClient();
   activeOpenAI = openai;
 
   process.stdout.write(`${formatStartupSettings(settingsFromEnv())}\n`);
@@ -514,6 +526,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       pendingRetryRequest = null;
       await saveState();
       let recoveryAttempts = 0;
+      let websocketRecoveryAttempts = 0;
       while (!response) {
         const activeOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
         try {
@@ -525,6 +538,16 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             return sessionUsage;
           }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
         } catch (error) {
+          const errorText = `${error?.message || ''} ${error?.cause?.message || ''}`;
+          const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');
+          if (websocketExpired && websocketRecoveryAttempts < 1) {
+            websocketRecoveryAttempts += 1;
+            try { await openai?.responses?.close?.(); } catch { /* stale transport cleanup is best effort */ }
+            openai = createSessionClient();
+            activeOpenAI = openai;
+            process.stdout.write(`${formatSystemMessage('Responses connection expired; reconnecting.')}\n`);
+            continue;
+          }
           if (error?.code === 'previous_response_not_found' && previousResponseId && recoveryAttempts < 1) {
             recoveryAttempts += 1;
             previousResponseId = '';

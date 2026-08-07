@@ -29,3 +29,7 @@ On interactive TTY startup, if configuration is absent, ask `AgentX is not confi
 11. One-shot API failures retry automatically once; a second failure prints the error and exits nonzero. `previous_response_not_found` recovery also consumes that single retry and must not loop indefinitely.
 
 Exit on EOF/AbortError or quit commands after printing usage totals. Register shared signal handlers for SIGTERM, SIGINT, and SIGHUP; shutdown must cleanly close readline, terminate active workers, and remove handlers without duplicate registration. One-shot failures do not open recovery menus; they go to stderr and process exit code 1. Startup failures go to stderr and process exit code 1.
+
+## WebSocket lifetime errors
+
+AgentX must register a Responses transport `error` listener for every client, so transport failures are handled as promise rejections rather than process-level unhandled rejections. If a request fails because the Responses WebSocket reached its server-enforced lifetime or is closed, AgentX must close the stale client, create a fresh client, and retry the request once without discarding session state. Other failures use the existing recovery behavior.
