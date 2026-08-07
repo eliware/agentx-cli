@@ -1,5 +1,15 @@
 # AgentX Release Notes
 
+## 1.5.2 - Shared libraries and official OpenAI client
+
+- Replaced AgentX’s custom OpenAI WebSocket transport, framing, reconnect, and lifecycle code with `@eliware/openai`.
+- Removed the obsolete direct transport implementation and its duplicated tests; OpenAI transport behavior and mocks are now owned by Eliware’s shared library.
+- Adopted `@eliware/common` signal registration and shared path utilities.
+- Improved shutdown handling, worker cleanup, path handling, setup, CLI, and confirmation integration.
+- Updated architecture, lifecycle, and testing specifications to define the shared-library boundaries.
+- Normalized package metadata, lockfile, README, test/lint scripts, and CI workflow dispatch support.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.1 - Worker status prompt schema
 
 - Updated the `agent_status` tool schema to expose byte-based output limits and pagination.

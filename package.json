@@ -1,73 +1,73 @@
 {
-  "name": "@eliware/agentx-cli",
-  "type": "module",
-  "version": "1.5.1",
-  "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
-  "main": "agentx.mjs",
-  "scripts": {
-    "start": "node agentx.mjs",
-    "lint": "npx oxlint .",
-    "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --coverage --detectOpenHandles --silent --runInBand",
-    "setup": "node agentx-setup.mjs",
-    "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/eliware/agentx-cli.git"
-  },
-  "keywords": [
-    "agentx",
-    "openai",
-    "responses-api",
-    "cli",
-    "terminal",
-    "websocket"
-  ],
-  "author": "Eli Sterling, eliware.org <eli@eliware.org>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/eliware/agentx-cli/issues"
-  },
-  "homepage": "https://github.com/eliware/agentx-cli#readme",
-  "devDependencies": {
-    "jest": "^30.0.4",
-    "oxlint": "^1.76.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "coveragePathIgnorePatterns": [
-      "/src/agent\\.mjs$",
-      "/src/completion\\.mjs$",
-      "/src/shell\\.mjs$",
-      "/src/tool-shell\\.mjs$",
-      "/src/parallel-workers\\.mjs$"
+    "name": "@eliware/agentx-cli",
+    "type": "module",
+    "version": "1.5.2",
+    "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
+    "main": "agentx.mjs",
+    "scripts": {
+        "start": "node agentx.mjs",
+        "lint": "npx oxlint .",
+        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --coverage --detectOpenHandles --silent --runInBand",
+        "setup": "node agentx-setup.mjs",
+        "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/eliware/agentx-cli.git"
+    },
+    "keywords": [
+        "agentx",
+        "openai",
+        "responses-api",
+        "cli",
+        "terminal",
+        "websocket"
     ],
-    "testMatch": [
-      "**/?(*.)+(spec|test).[jt]s?(x)",
-      "**/?(*.)+(spec|test).mjs",
-      "**/?(*.)+(spec|test).cjs"
+    "author": "Eli Sterling, eliware.org <eli@eliware.org>",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/eliware/agentx-cli/issues"
+    },
+    "homepage": "https://github.com/eliware/agentx-cli#readme",
+    "devDependencies": {
+        "jest": "^30.0.4",
+        "oxlint": "^1.76.0"
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "coveragePathIgnorePatterns": [
+            "/src/agent\\.mjs$",
+            "/src/completion\\.mjs$",
+            "/src/shell\\.mjs$",
+            "/src/tool-shell\\.mjs$",
+            "/src/parallel-workers\\.mjs$"
+        ],
+        "testMatch": [
+            "**/?(*.)+(spec|test).[jt]s?(x)",
+            "**/?(*.)+(spec|test).mjs",
+            "**/?(*.)+(spec|test).cjs"
+        ]
+    },
+    "dependencies": {
+        "@eliware/common": "^1.1.5",
+        "@eliware/openai": "^1.1.9",
+        "dotenv": "^17.4.2",
+        "string-width": "^8.2.2",
+        "strip-ansi": "^7.2.0"
+    },
+    "allowScripts": {
+        "unrs-resolver@1.12.2": true
+    },
+    "bin": {
+        "agentx": "./agentx.mjs",
+        "agentx-setup": "./agentx-setup.mjs"
+    },
+    "files": [
+        "agentx.mjs",
+        "agentx-setup.mjs",
+        "prompt.json",
+        "src/",
+        "docs/",
+        ".agentx.example"
     ]
-  },
-  "dependencies": {
-    "@eliware/common": "^1.1.5",
-    "@eliware/openai": "^1.1.9",
-    "dotenv": "^17.4.2",
-    "string-width": "^8.2.2",
-    "strip-ansi": "^7.2.0"
-  },
-  "allowScripts": {
-    "unrs-resolver@1.12.2": true
-  },
-  "bin": {
-    "agentx": "./agentx.mjs",
-    "agentx-setup": "./agentx-setup.mjs"
-  },
-  "files": [
-    "agentx.mjs",
-    "agentx-setup.mjs",
-    "prompt.json",
-    "src/",
-    "docs/",
-    ".agentx.example"
-  ]
 }
