@@ -329,7 +329,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       const output = await runToolCall(call, toolCwd, { ...options, signal: controller.signal });
       if (interrupted && output?.type === 'shell_call_output') {
         const first = output.output?.[0];
-        if (first) first.stderr = `${first.stderr || ''}${first.stderr ? '\n' : ''}User interrupted execution with Ctrl-T.`;
+        if (first) first.stderr = `${first.stderr || ''}${first.stderr ? '\n' : ''}The user requested interruption (Ctrl-T). Stop executing and do not retry or run additional commands. Return the current status to the user.`;
       }
       return output;
     } finally {
