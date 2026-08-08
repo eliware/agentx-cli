@@ -122,7 +122,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       input: dedupeToolOutputs(outputs),
       previous_response_id: current.id,
       store: true,
-      ...(goalMode && calls.some((call) => !GOAL_TOOLS.has(call?.name)) ? { tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'goal_update' }] } } : {}),
+      ...(goalFinished ? { tool_choice: 'none' } : (goalMode && calls.some((call) => !GOAL_TOOLS.has(call?.name)) ? { tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'goal_update' }] } } : {})),
     };
     try {
       current = await createStreamedResponse(openai, request, { liveStreaming: goalFinished ? false : liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });

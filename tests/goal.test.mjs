@@ -97,6 +97,7 @@ describe('goal mode', () => {
     expect(onGoalComplete).toHaveBeenCalledWith({ method: 'complete', summary: 'done', evidence: 'npm test passes' });
     expect(requests).toHaveLength(1);
     expect(requests[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'goal_update-1', output: 'Goal complete acknowledged.' });
+    expect(requests[0].tool_choice).toBe('none');
   });
 
   test('blocks for an answer and resumes with the answer', async () => {
@@ -130,6 +131,7 @@ describe('goal mode', () => {
     expect(requests).toHaveLength(2);
     expect(requests[0].input[0].content[0].text).toContain('MUST call goal_update');
     expect(requests[1].input[0]).toMatchObject({ type: 'function_call_output', output: 'Goal complete acknowledged.' });
+    expect(requests[1].tool_choice).toBe('none');
     expect(onGoalComplete).toHaveBeenCalledWith({ method: 'complete', summary: 'done', evidence: 'verified' });
   });
 
