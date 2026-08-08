@@ -114,6 +114,11 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       statusController?.clear();
     }
 
+    if (goalFinished) {
+      statusController?.clear();
+      return current;
+    }
+
     const request = {
       ...baseRequest,
       input: dedupeToolOutputs(outputs),
