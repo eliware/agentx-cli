@@ -119,6 +119,19 @@ describe('goal mode', () => {
     expect(requests[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'goal_update-1', output: 'A' });
   });
 
+  test('continues goal work with live streaming enabled', async () => {
+    const { client, requests } = openaiWithResponses({ id: 'resp-live', output: [] });
+
+    await handleToolCalls(client, { id: 'resp-start', output: [] }, baseRequest, '/tmp', null, undefined, {
+      goalMode: true,
+      liveStreaming: true,
+      goalText: 'finish the task',
+      goalMaxIterations: 1,
+    });
+
+    expect(requests[0]).toMatchObject({ previous_response_id: 'resp-start', tool_choice: 'required' });
+  });
+
   test('returns the final response after goal completion', async () => {
     const { client, requests } = openaiWithResponses(
       { id: 'resp-2', output: [goalCall('goal_update', { method: 'complete', summary: 'done', evidence: 'verified' })] },
