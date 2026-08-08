@@ -42,6 +42,14 @@ describe('agent session modules', () => {
     expect(stdoutWrites.join('')).toBe('hello\n');
   });
 
+  test('clears status when the response request fails', async () => {
+    const statusController = { showReasoning: jest.fn(), clear: jest.fn() };
+    const error = new Error('transport failed');
+    const openai = { responses: { create: async () => { throw error; } } };
+    await expect(createStreamedResponse(openai, {}, { liveStreaming: true, statusController })).rejects.toBe(error);
+    expect(statusController.clear).toHaveBeenCalledTimes(1);
+  });
+
   test('logs raw events in debug mode', async () => {
     const originalStderrWrite = process.stderr.write;
     const stderrWrites = [];

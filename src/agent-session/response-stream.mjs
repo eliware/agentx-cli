@@ -5,10 +5,11 @@ export async function createStreamedResponse(openai, request, { liveStreaming = 
   const live = createLiveResponseHandlers({ liveStreaming, statusController, ...(debug ? { debug: true } : {}) });
   const handlers = live.handlers ? { ...live.handlers } : (debug ? {} : undefined);
   if (debug) handlers.onEvent = (event, raw) => process.stderr.write(`[openai:event] ${JSON.stringify(raw ?? event)}\n`);
-  const response = await openai.responses.create(request, handlers);
-  if (liveStreaming && live.sawOutput()) {
+  try {
+    const response = await openai.responses.create(request, handlers);
+    if (liveStreaming && live.sawOutput() && !live.streamedText().endsWith('\n')) process.stdout.write('\n');
+    return response;
+  } finally {
     statusController?.clear();
-    if (!live.streamedText().endsWith('\n')) process.stdout.write('\n');
-  } else statusController?.clear();
-  return response;
+  }
 }
