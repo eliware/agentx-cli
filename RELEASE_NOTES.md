@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.5.9 - Delegated worker role clarity
+
+- Added a concise developer instruction for one-shot delegated workers.
+- Prevented delegated workers from spawning agents, orchestrating work, or broadening task scope.
+- Added specification and regression coverage for the worker role instruction.
+- Verified with 100% test coverage and clean lint results.
+
+
 ## 1.5.8 - One-shot worker context output
 
 - Preserved inherited checkpoint context for spawned one-shot workers while suppressing human-oriented session recap output.
