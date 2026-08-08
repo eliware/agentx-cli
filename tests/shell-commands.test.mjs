@@ -18,3 +18,7 @@ describe('shell commands', () => {
     expect(parseInternalCommand('unknown')).toBeNull();
   });
 });
+
+test('/stop cancels the active goal', () => {
+  expect(parseInternalCommand('/stop')).toEqual({ type: 'goal_cancel' });
+});

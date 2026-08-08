@@ -195,6 +195,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let rollbackBackup = Array.isArray(savedState?.rollback_backup) ? savedState.rollback_backup : [];
   let failedResponse = Boolean(savedState?.failed_response);
   let pendingRetryRequest = savedState?.pending_retry_request || null;
+  let activeGoal = savedState?.goal || null;
   const globalConfirmationPath = confirmationFilePath();
   const globalConfirmations = await loadGlobalConfirmations(globalConfirmationPath);
   const sessionConfirmations = new Set();
@@ -224,6 +225,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       rollback_backup: rollbackBackup,
       failed_response: failedResponse,
       pending_retry_request: pendingRetryRequest,
+      goal: activeGoal,
     });
   }
 
@@ -385,13 +387,14 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         pendingInitialMessage = null;
       } catch (error) {
         if (error?.name === 'AbortError' || error?.code === 'ABORT_ERR') {
+          if (activeGoal?.status === 'active') { activeGoal = { ...activeGoal, status: 'cancelled', cancelled_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('Goal cancelled')}\n`); continue; }
           await exitWithSummary({ leadingNewline: true });
           return;
         }
         throw error;
       }
 
-      const message = line.trim();
+      let message = line.trim();
       // Handle plain `clear` command to clear the terminal display.
       if (message === 'clear') {
         clearTerminal();
@@ -453,6 +456,26 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         rl = createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
         continue;
       }
+      if (internal?.type === 'goal_help') {
+        process.stdout.write(`${formatSystemMessage('Usage: /goal <text> | /goal status | /goal cancel')}\n`);
+        continue;
+      }
+      if (internal?.type === 'goal_status') {
+        process.stdout.write(`${formatSystemMessage(activeGoal?.status === 'active' ? `Active goal: ${activeGoal.text} (iteration ${activeGoal.iterations || 0})` : 'No active goal.')}\n`);
+        continue;
+      }
+      if (internal?.type === 'goal_cancel') {
+        if (activeGoal) { activeGoal = { ...activeGoal, status: 'cancelled' }; await saveState(); process.stdout.write(`${formatSystemMessage('Goal cancelled')}\n`); }
+        else process.stdout.write(`${formatSystemMessage('No active goal.')}\n`);
+        continue;
+      }
+      if (internal?.type === 'goal') {
+        if (activeGoal?.status === 'active') { process.stdout.write(`${formatSystemMessage('A goal is already active; cancel it first.')}\n`); continue; }
+        activeGoal = { text: internal.goal, status: 'active', iterations: 0, started_at: new Date().toISOString() };
+        process.stdout.write(`${formatSystemMessage(`Goal started: ${internal.goal}`)}\n`);
+        message = internal.goal;
+      }
+
       if (internal?.type === 'exit') {
         await exitWithSummary();
         return;
@@ -467,6 +490,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         lastAssistantMessage = '';
         pendingCliTranscript = '';
         pendingToolCalls = [];
+        activeGoal = null;
         sessionUsage = createUsageTotals();
         await clearSession(statePath);
         process.stdout.write(`${formatSystemMessage('Session cleared')}\n`);
@@ -539,7 +563,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled });
+          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled, goalMode: activeGoal?.status === 'active', goalIterations: activeGoal?.iterations || 0, onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
         } catch (error) {
           const errorText = `${error?.message || ''} ${error?.cause?.message || ''}`;
           const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');
@@ -589,6 +613,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
       if (!response) continue;
       previousResponseId = response?.id || previousResponseId;
+      if (activeGoal?.status === 'active') activeGoal = { ...activeGoal, iterations: (activeGoal.iterations || 0) + 1 };
       lastAssistantMessage = extractTextFromResponse(response);
       pendingToolCalls = [];
       pendingRetryRequest = null;

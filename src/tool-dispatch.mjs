@@ -104,6 +104,9 @@ export async function runToolCall(call, cwd, options = {}) {
   if (call?.type === 'function_call' && ['spawn_agent', 'agent_status', 'cancel_agent'].includes(call?.name)) {
     return await runParallelWorkerFunction(call, cwd);
   }
+  if (call?.type === 'function_call' && ['goal_complete', 'goal_blocked'].includes(call?.name)) {
+    return typeof call.input === 'string' ? call.input : (call.arguments || '{}');
+  }
 
   if (call?.type === 'shell_call') {
     const permission = options?.permission || process.env.AGENTX_PERMISSION || 'execute';

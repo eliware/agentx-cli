@@ -49,3 +49,7 @@ Startup removes stale one-shot session-state files (`.agentx_responseid.oneshot-
 
 
 When a tool-output continuation fails, persist the exact continuation request as `pending_retry_request`. Retry must replay that request, including its `previous_response_id` and tool outputs, instead of resending the original user message. A pending retry request must never be silently substituted for a new user message. If recovery returns to the prompt without retrying or clearing it, preserve it only as explicitly pending state and require a deliberate retry/resume action before replaying it. Entering a new user message abandons the pending continuation rather than replaying it. Clear it after successful continuation, explicit session reset, or an explicit recovery choice to abandon the failed continuation.
+
+## Goals
+
+Persist active goal metadata (`text`, `status`, `iterations`, timestamps, and result). `/goal cancel`, session clear, rollback, and successful goal completion terminate active goal mode. On restart, an active goal is restored as resumable state and prompts the user to resume; answering no pauses it without contacting OpenAI. Ctrl-C and `/stop` cancel active goal mode without exiting AgentX.

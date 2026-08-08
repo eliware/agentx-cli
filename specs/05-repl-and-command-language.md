@@ -19,3 +19,5 @@ Commands:
 A direct shell transcript formats objects as stdout, then a blank line and `stderr:` when stderr exists; trim trailing whitespace. Multiple entries are separated by blank lines. This transcript is sent only with the next API user request, then cleared after successful submission.
 
 Normal assistant responses are streamed/wrapped to terminal width. Tool status lines are temporary and must not overwrite final assistant output.
+
+- `/goal <text>` starts autonomous goal mode; `/goal status` reports it; `/goal cancel` or `/stop` cancels it. Goal mode continues automatically until `goal_complete`, `goal_blocked`, cancellation, or the iteration limit.

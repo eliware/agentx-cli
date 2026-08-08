@@ -7,6 +7,9 @@ import { createStatusLineController, formatElapsedStatus, formatTransactionCompl
 import { createStreamedResponse } from './response-stream.mjs';
 import { isShellToolCall } from './response-format.mjs';
 
+const GOAL_TOOLS = new Set(['goal_complete', 'goal_blocked']);
+function parseFunctionInput(call) { try { return JSON.parse(call?.arguments ?? call?.input ?? '{}'); } catch { return {}; } }
+
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
   let current = response;
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
@@ -17,13 +20,17 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   const onToolExecutionState = streamOptions?.onToolExecutionState;
   const confirmToolCall = streamOptions?.confirmToolCall;
   const yolo = Boolean(streamOptions?.yolo);
+  const goalMode = Boolean(streamOptions?.goalMode);
+  let goalIterations = Number(streamOptions?.goalIterations ?? 0);
+  let goalFinished = false;
+  const goalMaxIterations = Number(streamOptions?.goalMaxIterations ?? 50);
   let isFirstResponse = true;
   const executeToolCall = streamOptions?.runToolCall || runToolCallFn;
 
   for (; ;) {
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
     const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
-    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && ['spawn_agent', 'agent_status', 'cancel_agent'].includes(item?.name))), cwd);
+    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && (['spawn_agent', 'agent_status', 'cancel_agent'].includes(item?.name) || (goalMode && GOAL_TOOLS.has(item?.name))))), cwd);
     const cumulativeUsage = shouldReportUsage && onResponseUsage ? onResponseUsage(usage, { skipIncrement: false }) : null;
     if (onResponseState) {
       await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
@@ -35,9 +42,18 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       }
     }
     if (calls.length === 0) {
-      statusController?.clear();
-      process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' }))}\n`);
-      return current;
+      if (goalFinished || !goalMode) {
+        statusController?.clear();
+        process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' }))}\n`);
+        return current;
+      }
+      {
+        if (++goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
+        const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: 'Goal not complete. Continue working. Call goal_complete only when verified; call goal_blocked only when user input is required.' }] }], previous_response_id: current.id, store: true };
+        current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
+        isFirstResponse = false;
+        continue;
+      }
     }
 
     isFirstResponse = false;
@@ -56,6 +72,18 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           continue;
         }
         await onToolExecutionState?.({ call, response: current, status: 'started', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
+        if (goalMode && GOAL_TOOLS.has(call?.name)) {
+          const args = parseFunctionInput(call);
+          if (call.name === 'goal_complete') {
+            goalFinished = true;
+            await streamOptions?.onGoalComplete?.(args);
+            outputs.push(toolOutputForCall(call, 'Goal complete acknowledged.'));
+            continue;
+          }
+          const answer = await streamOptions?.onGoalBlocked?.(args);
+          outputs.push(toolOutputForCall(call, answer || 'Continue without user input.'));
+          continue;
+        }
         const output = await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController });
         await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));

@@ -154,6 +154,17 @@
         ],
         "additionalProperties": false
       }
+    }    ,{
+      "type": "function",
+      "name": "goal_complete",
+      "description": "Declare the active goal complete only after verifying it. Include a concise summary and evidence.",
+      "parameters": {"type":"object","properties":{"summary":{"type":"string"},"evidence":{"type":"string"}},"required":["summary","evidence"],"additionalProperties":false}
+    },
+    {
+      "type": "function",
+      "name": "goal_blocked",
+      "description": "Ask the user for information required to continue the active goal. Provide 2-4 choices when useful.",
+      "parameters": {"type":"object","properties":{"question":{"type":"string"},"choices":{"type":"array","items":{"type":"string"},"minItems":2,"maxItems":4}},"required":["question"],"additionalProperties":false}
     }
   ],
   "store": true,

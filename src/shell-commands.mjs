@@ -22,6 +22,15 @@ export function parseInternalCommand(message) {
     return { type: 'rollback' };
   }
 
+  if (message === '/stop') return { type: 'goal_cancel' };
+
+  if (message === '/goal' || message.startsWith('/goal ')) {
+    const value = message.slice(5).trim();
+    if (value === 'status') return { type: 'goal_status' };
+    if (value === 'cancel' || value === 'stop') return { type: 'goal_cancel' };
+    return value ? { type: 'goal', goal: value } : { type: 'goal_help' };
+  }
+
   if (message === 'cd' || message.startsWith('cd ')) {
     return { type: 'cd', target: message.slice(2).trim() };
   }
