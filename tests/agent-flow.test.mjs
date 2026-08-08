@@ -1,10 +1,25 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import path from 'node:path';
 import { writeFileSync } from 'node:fs';
-import { loadPromptTemplate, appendCliTranscript, buildRequestMessage, buildRequestOverride, resolveAgentApiKey, WORKER_ROLE_MESSAGE } from '../src/agent-flow.mjs';
+import { loadPromptTemplate, appendCliTranscript, buildRequestMessage, buildRequestOverride, resolveAgentApiKey, WORKER_ROLE_MESSAGE, withGoalTools } from '../src/agent-flow.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('agent flow helpers', () => {
+  test('withGoalTools requires and filters goal tools by mode', () => {
+    const template = { tools: [{ name: 'goal_update' }, { name: 'lookup' }, {}], tool_choice: 'auto' };
+
+    expect(withGoalTools(template, true)).toEqual({
+      tools: [{ name: 'lookup' }, {}, { name: 'goal_update' }],
+      tool_choice: 'required',
+    });
+    expect(withGoalTools(template, false)).toEqual({
+      tools: [{ name: 'lookup' }, {}],
+      tool_choice: 'auto',
+    });
+    expect(withGoalTools(undefined, false)).toEqual({ tools: [] });
+    expect(withGoalTools(undefined, true)).toEqual({ tools: [], tool_choice: 'required' });
+  });
+
   test('resolveAgentApiKey prefers the lowercase env var and falls back to uppercase', () => {
     expect(resolveAgentApiKey({ agentx_api_key: 'lower', AGENTX_API_KEY: 'upper' })).toBe('lower');
     expect(resolveAgentApiKey({ AGENTX_API_KEY: 'upper' })).toBe('upper');
@@ -122,7 +137,7 @@ describe('agent flow helpers', () => {
       const promptPath = path.join(tmp, 'prompt.json');
       const mcpPath = path.join(tmp, 'missing-mcp.json');
       writeFileSync(promptPath, JSON.stringify({ input: [] }));
-      await expect(loadPromptTemplate(promptPath, mcpPath)).resolves.toEqual({ input: [] });
+      await expect(loadPromptTemplate(promptPath, mcpPath, {})).resolves.toEqual({ input: [] });
     } finally {
       cleanupTempDir(tmp);
     }
