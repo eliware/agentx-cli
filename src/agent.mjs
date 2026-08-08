@@ -566,7 +566,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           let choice;
           try { choice = await promptRecoveryMenu(error, { input: terminalInput, output: terminalOutput }); }
           catch (menuError) { if (menuError?.name === 'AbortError') { process.stdout.write(`${formatSystemMessage('Recovery cancelled; session preserved.')}\n`); break; } throw menuError; }
-          if (choice === 'retry' && recoveryAttempts < 1) { recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue; }
+          if (choice === 'retry') { recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue; }
           if (choice === 'new-chain' && recoveryAttempts < 2) { recoveryAttempts += 1; previousResponseId = ''; retryRequest = null; pendingRetryRequest = null; continue; }
           if (choice === 'rollback') {
             const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });

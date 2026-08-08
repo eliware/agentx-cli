@@ -87,3 +87,12 @@ test('evaluates noninteractive capability checks outside Jest', async () => {
     if (saved === undefined) delete process.env.JEST_WORKER_ID; else process.env.JEST_WORKER_ID = saved;
   }
 });
+
+test('returns retry repeatedly when the user explicitly chooses it', async () => {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { input, output } = makeIO();
+    const prompt = promptRecoveryMenu(new Error(`transient-${attempt}`), { input, output, forceInteractive: true });
+    process.nextTick(() => input.emit('keypress', '1', { name: '1' }));
+    await expect(prompt).resolves.toBe('retry');
+  }
+});

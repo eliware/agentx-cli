@@ -223,6 +223,17 @@ describe('session state edge normalization', () => {
     } finally { cleanupTempDir(tmp); }
   });
 
+  test('restart recovery prefers the last successful checkpoint over interrupted state', async () => {
+    const tmp = makeTempDir('agentx-restart-recovery-');
+    try {
+      const checkpoint = `${tmp}/.agentx_checkpoint`;
+      const state = `${tmp}/.agentx_responseid`;
+      await persistResponseState(checkpoint, { response_id: 'resp-success', history: [{ response_id: 'resp-success' }] });
+      await persistResponseState(state, { response_id: 'resp-interrupted', failed_response: true, pending_retry_request: { previous_response_id: 'resp-interrupted', input: [] } });
+      await expect(readLatestCheckpoint(checkpoint, state)).resolves.toMatchObject({ response_id: 'resp-success' });
+    } finally { cleanupTempDir(tmp); }
+  });
+
   test('uses the checkpoint directly and returns null when fallback is omitted', async () => {
     const tmp = makeTempDir('agentx-checkpoint-direct-');
     try {
