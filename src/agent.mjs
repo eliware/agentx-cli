@@ -574,6 +574,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         const workerRoleMessage = oneShot && process.env.AGENTX_WORKER_ID ? WORKER_ROLE_MESSAGE : '';
         const requestTemplate = withGoalTools(template, activeGoal?.status === 'active');
         const activeOverride = buildRequestOverride(requestTemplate, requestMessage, agentsText, cwd, previousResponseId, workerRoleMessage);
+        const goalRequestActive = activeGoal?.status === 'active';
         const detachGoalInterrupt = attachGoalInterrupt();
         try {
           response = await sendMessage(openai, requestTemplate, previousResponseId, requestMessage, agentsText, cwd, (usage, { skipIncrement = false } = {}) => {
@@ -630,6 +631,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           break;
         } finally {
           detachGoalInterrupt();
+          if (goalRequestActive) replaceReplInterface();
         }
       }
       if (!response) continue;
