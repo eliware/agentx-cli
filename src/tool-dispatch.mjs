@@ -104,7 +104,7 @@ export async function runToolCall(call, cwd, options = {}) {
   if (call?.type === 'function_call' && ['spawn_agent', 'agent_status', 'cancel_agent'].includes(call?.name)) {
     return await runParallelWorkerFunction(call, cwd);
   }
-  if (call?.type === 'function_call' && ['goal_complete', 'goal_blocked'].includes(call?.name)) {
+  if (call?.type === 'function_call' && ['goal_update'].includes(call?.name)) {
     return typeof call.input === 'string' ? call.input : (call.arguments || '{}');
   }
 

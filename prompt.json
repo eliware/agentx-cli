@@ -157,52 +157,6 @@
     },
     {
       "type": "function",
-      "name": "goal_complete",
-      "description": "Declare the active goal complete only after verifying it. Include a concise summary and evidence.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "summary": {
-            "type": "string"
-          },
-          "evidence": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "summary",
-          "evidence"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "type": "function",
-      "name": "goal_blocked",
-      "description": "Ask the user for information required to continue the active goal. Provide 2-4 choices when useful.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "type": "string"
-          },
-          "choices": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 2,
-            "maxItems": 4
-          }
-        },
-        "required": [
-          "question"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "type": "function",
       "name": "view_image",
       "description": "Inspect a local image in an isolated vision request. Return only the requested information.",
       "parameters": {
@@ -229,6 +183,46 @@
         "required": [
           "path",
           "instruction"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "goal_update",
+      "description": "Report the current goal state after reviewing work and evidence.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "incomplete",
+              "blocked",
+              "question"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 4
+          }
+        },
+        "required": [
+          "method"
         ],
         "additionalProperties": false
       }

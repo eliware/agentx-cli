@@ -29,3 +29,7 @@ AgentX must validate that the path is a readable regular file. The tool may read
 Image inspection runs in an isolated Responses API branch from the current response ID. The branch request contains only the inspection instruction and an inline base64 `input_image` data URL; it has no custom functions, MCP tools, or other tools. AgentX should transcode supported and unsupported local image formats to a temporary JPEG before encoding, using a cross-platform image library, with bounded dimensions and output size. The configured AgentX model is used by default; a separate vision model is optional future configuration.
 
 Only the branch's text response is returned as the `view_image` tool output. Temporary converted data and branch checkpoint state are discarded after completion. The main conversation continues from its original response ID, so image bytes are not included in the main conversation chain.
+
+## Goal state tool
+
+Goal mode exposes one `goal_update` function instead of separate lifecycle functions. Its required `method` is one of `complete`, `incomplete`, `blocked`, or `question`; optional fields carry summary/evidence or question/choices. Goal work requests require a tool call. After ordinary work-tool results, the next request restricts required tool selection to `goal_update`, preventing prose-only continuation loops. `complete` ends the goal, `blocked` ends it as blocked, `question` pauses for user input and resumes, and `incomplete` continues autonomous work.
