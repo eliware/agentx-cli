@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.6.0 - Delegated worker usage accounting
+
+- Aggregated delegated worker per-turn token usage into parent session totals.
+- Added comma-tolerant usage parsing while preserving formatted token display.
+- Recalculated parent costs from aggregated token totals and added regression coverage.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.13 - Goal tool-loop coverage
 
 - Simplified goal continuation streaming options by removing an unreachable branch.
