@@ -18,6 +18,14 @@ describe('tool shell', () => {
     }
   });
 
+  test('rejects empty commands and missing working directories before spawning', async () => {
+    const empty = await runShellCommands(['   '], process.cwd());
+    expect(empty.output[0]).toMatchObject({ stderr: 'Unable to execute an empty shell command', outcome: { exit_code: 2 } });
+
+    const missingCwd = await runShellCommands(['echo nope'], null);
+    expect(missingCwd.output[0]).toMatchObject({ stderr: 'Unable to execute shell command without a working directory', outcome: { exit_code: 2 } });
+  });
+
   test('runs shell command sequences in order', async () => {
     const tmp = makeTempDir('agentx-shell-');
     try {

@@ -43,6 +43,8 @@ function getLaunchPlan(command, platform = process.platform) {
 }
 
 function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, writeStdout, writeStderr, signal } = {}) {
+  if (!String(command ?? '').trim()) return Promise.resolve(makeShellCommandOutput({ stderr: 'Unable to execute an empty shell command', outcome: { type: 'exit', exit_code: 2 }, maxOutputLength }));
+  if (!cwd || typeof cwd !== 'string') return Promise.resolve(makeShellCommandOutput({ stderr: 'Unable to execute shell command without a working directory', outcome: { type: 'exit', exit_code: 2 }, maxOutputLength }));
   return new Promise((resolve, reject) => {
     const child = spawn(plan.file, plan.args, {
       cwd,

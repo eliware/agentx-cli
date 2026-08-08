@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { deleteOptional, readOptionalText, writeText } from './runtime.mjs';
 import { fs } from '@eliware/common';
 
@@ -86,8 +87,10 @@ export async function cleanupStaleOneShotStates(directory, now = Date.now()) {
   let removed = 0;
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.startsWith(ONESHOT_PREFIX)) continue;
-    const filePath = `${directory}/${entry.name}`;
-    const stat = await fs.promises.stat(filePath);
+    const filePath = path.join(directory, entry.name);
+    let stat;
+    try { stat = await fs.promises.stat(filePath); }
+    catch (error) { if (error?.code === 'ENOENT') continue; throw error; }
     if (now - stat.mtimeMs < STALE_ONESHOT_AGE_MS) continue;
     await deleteOptional(filePath);
     removed += 1;
