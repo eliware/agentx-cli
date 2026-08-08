@@ -25,10 +25,10 @@ async function assertReadableImage(filePath, maxBytes = MAX_INPUT_BYTES) {
   if (info.size > maxBytes) throw new Error(`Image file exceeds the ${maxBytes} byte limit.`);
 }
 
-async function defaultConvertToJpeg(buffer, options) {
+async function defaultConvertToJpeg(buffer, options, loadSharp = () => import('sharp')) {
   let sharp;
   try {
-    ({ default: sharp } = await import('sharp'));
+    ({ default: sharp } = await loadSharp());
   } catch {
     throw new Error('Image conversion requires the optional sharp package.');
   }
@@ -63,4 +63,4 @@ export async function encodeImageInput(filePath, {
   };
 }
 
-export { DEFAULT_DETAIL, DEFAULT_MAX_DIMENSION, MAX_INPUT_BYTES, resolveImagePath };
+export { DEFAULT_DETAIL, DEFAULT_MAX_DIMENSION, MAX_INPUT_BYTES, assertReadableImage, defaultConvertToJpeg, resolveImagePath };

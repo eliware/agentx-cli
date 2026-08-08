@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { encodeImageInput, resolveImagePath } from '../src/image-input.mjs';
+import { assertReadableImage, defaultConvertToJpeg, encodeImageInput, resolveImagePath } from '../src/image-input.mjs';
 
 describe('image input encoding', () => {
   let dir;
@@ -10,8 +10,10 @@ describe('image input encoding', () => {
   beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), 'agentx-image-')); });
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
-  test('resolves paths relative to cwd', () => {
+  test('resolves paths relative to cwd and rejects missing paths', () => {
     expect(resolveImagePath('images/picture.png', '/work')).toBe('/work/images/picture.png');
+    expect(resolveImagePath('picture.png')).toBe(join(process.cwd(), 'picture.png'));
+    expect(() => resolveImagePath(undefined)).toThrow('Image path is required');
   });
 
   test('converts and returns an inline JPEG data URL', async () => {
@@ -29,8 +31,32 @@ describe('image input encoding', () => {
 
   test('rejects invalid detail and unreadable or non-file paths', async () => {
     await expect(encodeImageInput('missing.png', { cwd: dir, convertToJpeg: jest.fn() })).rejects.toThrow('Unable to read image file');
+    await expect(encodeImageInput('.', { cwd: dir, convertToJpeg: jest.fn() })).rejects.toThrow('not a regular file');
     await expect(encodeImageInput('', { cwd: dir, convertToJpeg: jest.fn() })).rejects.toThrow('Image path is required');
     await expect(encodeImageInput('missing.png', { cwd: dir, detail: 'medium', convertToJpeg: jest.fn() })).rejects.toThrow('Invalid image detail');
+  });
+
+  test('accepts non-Buffer converted data', async () => {
+    await writeFile(join(dir, 'picture.png'), 'source');
+    const result = await encodeImageInput('picture.png', { cwd: dir, convertToJpeg: async () => new Uint8Array([1, 2, 3]) });
+    expect(result.bytes).toBe(3);
+    expect(result.dataUrl).toBe('data:image/jpeg;base64,AQID');
+  });
+
+  test('reports unavailable image conversion', async () => {
+    await expect(defaultConvertToJpeg(Buffer.from('source'), undefined, async () => { throw new Error('missing'); })).rejects.toThrow('optional sharp package');
+    await writeFile(join(dir, 'picture.png'), 'source');
+    await assertReadableImage(join(dir, 'picture.png'));
+  });
+
+  test('uses sharp for default conversion', async () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+    await writeFile(join(dir, 'picture.png'), png);
+    const result = await encodeImageInput(join(dir, 'picture.png'));
+    expect(result.detail).toBe('auto');
+    expect(result.mimeType).toBe('image/jpeg');
+    expect(result.bytes).toBeGreaterThan(0);
+    expect(result.dataUrl).toMatch(/^data:image\/jpeg;base64,/);
   });
 
   test('rejects oversized source and converted data', async () => {
