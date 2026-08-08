@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.5.8 - One-shot worker context output
+
+- Preserved inherited checkpoint context for spawned one-shot workers while suppressing human-oriented session recap output.
+- Added specification and regression coverage for worker session context behavior.
+- Verified with 100% test coverage and clean lint results.
+
+
 ## 1.5.7 - Recovery and validation hardening
 
 - Allowed repeated explicit interactive recovery retries while keeping new-chain recovery bounded.
