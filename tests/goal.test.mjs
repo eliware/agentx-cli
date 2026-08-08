@@ -128,7 +128,7 @@ describe('goal mode', () => {
     await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalComplete });
 
     expect(requests[0]).toMatchObject({ previous_response_id: 'resp-1', store: true });
-    expect(requests[0].input[0].content[0].text).toContain('Goal not complete');
+    expect(requests[0].input[0].content[0].text).toContain('MUST call goal_complete');
     expect(requests[0].input[0].content[0].text).toContain('(goal text unavailable)');
     expect(onGoalComplete).toHaveBeenCalledWith({ summary: 'done', evidence: 'verified' });
     expect(requests[1].previous_response_id).toBe('resp-2');
