@@ -31,7 +31,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   const executeToolCall = streamOptions?.runToolCall || runToolCallFn;
 
   for (; ;) {
-    if (goalMode && goalCancelled()) { statusController?.clear(); return current; }
+    if (goalMode && !goalFinished && goalCancelled()) { statusController?.clear(); return current; }
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
     const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
     const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && (['spawn_agent', 'agent_status', 'cancel_agent'].includes(item?.name) || (goalMode && GOAL_TOOLS.has(item?.name)) || item?.name === IMAGE_TOOL))), cwd);
@@ -77,7 +77,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           continue;
         }
         await onToolExecutionState?.({ call, response: current, status: 'started', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
-        if (goalMode && goalCancelled()) { statusController?.clear(); return current; }
+        if (goalMode && !goalFinished && goalCancelled()) { statusController?.clear(); return current; }
         if (goalMode && GOAL_TOOLS.has(call?.name)) {
           const args = parseFunctionInput(call);
           const method = String(args?.method || '').toLowerCase();
