@@ -68,6 +68,8 @@ describe('shell paths', () => {
       makeDirectory(tmp, 'previous');
       expect(await resolveCdTarget('-', tmp, { previousCwd: path.join(tmp, 'previous') })).toBe(path.join(tmp, 'previous'));
       await expect(resolveCdTarget('-', tmp)).rejects.toThrow('OLDPWD not set');
+      makeFile(tmp, 'previous-file');
+      await expect(resolveCdTarget('-', tmp, { previousCwd: path.join(tmp, 'previous-file') })).rejects.toThrow('OLDPWD is not a directory');
     } finally { cleanupTempDir(tmp); }
   });
 
@@ -80,6 +82,7 @@ describe('shell paths', () => {
 
       const env = { HOME: `${tmp}/sub`, USERPROFILE: `${tmp}/sub` };
       expect(await resolveCdTarget('', tmp, { env })).toBe(`${tmp}/sub`);
+      expect(await resolveCdTarget(undefined, tmp, { env })).toBe(`${tmp}/sub`);
       expect(await resolveCdTarget('~', tmp, { env })).toBe(`${tmp}/sub`);
     } finally {
       cleanupTempDir(tmp);
