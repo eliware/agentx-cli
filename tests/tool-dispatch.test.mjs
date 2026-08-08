@@ -32,6 +32,11 @@ describe('tool dispatch', () => {
     expect(requiresToolConfirmation({ type: 'function_call', name: 'shutdown' })).toBe(false);
   });
 
+  test('validates tool calls and working directories before side effects', async () => {
+    expect(await runToolCall(null, process.cwd())).toBe('ERROR: invalid tool call');
+    expect(await runToolCall({ type: 'shell_call' }, '')).toBe('ERROR: invalid working directory for shell_call');
+  });
+
   test('runs shell tool calls and rejects unsupported tool calls', async () => {
     const tmp = makeTempDir('agentx-dispatch-');
     try {

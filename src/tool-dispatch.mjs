@@ -99,6 +99,8 @@ function parseShellActionCommands(call) {
 }
 
 export async function runToolCall(call, cwd, options = {}) {
+  if (!call || typeof call !== 'object' || Array.isArray(call)) return 'ERROR: invalid tool call';
+  if (typeof cwd !== 'string' || !cwd.trim()) return `ERROR: invalid working directory for ${call.type || 'tool'}`;
   if (call?.type === 'function_call' && ['spawn_agent', 'agent_status', 'cancel_agent'].includes(call?.name)) {
     return await runParallelWorkerFunction(call, cwd);
   }
