@@ -62,6 +62,15 @@ describe('shell paths', () => {
     }
   });
 
+  test('supports cd - using the previous cwd', async () => {
+    const tmp = makeTempDir('agentx-shell-');
+    try {
+      makeDirectory(tmp, 'previous');
+      expect(await resolveCdTarget('-', tmp, { previousCwd: path.join(tmp, 'previous') })).toBe(path.join(tmp, 'previous'));
+      await expect(resolveCdTarget('-', tmp)).rejects.toThrow('OLDPWD not set');
+    } finally { cleanupTempDir(tmp); }
+  });
+
   test('accepts relative, absolute and home-based directories', async () => {
     const tmp = makeTempDir('agentx-shell-');
     try {

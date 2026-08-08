@@ -2,7 +2,14 @@ import { fs } from '@eliware/common';
 import { resolveUserPath } from './platform.mjs';
 
 export async function resolveCdTarget(target, cwd, options = {}) {
-  const resolved = resolveUserPath(target, cwd, options);
+  const normalizedTarget = String(target ?? '').trim();
+  if (normalizedTarget === '-') {
+    if (!options.previousCwd) throw new Error('cd: OLDPWD not set');
+    const stats = await fs.promises.stat(options.previousCwd);
+    if (!stats.isDirectory()) throw new Error('cd: OLDPWD is not a directory');
+    return options.previousCwd;
+  }
+  const resolved = resolveUserPath(normalizedTarget, cwd, options);
   const stats = await fs.promises.stat(resolved);
   // If the target is not a directory, avoid leaking the absolute path.
   if (!stats.isDirectory()) {
@@ -15,7 +22,7 @@ export async function resolveCdTarget(target, cwd, options = {}) {
     // tests check for. We keep that behavior to maintain backward
     // compatibility while still masking the path when a specific target is
     // provided.
-    const msg = target ? `cd: not a directory: ${target}` : `cd: not a directory: ${resolved}`;
+    const msg = normalizedTarget ? `cd: not a directory: ${normalizedTarget}` : `cd: not a directory: ${resolved}`;
     throw new Error(msg);
   }
   return resolved;

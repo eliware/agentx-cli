@@ -184,6 +184,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
 
   let previousResponseId = savedState?.failed_response ? (savedState?.history?.at(-1)?.response_id || '') : savedResponseId;
   let cwdNote = '';
+  let previousCwd = null;
   let lastUserMessage = savedState?.last_user_message || '';
   let lastAssistantMessage = savedState?.last_assistant_message || '';
   let pendingCliTranscript = savedState?.pending_cli_transcript || '';
@@ -548,7 +549,9 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
 
       if (internal?.type === 'cd') {
         try {
-          cwd = await resolveCdTarget(internal.target, cwd);
+          const oldCwd = cwd;
+          cwd = await resolveCdTarget(internal.target, cwd, { previousCwd });
+          previousCwd = oldCwd;
           cwdNote = buildWorkingDirectoryNote(cwd);
           process.stdout.write(`${formatSystemMessage(`Directory changed to ${cwd}`)}\n`);
         } catch (error) {

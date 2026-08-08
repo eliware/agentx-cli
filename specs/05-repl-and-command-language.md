@@ -8,7 +8,7 @@ Input is trimmed before processing, including internal command parsing. Blank li
 3. Everything else is a user message to OpenAI.
 
 Commands:
-- `cd` or `cd <path>`: resolve `~`, absolute paths, and relative paths; require a directory; update active cwd; add a note to the next request; no API request.
+- `cd`, `cd <path>`, `cd ~`, and `cd -`: resolve home, absolute, and relative paths; `cd -` returns to the previous working directory and reports an error if none is set; require a directory; update active cwd; add a note to the next request; no API request.
 - `clear` and `/clear`: delete `.agentx_responseid`, reset response id, usage, messages, transcript, and pending calls; continue with a fresh session.
 - `!clear`: execute the shell clear-screen command locally.
 - `/usage`: print session token/cost totals.
