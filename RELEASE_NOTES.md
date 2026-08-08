@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.5.12 - Image inspection checkpoint branching
+
+- Fixed image inspection to branch from the conversational response preceding the tool-call response.
+- Added fallback handling for callers without a predecessor response ID.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.11 - Image inspection and goal workflow hardening
 
 - Added isolated local image inspection with inline base64 image input and temporary JPEG transcoding.
