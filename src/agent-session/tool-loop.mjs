@@ -55,7 +55,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       {
         if (++goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
         const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nYou MUST call goal_update with method complete, incomplete, blocked, or question. Do not reply with prose.` }] }], previous_response_id: current.id, store: true, tool_choice: 'required' };
-        current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
+        current = await createStreamedResponse(openai, request, { liveStreaming: goalFinished ? false : liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
         isFirstResponse = false;
         continue;
       }
@@ -125,7 +125,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       ...(goalMode && calls.some((call) => !GOAL_TOOLS.has(call?.name)) ? { tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'goal_update' }] } } : {}),
     };
     try {
-      current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
+      current = await createStreamedResponse(openai, request, { liveStreaming: goalFinished ? false : liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
       if (goalFinished) {
         continue;
       }
