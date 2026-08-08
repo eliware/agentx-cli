@@ -70,6 +70,7 @@ User-facing docs live in [`docs/`](./docs):
 - [Session state](./docs/session-state.md)
 - [Examples](./docs/examples.md)
 - [Troubleshooting](./docs/troubleshooting.md)
+- [Configuration](./docs/configuration.md)
 - [AGENTS.md behavior](./docs/agents.md)
 
 ## Development

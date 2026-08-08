@@ -12,6 +12,7 @@
 - Before changing behavior, update the relevant specification documents first; then update tests and implementation to match.
 - Preserve the interactive CLI behavior unless the user asks otherwise.
 - The launchers load `.agentx` when present, but the app still reads `agentx_api_key` / `AGENTX_API_KEY` from the environment.
+- This CLI intentionally has no `.env.example`; configuration is user-local (`~/.agentx`) or environment-based.
 - Use `agentx-setup` for local setup tasks instead of hand-editing service files when possible.
 - Keep the project at 100% test coverage across all files; add or update coverage whenever behavior changes.
 - Always fix lint warnings; do not leave lint warnings unresolved.

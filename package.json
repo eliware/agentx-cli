@@ -44,9 +44,7 @@
             "/src/parallel-workers\\.mjs$"
         ],
         "testMatch": [
-            "**/?(*.)+(spec|test).[jt]s?(x)",
-            "**/?(*.)+(spec|test).mjs",
-            "**/?(*.)+(spec|test).cjs"
+            "**/?(*.)+(spec|test).mjs"
         ]
     },
     "dependencies": {
@@ -68,6 +66,12 @@
         "agentx-setup.mjs",
         "prompt.json",
         "src/",
-        "docs/"
-    ]
+        "docs/",
+        "README.md",
+        "LICENSE",
+        "RELEASE_NOTES.md"
+    ],
+    "engines": {
+        "node": ">=26"
+    }
 }
