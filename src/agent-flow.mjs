@@ -22,7 +22,7 @@ export async function loadPromptTemplate(promptPath, mcpPath = path(getHomeDirec
     }
     const merged = mcpTools === null ? template : { ...template, tools: [...(template.tools || []), ...mcpTools] };
     if (!env?.AGENTX_WORKER_ID) return merged;
-    return { ...merged, tools: (merged.tools || []).filter((tool) => !['spawn_agent', 'agent_status', 'cancel_agent', 'view_image'].includes(tool?.name)) };
+    return { ...merged, tools: (merged.tools || []).filter((tool) => !['spawn_agent', 'agent_status', 'cancel_agent'].includes(tool?.name)) };
   } catch (error) {
     throw new Error(`Unable to read prompt template at ${promptPath}: ${error?.message || String(error)}`);
   }

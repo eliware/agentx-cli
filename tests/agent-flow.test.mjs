@@ -116,8 +116,8 @@ describe('agent flow helpers', () => {
     try {
       const promptPath = path.join(tmp, 'prompt.json');
       const mcpPath = path.join(tmp, 'missing-mcp.json');
-      writeFileSync(promptPath, JSON.stringify({ input: [], tools: [{ type: 'function', name: 'spawn_agent' }, { type: 'function', name: 'agent_status' }, { type: 'function', name: 'cancel_agent' }, { type: 'local' }] }));
-      await expect(loadPromptTemplate(promptPath, mcpPath, { AGENTX_WORKER_ID: 'worker-1' })).resolves.toEqual({ input: [], tools: [{ type: 'local' }] });
+      writeFileSync(promptPath, JSON.stringify({ input: [], tools: [{ type: 'function', name: 'spawn_agent' }, { type: 'function', name: 'agent_status' }, { type: 'function', name: 'cancel_agent' }, { type: 'function', name: 'view_image' }, { type: 'local' }] }));
+      await expect(loadPromptTemplate(promptPath, mcpPath, { AGENTX_WORKER_ID: 'worker-1' })).resolves.toEqual({ input: [], tools: [{ type: 'function', name: 'view_image' }, { type: 'local' }] });
     } finally { cleanupTempDir(tmp); }
   });
 
