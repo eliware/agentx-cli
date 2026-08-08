@@ -12,7 +12,7 @@ import { sendMessage } from './agent-session/session-service.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
-import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey, WORKER_ROLE_MESSAGE } from './agent-flow.mjs';
+import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, withGoalTools, resolveAgentApiKey, WORKER_ROLE_MESSAGE } from './agent-flow.mjs';
 import { promptResumeMenu } from './resume-menu.mjs';
 import { promptRollbackMenu } from './rollback-menu.mjs';
 import { promptRecoveryMenu } from './recovery-menu.mjs';
@@ -196,6 +196,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let failedResponse = Boolean(savedState?.failed_response);
   let pendingRetryRequest = savedState?.pending_retry_request || null;
   let activeGoal = savedState?.goal || null;
+  // Goals never resume implicitly after process restart.
+  if (activeGoal?.status === 'active') activeGoal = null;
   const globalConfirmationPath = confirmationFilePath();
   const globalConfirmations = await loadGlobalConfirmations(globalConfirmationPath);
   const sessionConfirmations = new Set();
@@ -236,6 +238,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     pendingToolCalls = nextCalls;
     await saveState();
   }
+  if (savedState?.goal?.status === 'active') await saveState();
 
   async function confirmToolCall(call, toolCwd) {
     const key = confirmationKey(call, toolCwd);
@@ -376,6 +379,15 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         replaceReplInterface();
       }
     }
+  }
+
+  function attachGoalInterrupt() {
+    if (oneShot || !activeGoal || !terminalInput?.on) return () => {};
+    let interrupted = false;
+    const onInput = (chunk) => { if (String(chunk).includes('\x14')) { interrupted = true; activeGoal = { ...activeGoal, status: 'cancelled', cancelled_at: new Date().toISOString() }; } };
+    terminalInput.setRawMode?.(true);
+    terminalInput.on('data', onInput);
+    return () => { terminalInput.removeListener?.('data', onInput); terminalInput.setRawMode?.(false); return interrupted; };
   }
 
   let pendingInitialMessage = oneShot ? String(initialMessage ?? '') : null;
@@ -555,15 +567,17 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       let websocketRecoveryAttempts = 0;
       while (!response) {
         const workerRoleMessage = oneShot && process.env.AGENTX_WORKER_ID ? WORKER_ROLE_MESSAGE : '';
-        const activeOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId, workerRoleMessage);
+        const requestTemplate = withGoalTools(template, activeGoal?.status === 'active');
+        const activeOverride = buildRequestOverride(requestTemplate, requestMessage, agentsText, cwd, previousResponseId, workerRoleMessage);
+        const detachGoalInterrupt = attachGoalInterrupt();
         try {
-          response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage, { skipIncrement = false } = {}) => {
+          response = await sendMessage(openai, requestTemplate, previousResponseId, requestMessage, agentsText, cwd, (usage, { skipIncrement = false } = {}) => {
             if (!skipIncrement) {
               addUsageTotals(sessionUsage, usage);
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
+          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, yolo: yoloEnabled, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, isGoalCancelled: () => activeGoal?.status !== 'active', onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
         } catch (error) {
           const errorText = `${error?.message || ''} ${error?.cause?.message || ''}`;
           const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');
@@ -609,6 +623,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             break;
           }
           break;
+        } finally {
+          detachGoalInterrupt();
         }
       }
       if (!response) continue;

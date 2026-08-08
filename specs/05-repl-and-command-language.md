@@ -20,4 +20,4 @@ A direct shell transcript formats objects as stdout, then a blank line and `stde
 
 Normal assistant responses are streamed/wrapped to terminal width. Tool status lines are temporary and must not overwrite final assistant output.
 
-- `/goal <text>` starts autonomous goal mode; `/goal status` reports it; `/goal cancel` or `/stop` cancels it. Goal mode continues automatically until `goal_complete`, `goal_blocked`, cancellation, or the iteration limit.
+- `/goal <text>` starts autonomous goal mode; `/goal status` reports it; `/goal cancel` or `/stop` cancels it. Goal mode continues automatically until `goal_complete`, `goal_blocked`, cancellation, or the iteration limit. Goal-only tool definitions (`goal_complete`, `goal_blocked`) are sent only while goal mode is active. A saved active goal is cleared on startup. Ctrl-T cancels active goal mode.

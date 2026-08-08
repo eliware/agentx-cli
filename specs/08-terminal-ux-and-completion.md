@@ -10,4 +10,4 @@ Resume, setup, rollback menus, and interactive shell interruption use shared raw
 
 Usage reports show turns, input tokens, cached input tokens, output tokens, and calculated cost. Keep startup/status output concise; never dump complete tool results or encrypted reasoning.
 
-If a response or tool continuation fails, the live status controller must be stopped and its temporary line cleared before rendering recovery menus. Failed requests must not leave a refresh timer writing over interactive prompts.
+If a response or tool continuation fails, the live status controller must be stopped and its temporary line cleared before rendering recovery menus. Failed requests must not leave a refresh timer writing over interactive prompts. Goal-mode interactive questions pause the live status timer and clear its temporary line before prompting; status resumes only after the prompt is answered.
