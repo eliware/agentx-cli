@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.5.11 - Image inspection and goal workflow hardening
+
+- Added isolated local image inspection with inline base64 image input and temporary JPEG transcoding.
+- Exposed `view_image` to delegated one-shot workers while keeping worker orchestration tools unavailable.
+- Unified goal lifecycle handling through the required `goal_update` tool.
+- Added goal interruption, startup reset, prompt/status handling, and `cd -`/`cd ~` support.
+- Verified with 100% test coverage and clean lint results.
+
+
 ## 1.5.10 - Autonomous goal mode
 
 - Added autonomous `/goal` workflows with status, cancellation, blocking, and resumable session state.
