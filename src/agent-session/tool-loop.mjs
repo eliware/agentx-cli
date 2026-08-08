@@ -25,6 +25,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   const goalCancelled = () => Boolean(streamOptions?.isGoalCancelled?.());
   let goalIterations = Number(streamOptions?.goalIterations ?? 0);
   let goalFinished = false;
+  let goalCompletionSnapshot = null;
   const goalMaxIterations = Number(streamOptions?.goalMaxIterations ?? 50);
   let isFirstResponse = true;
   const executeToolCall = streamOptions?.runToolCall || runToolCallFn;
@@ -46,8 +47,9 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     }
     if (calls.length === 0) {
       if (goalFinished || !goalMode) {
+        const completionSnapshot = goalCompletionSnapshot || statusController?.snapshot?.() || { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' };
         statusController?.clear();
-        process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(statusController?.snapshot?.() ?? { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' }))}\n`);
+        process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
         return current;
       }
       {
@@ -81,7 +83,8 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           const method = String(args?.method || '').toLowerCase();
           if (method === 'complete') {
             goalFinished = true;
-            statusController?.clear();
+            statusController?.pause?.();
+            goalCompletionSnapshot = statusController?.snapshot?.() || null;
             await streamOptions?.onGoalComplete?.(args);
             outputs.push(toolOutputForCall(call, 'Goal complete acknowledged.'));
             continue;
@@ -124,8 +127,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     try {
       current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
       if (goalFinished) {
-        statusController?.clear();
-        return current;
+        continue;
       }
     } catch (error) {
       await streamOptions?.onRetryState?.({ request, response: current });
