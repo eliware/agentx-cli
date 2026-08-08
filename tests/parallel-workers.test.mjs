@@ -14,6 +14,11 @@ describe('parallel workers', () => {
     expect(selectWorkerOutput(log, { search: '^line (1|2|11|12)$' })).toBe('line 1\nline 2\nline 11\nline 12');
   });
 
+  test('validates worker calls before spawning or waiting', async () => {
+    await expect(runParallelWorkerFunction(null, process.cwd())).resolves.toEqual({ error: 'invalid worker function call' });
+    await expect(runParallelWorkerFunction({ type: 'function_call', name: 'agent_status' }, '')).resolves.toEqual({ error: 'invalid working directory' });
+  });
+
   test('rejects malformed spawn requests', async () => {
     await expect(runParallelWorkerFunction({ type: 'function_call', name: 'spawn_agent', arguments: '{}' }, process.cwd())).resolves.toEqual({ error: 'tasks must contain 1-3 non-empty strings' });
   });

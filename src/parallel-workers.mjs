@@ -93,6 +93,8 @@ process.once('beforeExit', () => {
 });
 
 export async function runParallelWorkerFunction(call, cwd) {
+  if (!call || typeof call !== 'object' || Array.isArray(call)) return { error: 'invalid worker function call' };
+  if (typeof cwd !== 'string' || !cwd.trim()) return { error: 'invalid working directory' };
   const args = argsFor(call);
   if (call?.name === 'spawn_agent') {
     if (process.env.AGENTX_WORKER_ID) return { error: 'nested worker spawning is disabled' };
