@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.5.13 - Goal tool-loop coverage
+
+- Simplified goal continuation streaming options by removing an unreachable branch.
+- Added regression coverage for live-streaming goal continuation.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.5.12 - Image inspection checkpoint branching
 
 - Fixed image inspection to branch from the conversational response preceding the tool-call response.
