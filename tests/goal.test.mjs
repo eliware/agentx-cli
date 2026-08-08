@@ -152,3 +152,63 @@ describe('goal mode', () => {
     expect(onGoalLimit).toHaveBeenCalledWith(3);
   });
 });
+
+// Focused tool-loop coverage for cancellation, blocked goals, malformed inputs, and image dispatch.
+describe('tool-loop edge paths', () => {
+  let originalWrite;
+  beforeEach(() => { originalWrite = process.stdout.write; process.stdout.write = () => true; });
+  afterEach(() => { process.stdout.write = originalWrite; });
+
+  test('handles blocked goal updates and malformed arguments', async () => {
+    const { client, requests } = openaiWithResponses({ id: 'blocked-next', output: [] });
+    const onGoalLimit = jest.fn();
+    const result = await handleToolCalls(client, {
+      id: 'blocked-start',
+      output: [goalCall('goal_update', { method: 'blocked', reason: 'dependency' })],
+    }, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalLimit });
+    expect(result).toEqual({ id: 'blocked-next', output: [] });
+    expect(onGoalLimit).toHaveBeenCalledWith(0);
+    expect(requests[0].input[0].output).toBe('Goal marked blocked.');
+
+    const malformedClient = openaiWithResponses({ id: 'malformed-next', output: [{ ...goalCall('goal_update'), arguments: JSON.stringify({ method: 'complete' }) }] });
+    await handleToolCalls(malformedClient.client, {
+      id: 'malformed',
+      output: [{ ...goalCall('goal_update'), arguments: '{' }],
+    }, baseRequest, '/tmp', null, undefined, { goalMode: true });
+  });
+
+  test('returns when goal cancellation is observed before and during calls', async () => {
+    let cancelled = true;
+    const first = { id: 'cancel-before', output: [] };
+    await expect(handleToolCalls({ responses: { create: jest.fn() } }, first, baseRequest, '/tmp', null, undefined, {
+      goalMode: true, isGoalCancelled: () => cancelled,
+    })).resolves.toBe(first);
+
+    cancelled = false;
+    let checks = 0;
+    const response = { id: 'cancel-during', output: [goalCall('goal_update', { method: 'complete' })] };
+    const statusController = { clear: jest.fn(), showExecuting: jest.fn() };
+    await expect(handleToolCalls({ responses: { create: jest.fn() } }, response, baseRequest, '/tmp', null, undefined, {
+      goalMode: true, isGoalCancelled: () => { checks += 1; if (checks > 1) cancelled = true; return cancelled; }, statusController,
+    })).resolves.toBe(response);
+    expect(statusController.clear).toHaveBeenCalled();
+  });
+
+  test('dispatches image inspection with and without a result', async () => {
+    const image = { type: 'function_call', name: 'view_image', call_id: 'image-1', arguments: JSON.stringify({ path: '/tmp/a.png' }) };
+    const { client, requests } = openaiWithResponses({ id: 'image-next', output: [] });
+    await handleToolCalls(client, { id: 'image-start', output: [image] }, baseRequest, '/tmp', null, undefined, {
+      onViewImage: jest.fn().mockResolvedValue('looks good'),
+    });
+    expect(requests[0].input[0].output).toBe('looks good');
+
+    const mixed = openaiWithResponses({ id: 'mixed-next', output: [{ ...goalCall('goal_update'), arguments: JSON.stringify({ method: 'complete' }) }] });
+    await handleToolCalls(mixed.client, { id: 'mixed-start', output: [image, goalCall('goal_update', { method: 'incomplete' }, 'goal-2')] }, baseRequest, '/tmp', null, undefined, { goalMode: true, onViewImage: async () => 'mixed image' });
+    expect(mixed.requests[0].tool_choice).toMatchObject({ mode: 'required', tools: [{ name: 'goal_update' }] });
+
+    const fallback = { ...image, call_id: 'image-2' };
+    const second = openaiWithResponses({ id: 'image-fallback-next', output: [] });
+    await handleToolCalls(second.client, { id: 'image-fallback', output: [fallback] }, baseRequest, '/tmp', null, undefined);
+    expect(second.requests[0].input[0].output).toBe('ERROR: image inspection is unavailable');
+  });
+});
