@@ -1,4 +1,5 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, jest, test } from '@jest/globals';
+import { fs as commonFs } from '@eliware/common';
 import { existsSync, mkdirSync, utimesSync } from 'node:fs';
 import { cleanupStaleOneShotStates, clearSession, persistCheckpoint, persistResponseState, readLatestCheckpoint, readSessionState } from '../src/session-state.mjs';
 import { cleanupTempDir, makeTempDir, makeFile } from './test-helpers.mjs';
@@ -48,6 +49,29 @@ describe('session state', () => {
       await expect(cleanupStaleOneShotStates(`${tmp}/missing`)).resolves.toBe(0);
       await expect(cleanupStaleOneShotStates(file)).rejects.toBeTruthy();
     } finally { cleanupTempDir(tmp); }
+  });
+
+  test('ignores one-shot files removed before stat completes', async () => {
+    const tmp = makeTempDir('agentx-state-race-');
+    const originalStat = commonFs.promises.stat;
+    try {
+      makeFile(tmp, '.agentx_responseid.oneshot-race', 'old');
+      commonFs.promises.stat = jest.fn().mockRejectedValue(Object.assign(new Error('gone'), { code: 'ENOENT' }));
+      await expect(cleanupStaleOneShotStates(tmp)).resolves.toBe(0);
+    } finally {
+      commonFs.promises.stat = originalStat;
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('propagates non-missing stat failures', async () => {
+    const tmp = makeTempDir('agentx-state-stat-error-');
+    const originalStat = commonFs.promises.stat;
+    try {
+      makeFile(tmp, '.agentx_responseid.oneshot-error', 'old');
+      commonFs.promises.stat = jest.fn().mockRejectedValue(Object.assign(new Error('denied'), { code: 'EACCES' }));
+      await expect(cleanupStaleOneShotStates(tmp)).rejects.toMatchObject({ code: 'EACCES' });
+    } finally { commonFs.promises.stat = originalStat; cleanupTempDir(tmp); }
   });
 
   test('persists empty values when no state is supplied', async () => {

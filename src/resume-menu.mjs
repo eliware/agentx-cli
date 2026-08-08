@@ -84,7 +84,6 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
     let finished = false;
 
     const cleanup = () => {
-      /* istanbul ignore next */
       if (finished) return;
       finished = true;
       frame.clear();
@@ -106,7 +105,6 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
     const render = () => frame.render(getMenuLines(savedState, selectedIndex));
 
     const selectIndex = (index) => {
-      /* istanbul ignore next */
       if (index < 0 || index >= RESUME_MENU_OPTIONS.length) return;
       selectedIndex = index;
       render();
@@ -139,7 +137,7 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
       }
 
       const digit = String(str ?? '').trim();
-      if (/^[1-4]$/.test(digit)) {
+      if (/^\d$/.test(digit)) {
         selectIndex(Number(digit) - 1);
       }
     };

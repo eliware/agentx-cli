@@ -1,10 +1,16 @@
 ﻿import { describe, expect, test } from '@jest/globals';
 import path from 'node:path';
-import { completePath, tokenPrefix } from '../src/path-completion.mjs';
+import { completePath, splitToken, tokenPrefix } from '../src/path-completion.mjs';
 import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from './test-helpers.mjs';
 
 describe('path completion', () => {
   const sep = process.platform === 'win32' ? '\\' : '/';
+  test('handles malformed completion input without throwing', async () => {
+    expect(splitToken({ match: () => null })).toBeNull();
+    const line = { match: () => null };
+    await expect(completePath(line, process.cwd())).resolves.toEqual([[], line]);
+  });
+
   test('suggests files and folders from cwd', async () => {
     const tmp = makeTempDir('agentx-complete-');
     try {

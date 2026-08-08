@@ -127,7 +127,6 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
     sawOutput: () => sawOutput,
     streamedText: () => streamedText,
     handlers: liveStreaming ? {
-      /* c8 ignore next 12 */
       onEvent(event, message) {
         if (isResponseCompletedEvent(event, message?.raw)) {
           // Do not erase the line after the final text has been streamed. The

@@ -165,6 +165,66 @@ describe('entrypoint', () => {
     }
   });
 
+  test('agentx.mjs skips setup when stdin is not a TTY', async () => {
+    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv;
+    process.env.NODE_ENV = ''; process.argv = [process.argv[0], process.argv[1]];
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: false });
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
+    try {
+      await jest.unstable_mockModule('../src/runtime.mjs', () => ({ isDirectInvocation: () => true, promptPath: '/tmp/prompt.json' }));
+      const runAgent = jest.fn().mockResolvedValue(undefined);
+      await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+      await import('../agentx.mjs');
+      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd() });
+    } finally {
+      if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
+      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
+    }
+  });
+
+  test('agentx.mjs skips setup when an API key already exists in config', async () => {
+    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv; const oldKey = process.env.agentx_api_key;
+    process.env.NODE_ENV = ''; process.env.agentx_api_key = 'configured'; process.argv = [process.argv[0], process.argv[1]];
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
+    try {
+      const rl = { question: jest.fn(), close: jest.fn() };
+      await jest.unstable_mockModule('node:readline/promises', () => ({ createInterface: () => rl }));
+      await jest.unstable_mockModule('node:fs', () => ({ ...realFs, existsSync: () => true }));
+      await jest.unstable_mockModule('../src/platform.mjs', () => ({ getHomeDirectory: () => '/tmp/home' }));
+      await jest.unstable_mockModule('dotenv', () => ({ config: jest.fn() }));
+      await jest.unstable_mockModule('../src/runtime.mjs', () => ({ isDirectInvocation: () => true, promptPath: '/tmp/prompt.json' }));
+      const runAgent = jest.fn().mockResolvedValue(undefined); await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+      await import('../agentx.mjs');
+      expect(rl.question).not.toHaveBeenCalled(); expect(runAgent).toHaveBeenCalled();
+    } finally {
+      if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
+      if (oldKey === undefined) delete process.env.agentx_api_key; else process.env.agentx_api_key = oldKey;
+      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
+    }
+  });
+
+  test('agentx.mjs continues when setup completes without an API key', async () => {
+    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv; const oldKey = process.env.agentx_api_key;
+    process.env.NODE_ENV = ''; delete process.env.agentx_api_key; delete process.env.AGENTX_API_KEY; process.argv = [process.argv[0], process.argv[1]];
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
+    try {
+      const rl = { question: jest.fn().mockResolvedValue('yes'), close: jest.fn() };
+      await jest.unstable_mockModule('node:readline/promises', () => ({ createInterface: () => rl }));
+      await jest.unstable_mockModule('node:fs', () => ({ ...realFs, existsSync: () => false }));
+      await jest.unstable_mockModule('../src/platform.mjs', () => ({ getHomeDirectory: () => '' }));
+      await jest.unstable_mockModule('dotenv', () => ({ config: jest.fn() }));
+      await jest.unstable_mockModule('../src/runtime.mjs', () => ({ isDirectInvocation: () => true, promptPath: '/tmp/prompt.json' }));
+      const runAgent = jest.fn().mockResolvedValue(undefined); await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+      const runSetup = jest.fn().mockResolvedValue(undefined); await jest.unstable_mockModule('../src/setup.mjs', () => ({ runSetup, setupPaths: { envPath: '/tmp/missing-agentx' } }));
+      await import('../agentx.mjs');
+      expect(runSetup).toHaveBeenCalled(); expect(runAgent).toHaveBeenCalled();
+    } finally {
+      if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
+      if (oldKey === undefined) delete process.env.agentx_api_key; else process.env.agentx_api_key = oldKey;
+      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
+    }
+  });
+
   test('agentx.mjs exercises the interactive setup decline path', async () => {
     const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv; process.argv = [process.argv[0], process.argv[1]];
     process.env.NODE_ENV = '';
@@ -185,6 +245,49 @@ describe('entrypoint', () => {
       if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
       Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn });
       Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
+    }
+  });
+
+  test('agentx.mjs prompts when config exists without an API key', async () => {
+    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv; const oldKey = process.env.agentx_api_key;
+    process.env.NODE_ENV = ''; delete process.env.agentx_api_key; delete process.env.AGENTX_API_KEY; process.argv = [process.argv[0], process.argv[1]];
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
+    try {
+      const rl = { question: jest.fn().mockResolvedValue('n'), close: jest.fn() };
+      await jest.unstable_mockModule('node:readline/promises', () => ({ createInterface: () => rl }));
+      await jest.unstable_mockModule('node:fs', () => ({ ...realFs, existsSync: () => true }));
+      await jest.unstable_mockModule('../src/platform.mjs', () => ({ getHomeDirectory: () => '/tmp/home' }));
+      await jest.unstable_mockModule('dotenv', () => ({ config: jest.fn() }));
+      await jest.unstable_mockModule('../src/runtime.mjs', () => ({ isDirectInvocation: () => true, promptPath: '/tmp/prompt.json' }));
+      const runAgent = jest.fn().mockResolvedValue(undefined); await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+      await import('../agentx.mjs');
+      expect(rl.question).toHaveBeenCalled();
+    } finally {
+      if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
+      if (oldKey === undefined) delete process.env.agentx_api_key; else process.env.agentx_api_key = oldKey;
+      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
+    }
+  });
+
+  test('agentx.mjs reports setup completion without a loaded key', async () => {
+    const oldEnv = process.env.NODE_ENV; const oldIn = process.stdin.isTTY; const oldOut = process.stdout.isTTY; const oldArgv = process.argv; const oldKey = process.env.agentx_api_key;
+    process.env.NODE_ENV = ''; delete process.env.agentx_api_key; delete process.env.AGENTX_API_KEY; process.argv = [process.argv[0], process.argv[1]];
+    Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
+    try {
+      const rl = { question: jest.fn().mockResolvedValue('yes'), close: jest.fn() };
+      await jest.unstable_mockModule('node:readline/promises', () => ({ createInterface: () => rl }));
+      await jest.unstable_mockModule('node:fs', () => ({ ...realFs, existsSync: (file) => file === '/tmp/setup-env' }));
+      await jest.unstable_mockModule('../src/platform.mjs', () => ({ getHomeDirectory: () => '' }));
+      await jest.unstable_mockModule('dotenv', () => ({ config: jest.fn() }));
+      await jest.unstable_mockModule('../src/runtime.mjs', () => ({ isDirectInvocation: () => true, promptPath: '/tmp/prompt.json' }));
+      const runAgent = jest.fn().mockResolvedValue(undefined); await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
+      const runSetup = jest.fn().mockResolvedValue(undefined); await jest.unstable_mockModule('../src/setup.mjs', () => ({ runSetup, setupPaths: { envPath: '/tmp/setup-env' } }));
+      await import('../agentx.mjs');
+      expect(runSetup).toHaveBeenCalled(); expect(runAgent).toHaveBeenCalled();
+    } finally {
+      if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
+      if (oldKey === undefined) delete process.env.agentx_api_key; else process.env.agentx_api_key = oldKey;
+      Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
     }
   });
 

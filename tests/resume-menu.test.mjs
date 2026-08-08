@@ -157,8 +157,9 @@ describe('resume menu', () => {
 
   test('selects options with number keys', async () => {
     const { input, output } = makeIO();
+    input.removeListener = jest.fn();
     const prompt = promptResumeMenu({ response_id: 'resp-1' }, { input, output, forceInteractive: true });
-    process.nextTick(() => input.emit('keypress', '3', { name: '3' }));
+    process.nextTick(() => { input.emit('keypress', '3', { name: '3' }); input.emit('keypress', '4', { name: '4' }); });
     await expect(prompt).resolves.toBe('auto-resume');
     expect(input.setRawMode).toHaveBeenCalledWith(true);
     expect(input.setRawMode).toHaveBeenLastCalledWith(false);

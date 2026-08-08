@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -47,6 +47,12 @@ describe('setup helpers', () => {
     expect(stdout.text).toContain(`MCP Config: ${setupPaths.mcpConfigPath}`);
   });
 
+  test('builds compact menu for API-key-only values', () => {
+    expect(buildMenuEntries({ values: { AGENTX_API_KEY: 'key' } })).toEqual([
+      { id: 'api', label: 'Edit API key (set)' }, { id: 'quit', label: 'Quit' },
+    ]);
+  });
+
   test('builds compact and full menus', () => {
     expect(buildMenuEntries({ values: { AGENTX_API_KEY: '' } }).map((x) => x.id)).toEqual(['api', 'quit']);
     const entries = buildMenuEntries({ values: { AGENTX_API_KEY: 'x' }, includeSettings: true });
@@ -59,6 +65,14 @@ describe('setup environment persistence', () => {
   let directory;
   beforeEach(async () => { directory = await mkdtemp(path.join(os.tmpdir(), 'agentx-setup-')); });
   afterEach(async () => { await rm(directory, { recursive: true, force: true }); });
+
+  test('propagates non-missing read failures', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'agentx-setup-error-'));
+    try {
+      await expect(readEnvState(directory)).rejects.toBeTruthy();
+      await expect(writeEnvState(directory, { AGENTX_API_KEY: 'key' })).rejects.toBeTruthy();
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
 
   test('reads missing and populated files and writes updates', async () => {
     const file = path.join(directory, 'nested', '.agentx');
@@ -365,5 +379,15 @@ describe('setup branch completion', () => {
       Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: originalStdinTTY });
       Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: originalStdoutTTY });
     }
+  });
+});
+
+test('covers setup path fallback when no home directory exists', async () => {
+  jest.resetModules();
+  await jest.unstable_mockModule('../src/platform.mjs', () => ({ getHomeDirectory: () => '' }));
+  await jest.isolateModulesAsync(async () => {
+    const { setupPaths } = await import('../src/setup.mjs');
+    expect(setupPaths.envPath).toContain('.agentx');
+    expect(setupPaths.mcpConfigPath).toContain('.agentx.mcp.json');
   });
 });

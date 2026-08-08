@@ -35,6 +35,7 @@ describe('tool dispatch', () => {
   test('validates tool calls and working directories before side effects', async () => {
     expect(await runToolCall(null, process.cwd())).toBe('ERROR: invalid tool call');
     expect(await runToolCall({ type: 'shell_call' }, '')).toBe('ERROR: invalid working directory for shell_call');
+    expect(await runToolCall({}, '')).toBe('ERROR: invalid working directory for tool');
   });
 
   test('runs shell tool calls and rejects unsupported tool calls', async () => {
