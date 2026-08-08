@@ -8,6 +8,7 @@ import { createStreamedResponse } from './response-stream.mjs';
 import { isShellToolCall } from './response-format.mjs';
 
 const GOAL_TOOLS = new Set(['goal_complete', 'goal_blocked']);
+const IMAGE_TOOL = 'view_image';
 function parseFunctionInput(call) { try { return JSON.parse(call?.arguments ?? call?.input ?? '{}'); } catch { return {}; } }
 
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
@@ -32,7 +33,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     if (goalMode && goalCancelled()) { statusController?.clear(); return current; }
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
     const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
-    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && (['spawn_agent', 'agent_status', 'cancel_agent'].includes(item?.name) || (goalMode && GOAL_TOOLS.has(item?.name))))), cwd);
+    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && (['spawn_agent', 'agent_status', 'cancel_agent'].includes(item?.name) || (goalMode && GOAL_TOOLS.has(item?.name)) || item?.name === IMAGE_TOOL))), cwd);
     const cumulativeUsage = shouldReportUsage && onResponseUsage ? onResponseUsage(usage, { skipIncrement: false }) : null;
     if (onResponseState) {
       await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
@@ -91,7 +92,9 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           outputs.push(toolOutputForCall(call, answer || 'Continue without user input.'));
           continue;
         }
-        const output = await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController });
+        const output = call?.type === 'function_call' && call?.name === IMAGE_TOOL
+          ? (await streamOptions?.onViewImage?.({ args: parseFunctionInput(call), response: current, baseRequest, cwd }) || 'ERROR: image inspection is unavailable')
+          : await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController });
         await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));
         completed += 1;
