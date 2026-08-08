@@ -51,9 +51,8 @@ Quick flags:
 - Type a normal message to send it to OpenAI.
 - Type `cd /path/to/dir` to change the local working directory without calling OpenAI.
 - Type `!ls` to run a local shell command directly; its output is buffered for the next AI request. Direct `!` commands have no automatic timeout; press Ctrl-C to terminate one and return to AgentX. Ctrl-T remains for interrupting model-requested shell tools; the interruption result tells the agent to stop, not retry, and report current status.
-  * `clear`: resets the session state and starts a fresh conversation.
-  * `/clear`: also resets the session state and restarts the conversation.
-  * `!clear`: runs the local shell clear command, clearing only the terminal display.
+  * `clear` or `/clear`: clear saved session state and start a fresh conversation.
+  * `!clear`: runs the local shell `clear` command, clearing only the terminal display.
 - Type `/usage` to view token and cost totals.
 - Type `/rollback` to restore a successful response checkpoint.
 - Recoverable API failures keep the REPL alive and offer retry, new-chain, rollback, or clear options.

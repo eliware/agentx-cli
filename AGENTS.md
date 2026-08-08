@@ -30,7 +30,7 @@
 ## Agent Behavior
 - The agent should wait for the user’s first message before contacting OpenAI.
 - Respect `/clear`, `/quit`, and `/exit`.
-- Run commands that start with `>` locally in the shell and buffer their output into the next AI request.
+- Run commands that start with `!` locally in the shell and buffer their output into the next AI request.
 - Persist the latest response id, usage totals, last user/assistant messages, pending CLI transcript, and pending tool calls in `.agentx_responseid` in the current working directory.
 - Continue using the Responses API with `previous_response_id` and `store: true` for session continuity.
 - The runtime now uses the direct `openai` package and a WebSocket transport for Responses API calls.
@@ -43,7 +43,7 @@
 - The executable may be launched through a symlink such as `/usr/bin/agentx`; the entrypoint must resolve the real path before deciding whether to start the REPL.
 - The interactive prompt should reflect the current working directory and update after `cd`.
 - `cd` is handled internally and must not be sent to OpenAI.
-- `clear` clears the terminal; `>clear` clears the terminal through the local shell; `/clear` clears the stored response id and starts a new session.
+- `clear` and `/clear` clear the stored response id and start a new session; `!clear` runs the local shell `clear` command and clears only the terminal display.
 - Tab completion should behave like a simple shell completer for files and folders in the current working directory, including after `cd`.
 - WebSocket shutdown is graceful with a bounded timeout; connectivity failures/reconnectable closes should be handled without crashing the REPL.
 - AGENTS discovery must skip unresolved symlink-loop entries.
