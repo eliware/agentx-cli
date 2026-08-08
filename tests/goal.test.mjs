@@ -84,7 +84,7 @@ describe('goal mode', () => {
   });
 
   test('executes goal_update and invokes completion callback', async () => {
-    const { client, requests } = openaiWithResponses();
+    const { client, requests } = openaiWithResponses({ id: 'resp-next', output: [] });
     const onGoalComplete = jest.fn();
     const response = { id: 'resp-1', output: [goalCall('goal_update', { method: 'complete', summary: 'done', evidence: 'npm test passes' })] };
 
@@ -93,9 +93,10 @@ describe('goal mode', () => {
       onGoalComplete,
     });
 
-    expect(result).toEqual(response);
+    expect(result).toEqual({ id: 'resp-next', output: [] });
     expect(onGoalComplete).toHaveBeenCalledWith({ method: 'complete', summary: 'done', evidence: 'npm test passes' });
-    expect(requests).toHaveLength(0);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'goal_update-1', output: 'Goal complete acknowledged.' });
   });
 
   test('blocks for an answer and resumes with the answer', async () => {
@@ -117,7 +118,7 @@ describe('goal mode', () => {
     expect(requests[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'goal_update-1', output: 'A' });
   });
 
-  test('returns to the prompt after goal completion without another model request', async () => {
+  test('returns the final response after goal completion', async () => {
     const { client, requests } = openaiWithResponses(
       { id: 'resp-2', output: [goalCall('goal_update', { method: 'complete', summary: 'done', evidence: 'verified' })] },
     );
@@ -126,8 +127,9 @@ describe('goal mode', () => {
 
     await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalComplete });
 
-    expect(requests).toHaveLength(1);
+    expect(requests).toHaveLength(2);
     expect(requests[0].input[0].content[0].text).toContain('MUST call goal_update');
+    expect(requests[1].input[0]).toMatchObject({ type: 'function_call_output', output: 'Goal complete acknowledged.' });
     expect(onGoalComplete).toHaveBeenCalledWith({ method: 'complete', summary: 'done', evidence: 'verified' });
   });
 
@@ -157,15 +159,16 @@ describe('tool-loop edge paths', () => {
   afterEach(() => { process.stdout.write = originalWrite; });
 
   test('handles blocked goal updates and malformed arguments', async () => {
-    const { client, requests } = openaiWithResponses();
+    const { client, requests } = openaiWithResponses({ id: 'blocked-next', output: [] });
     const onGoalLimit = jest.fn();
     const result = await handleToolCalls(client, {
       id: 'blocked-start',
       output: [goalCall('goal_update', { method: 'blocked', reason: 'dependency' })],
     }, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalLimit });
-    expect(result).toEqual({ id: 'blocked-start', output: expect.any(Array) });
+    expect(result).toEqual({ id: 'blocked-next', output: [] });
     expect(onGoalLimit).toHaveBeenCalledWith(0);
-    expect(requests).toHaveLength(0);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].input[0].output).toBe('Goal marked blocked.');
 
     const malformedClient = openaiWithResponses({ id: 'malformed-next', output: [{ ...goalCall('goal_update'), arguments: JSON.stringify({ method: 'complete' }) }] });
     await handleToolCalls(malformedClient.client, {

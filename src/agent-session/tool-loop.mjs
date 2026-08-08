@@ -114,11 +114,6 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       statusController?.clear();
     }
 
-    if (goalFinished) {
-      statusController?.clear();
-      return current;
-    }
-
     const request = {
       ...baseRequest,
       input: dedupeToolOutputs(outputs),
@@ -128,6 +123,10 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     };
     try {
       current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
+      if (goalFinished) {
+        statusController?.clear();
+        return current;
+      }
     } catch (error) {
       await streamOptions?.onRetryState?.({ request, response: current });
       throw error;
