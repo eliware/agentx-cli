@@ -15,3 +15,17 @@ When `--debug` is enabled, AgentX must print transport lifecycle events and raw 
 ## Worker session context
 
 A spawned worker inherits the shared successful checkpoint and receives its task as a new message using the checkpoint response ID. One-shot workers suppress human-oriented session recap output while retaining the inherited conversation context. Before the worker task, they receive a concise developer instruction identifying them as delegated workers: they must complete only the assigned task, must not orchestrate or spawn agents, and must report when done.
+
+## Image inspection tool
+
+The default tool set includes a `view_image` function available only to the normal AgentX session when image inspection is supported. Its arguments are:
+
+- `path`: local image path, resolved relative to the active cwd when not absolute.
+- `instruction`: what information to extract or inspect.
+- `detail`: optional `low`, `auto`, or `high`; default `auto`.
+
+AgentX must validate that the path is a readable regular file. The tool may read images outside the cwd when the resolved path is explicitly supplied. Errors are returned as concise tool output for the model; they do not create a separate user prompt.
+
+Image inspection runs in an isolated Responses API branch from the current response ID. The branch request contains only the inspection instruction and an inline base64 `input_image` data URL; it has no custom functions, MCP tools, or other tools. AgentX should transcode supported and unsupported local image formats to a temporary JPEG before encoding, using a cross-platform image library, with bounded dimensions and output size. The configured AgentX model is used by default; a separate vision model is optional future configuration.
+
+Only the branch's text response is returned as the `view_image` tool output. Temporary converted data and branch checkpoint state are discarded after completion. The main conversation continues from its original response ID, so image bytes are not included in the main conversation chain.
