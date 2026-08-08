@@ -1,7 +1,7 @@
 import { encodeImageInput } from './image-input.mjs';
 import { extractTextFromResponse } from './response.mjs';
 
-export async function inspectImage(openai, args, { cwd, responseId, model }) {
+export async function inspectImage(openai, args, { cwd, responseId, callerResponse, model }) {
   const instruction = String(args?.instruction ?? '').trim();
   if (!instruction) return 'ERROR: image instruction is required';
   try {
@@ -12,7 +12,7 @@ export async function inspectImage(openai, args, { cwd, responseId, model }) {
         { type: 'input_text', text: instruction },
         { type: 'input_image', image_url: image.dataUrl, detail: image.detail },
       ] }],
-      previous_response_id: responseId,
+      previous_response_id: callerResponse?.previous_response_id || responseId,
       store: true,
       tools: [],
     });

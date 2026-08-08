@@ -29,7 +29,7 @@ describe('image inspection', () => {
     const openai = { responses: { create } };
 
     await expect(inspectImage(openai, { path: 'cat.png', instruction: 'Describe it', detail: 'high' }, {
-      cwd: '/work', responseId: 'parent', model: 'gpt-test',
+      cwd: '/work', responseId: 'tool-call', callerResponse: { id: 'tool-call', previous_response_id: 'parent' }, model: 'gpt-test',
     })).resolves.toBe('A cat.');
 
     expect(encodeImageInput).toHaveBeenCalledWith('cat.png', { cwd: '/work', detail: 'high' });
@@ -43,6 +43,19 @@ describe('image inspection', () => {
       store: true,
       tools: [],
     });
+  });
+
+  test('falls back to the supplied response ID when the caller response has no predecessor', async () => {
+    encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,xyz', detail: 'auto' });
+    extractTextFromResponse.mockReturnValue('A diagram.');
+    const create = jest.fn().mockResolvedValue({ id: 'child' });
+    const openai = { responses: { create } };
+
+    await inspectImage(openai, { path: 'x', instruction: 'Inspect' }, {
+      cwd: '/tmp', responseId: 'parent', callerResponse: { id: 'tool-call' }, model: 'model',
+    });
+
+    expect(create.mock.calls[0][0].previous_response_id).toBe('parent');
   });
 
   test('uses automatic detail and fallback text', async () => {
