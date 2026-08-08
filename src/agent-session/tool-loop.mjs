@@ -107,7 +107,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         }
         const output = call?.type === 'function_call' && call?.name === IMAGE_TOOL
           ? (await streamOptions?.onViewImage?.({ args: parseFunctionInput(call), response: current, baseRequest, cwd }) || 'ERROR: image inspection is unavailable')
-          : await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController });
+          : await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController, onWorkerUsage: streamOptions?.onWorkerUsage });
         await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));
         completed += 1;

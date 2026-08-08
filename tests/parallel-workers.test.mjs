@@ -3,7 +3,8 @@ import { parseWorkerUsage, runParallelWorkerFunction, selectWorkerOutput } from 
 
 describe('parallel workers', () => {
   test('parses structured usage summaries', () => {
-    expect(parseWorkerUsage('{"in":"12 ($0.000)","cache":"3 ($0.000)","out":"7 ($0.000)","turns":"2"}')).toEqual({ turns: 2, inputTokens: 12, cachedTokens: 3, outputTokens: 7 });
+    expect(parseWorkerUsage('{"in":"12 ($0.000)","cache":"3 ($0.000)","out":"7 ($0.000)","total":"$0.000"}')).toEqual({ turns: 1, inputTokens: 12, cachedTokens: 3, outputTokens: 7 });
+    expect(parseWorkerUsage('{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004"}\n{"in":"800 ($0.002)","cache":"100 ($0.000)","out":"30 ($0.000)","total":"$0.002"}\n{"in":"2,000","cache":"400","out":"100","turns":"3"}')).toEqual({ turns: 2, inputTokens: 2000, cachedTokens: 400, outputTokens: 100 });
     expect(parseWorkerUsage('no usage')).toBeNull();
   });
   test('selects bounded log tails and regex matches', () => {

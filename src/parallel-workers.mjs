@@ -17,8 +17,16 @@ function argsFor(call) {
 }
 
 export function parseWorkerUsage(text) {
-  const match = text.match(/\{"in":"(\d+)[^"]*","cache":"(\d+)[^"]*","out":"(\d+)[^"]*","turns":"(\d+)/);
-  return match ? { turns: +match[4], inputTokens: +match[1], cachedTokens: +match[2], outputTokens: +match[3] } : null;
+  const usage = { turns: 0, inputTokens: 0, cachedTokens: 0, outputTokens: 0 };
+  const pattern = /\{"in":"([\d,]+) \([^"]*\)","cache":"([\d,]+) \([^"]*\)","out":"([\d,]+) \([^"]*\)","total":"[^"]*"\}/g;
+  let match;
+  while ((match = pattern.exec(text))) {
+    usage.inputTokens += Number(match[1].replaceAll(',', ''));
+    usage.cachedTokens += Number(match[2].replaceAll(',', ''));
+    usage.outputTokens += Number(match[3].replaceAll(',', ''));
+    usage.turns += 1;
+  }
+  return usage.turns ? usage : null;
 }
 
 export function selectWorkerOutput(text, options = {}) {
@@ -44,8 +52,8 @@ function snapshot(worker, options = {}) {
   return { id: worker.id, task: worker.task, status: worker.status, elapsed_ms: (worker.finishedAt || Date.now()) - worker.startedAt, lines: worker.lines, output: selectWorkerOutput(worker.output, options), usage: worker.usage, ...(worker.error ? { error: worker.error } : {}) };
 }
 
-function startWorker(task, cwd, permissions, debug = false) {
-  const worker = { id: `agent-${randomUUID()}`, task, status: 'running', startedAt: Date.now(), lines: 0, output: '', usage: null, exited: false, killTimer: null };
+function startWorker(task, cwd, permissions, debug = false, onUsage) {
+  const worker = { id: `agent-${randomUUID()}`, task, status: 'running', startedAt: Date.now(), lines: 0, output: '', usage: null, usageReported: false, exited: false, killTimer: null };
   workers.set(worker.id, worker);
   const child = spawn(process.execPath, [entrypoint, ...(debug ? ['--debug'] : []), task], { cwd, env: { ...process.env, AGENTX_WORKER_ID: worker.id, AGENTX_PERMISSION: permissions }, stdio: ['ignore', 'pipe', 'pipe'] });
   workerChildren.set(worker.id, child);
@@ -64,7 +72,7 @@ function startWorker(task, cwd, permissions, debug = false) {
   child.stdout.on('data', append);
   child.stderr.on('data', append);
   child.on('error', (error) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); worker.status = 'failed'; worker.error = error.message; worker.finishedAt = Date.now(); });
-  child.on('close', (code, signal) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (worker.status === 'cancelled' ? 'cancelled' : (code === 0 ? 'completed' : 'failed')); worker.exitCode = code; worker.signal = signal; worker.finishedAt = Date.now(); });
+  child.on('close', (code, signal) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (worker.status === 'cancelled' ? 'cancelled' : (code === 0 ? 'completed' : 'failed')); worker.exitCode = code; if (worker.status === 'completed' && worker.usage && !worker.usageReported) { worker.usageReported = true; onUsage?.(worker.usage); } worker.signal = signal; worker.finishedAt = Date.now(); });
   return worker;
 }
 
@@ -92,7 +100,7 @@ process.once('beforeExit', () => {
   if (workerChildren.size) void terminateWorkers();
 });
 
-export async function runParallelWorkerFunction(call, cwd) {
+export async function runParallelWorkerFunction(call, cwd, options = {}) {
   if (!call || typeof call !== 'object' || Array.isArray(call)) return { error: 'invalid worker function call' };
   if (typeof cwd !== 'string' || !cwd.trim()) return { error: 'invalid working directory' };
   const args = argsFor(call);
@@ -102,7 +110,7 @@ export async function runParallelWorkerFunction(call, cwd) {
     const debug = args.debug === true;
     const tasks = Array.isArray(args.tasks) ? args.tasks.filter((task) => typeof task === 'string' && task.trim()).slice(0, MAX_WORKERS) : [];
     if (!tasks.length) return { error: 'tasks must contain 1-3 non-empty strings' };
-    return { agents: tasks.map((task) => { const worker = startWorker(task, cwd, permissions, debug); return { id: worker.id, task, permissions, debug, status: worker.status }; }) };
+    return { agents: tasks.map((task) => { const worker = startWorker(task, cwd, permissions, debug, options.onWorkerUsage); return { id: worker.id, task, permissions, debug, status: worker.status }; }) };
   }
   if (call?.name === 'cancel_agent') {
     const ids = Array.isArray(args.agent_ids) ? args.agent_ids.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_WORKERS) : [];
