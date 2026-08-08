@@ -46,3 +46,11 @@ Add `--confirm` when the request should require confirmation for model-requested
 ```bash
 agentx --confirm "run the tests and report failures"
 ```
+
+## Work toward a goal
+
+```text
+/goal inspect the project, run focused checks, and summarize any issues
+```
+
+Check or cancel an active goal with `/goal status` or `/goal cancel`.

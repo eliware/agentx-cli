@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.5.10 - Autonomous goal mode
+
+- Added autonomous `/goal` workflows with status, cancellation, blocking, and resumable session state.
+- Added `goal_complete` and `goal_blocked` tool contracts with iteration limits and verification evidence.
+- Added focused regression coverage for goal execution and lifecycle behavior.
+- Clarified goal commands and workflows in the user documentation.
+- Verified with 100% test coverage and clean lint results.
+
+
 ## 1.5.9 - Delegated worker role clarity
 
 - Added a concise developer instruction for one-shot delegated workers.

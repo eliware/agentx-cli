@@ -14,8 +14,13 @@ AgentX supports shell-like commands in the terminal, whether you launched it fro
 
 Inputs over 272,000 tokens use long-context pricing: 2x input/cached input and 1.5x output; the usage report marks these requests with a light-red warning.
 - `/rollback`: choose a successful response checkpoint to restore; pending tool calls are cleared and newer checkpoints are discarded
+- `/goal <text>`: start autonomous goal mode; `/goal status` reports progress, `/goal cancel` or `/stop` cancels it
 - `/setup`: edit API key, model, reasoning, output, and compaction settings, then reload them without ending the session
 - `quit`, `exit`, `/quit`, `/exit`: leave the app
+
+## Autonomous goals
+
+Goal mode continues through model-requested tool calls until `goal_complete`, `goal_blocked`, cancellation, or the iteration limit. A blocked goal pauses for the user's choice; active goals are resumable after restart.
 
 ## Local shell commands
 
