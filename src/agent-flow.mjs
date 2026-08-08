@@ -4,6 +4,10 @@ import { homedir } from 'node:os';
 import { readJson } from './runtime.mjs';
 import { getHomeDirectory } from './platform.mjs';
 
+export function isWorkerProcess(env = process.env) {
+  return Boolean(env?.AGENTX_WORKER_ID);
+}
+
 export function resolveAgentApiKey(env = process.env) {
   const apiKey = String(env.agentx_api_key || env.AGENTX_API_KEY || '').trim();
   if (apiKey) return apiKey;
