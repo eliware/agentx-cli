@@ -49,7 +49,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       }
       {
         if (++goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
-        const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: 'Goal not complete. Continue working. Call goal_complete only when verified; call goal_blocked only when user input is required.' }] }], previous_response_id: current.id, store: true };
+        const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nGoal not complete yet. Continue working. Call goal_complete only when verified; call goal_blocked only when user input is required.` }] }], previous_response_id: current.id, store: true };
         current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
         isFirstResponse = false;
         continue;
