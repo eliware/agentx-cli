@@ -1,5 +1,14 @@
 # AgentX Release Notes
 
+## 1.5.7 - Recovery and validation hardening
+
+- Allowed repeated explicit interactive recovery retries while keeping new-chain recovery bounded.
+- Hardened worker, tool, shell, filesystem, and streamed-response failure handling.
+- Added lifecycle, entrypoint, recovery, and validation regression coverage.
+- Improved configuration, output-status, and release-validation documentation.
+- Verified with 100% test coverage, clean lint, and successful package smoke checks.
+
+
 ## 1.5.6 - Convention alignment
 
 - Removed the stale `.agentx.example` package-file entry.
