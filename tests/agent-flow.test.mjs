@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import path from 'node:path';
 import { writeFileSync } from 'node:fs';
-import { loadPromptTemplate, appendCliTranscript, buildRequestMessage, buildRequestOverride, resolveAgentApiKey } from '../src/agent-flow.mjs';
+import { loadPromptTemplate, appendCliTranscript, buildRequestMessage, buildRequestOverride, resolveAgentApiKey, WORKER_ROLE_MESSAGE } from '../src/agent-flow.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('agent flow helpers', () => {
@@ -177,6 +177,14 @@ describe('agent flow helpers', () => {
       store: true,
       previous_response_id: 'resp-1',
       input: [{ role: 'user', content: [{ type: 'input_text', text: 'next' }] }],
+    });
+
+    expect(buildRequestOverride(template, 'worker task', '', '/tmp/work', 'resp-1', WORKER_ROLE_MESSAGE)).toMatchObject({
+      previous_response_id: 'resp-1',
+      input: [
+        { role: 'developer', content: [{ type: 'input_text', text: expect.stringContaining('delegated worker') }] },
+        { role: 'user', content: [{ type: 'input_text', text: 'worker task' }] },
+      ],
     });
   });
 

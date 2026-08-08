@@ -12,7 +12,7 @@ import { sendMessage } from './agent-session/session-service.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
-import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
+import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey, WORKER_ROLE_MESSAGE } from './agent-flow.mjs';
 import { promptResumeMenu } from './resume-menu.mjs';
 import { promptRollbackMenu } from './rollback-menu.mjs';
 import { promptRecoveryMenu } from './recovery-menu.mjs';
@@ -530,7 +530,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       let recoveryAttempts = 0;
       let websocketRecoveryAttempts = 0;
       while (!response) {
-        const activeOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId);
+        const workerRoleMessage = oneShot && process.env.AGENTX_WORKER_ID ? WORKER_ROLE_MESSAGE : '';
+        const activeOverride = buildRequestOverride(template, requestMessage, agentsText, cwd, previousResponseId, workerRoleMessage);
         try {
           response = await sendMessage(openai, template, previousResponseId, requestMessage, agentsText, cwd, (usage, { skipIncrement = false } = {}) => {
             if (!skipIncrement) {

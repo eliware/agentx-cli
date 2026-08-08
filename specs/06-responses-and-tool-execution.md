@@ -14,4 +14,4 @@ When `--debug` is enabled, AgentX must print transport lifecycle events and raw 
 
 ## Worker session context
 
-A spawned worker inherits the shared successful checkpoint and receives its task as a new message using the checkpoint response ID. One-shot workers suppress human-oriented session recap output while retaining the inherited conversation context.
+A spawned worker inherits the shared successful checkpoint and receives its task as a new message using the checkpoint response ID. One-shot workers suppress human-oriented session recap output while retaining the inherited conversation context. Before the worker task, they receive a concise developer instruction identifying them as delegated workers: they must complete only the assigned task, must not orchestrate or spawn agents, and must report when done.

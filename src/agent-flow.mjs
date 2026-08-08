@@ -59,11 +59,15 @@ export function buildRequestMessage({ pendingCliTranscript, cwdNote, message }) 
   return contextParts.join('\n\n');
 }
 
-export function buildRequestOverride(template, userMessage, agentsText, cwd, previousResponseId) {
+export const WORKER_ROLE_MESSAGE = 'You are a delegated worker, not the orchestrator. Complete only the task in the user message. Do not spawn agents, orchestrate other work, broaden scope, or wait for further instructions. Inspect, change, and verify only what is needed for this task, then report the result.';
+
+export function buildRequestOverride(template, userMessage, agentsText, cwd, previousResponseId, workerRoleMessage = '') {
   if (previousResponseId) {
+    const input = [buildInputMessage(userMessage)];
+    if (workerRoleMessage) input.unshift({ role: 'developer', content: [{ type: 'input_text', text: workerRoleMessage }] });
     return {
       ...template,
-      input: [buildInputMessage(userMessage)],
+      input,
       store: true,
       previous_response_id: previousResponseId,
     };
