@@ -393,11 +393,18 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     return () => { terminalInput.removeListener?.('data', onInput); terminalInput.setRawMode?.(false); return interrupted; };
   }
 
+  const prepareReplInput = () => {
+    if (oneShot || !terminalInput?.isTTY) return;
+    terminalInput.setRawMode?.(true);
+    terminalInput.resume?.();
+  };
+
   let pendingInitialMessage = oneShot ? String(initialMessage ?? '') : null;
   try {
     for (; ;) {
       let line;
       try {
+        if (pendingInitialMessage === null) prepareReplInput();
         line = pendingInitialMessage !== null ? pendingInitialMessage : await rl.question(formatPromptForCwd(cwd));
         pendingInitialMessage = null;
       } catch (error) {
