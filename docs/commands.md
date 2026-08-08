@@ -61,3 +61,11 @@ These are command-line flags, not in-app commands:
 - `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Without it, approval is automatic. `--yolo` remains a legacy alias.
 
 Flags can be combined, for example `agentx --debug --confirm "run the test suite"`.
+
+## Output and exit status
+
+Interactive mode writes prompts, responses, and status to stdout. Diagnostics, startup failures, and debug transport events are written to stderr. `agentx --help` and `agentx --version` are stable text interfaces; AgentX does not currently provide a JSON output mode.
+
+Invalid startup/configuration failures return a nonzero exit status. Successful help, version, and one-shot requests return zero.
+
+AgentX does not provide `--dry-run`: its write-capable behavior is limited to user-local session/configuration state and model-requested shell commands. Use `--confirm` for tool execution and inspect commands before approval when writes are possible.

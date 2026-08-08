@@ -24,3 +24,16 @@ Values are validated by the setup flow before they are saved. Defaults and accep
 ## Local state
 
 AgentX stores session state in `.agentx_responseid` and successful checkpoints in `.agentx_checkpoint` in the launch directory. One-shot pending state uses temporary `.agentx_responseid.oneshot-*` files. These files may contain conversation metadata and must not be committed.
+
+## Release validation
+
+Before publishing, run:
+
+```bash
+npm test
+npm run test:gaps
+npm run lint
+npm pack --dry-run
+```
+
+CI runs the same checks before the publish step.

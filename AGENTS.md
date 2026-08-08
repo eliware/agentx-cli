@@ -15,6 +15,7 @@
 - This CLI intentionally has no `.env.example`; configuration is user-local (`~/.agentx`) or environment-based.
 - Use `agentx-setup` for local setup tasks instead of hand-editing service files when possible.
 - Keep the project at 100% test coverage across all files; add or update coverage whenever behavior changes.
+- Coverage exclusions are limited to integration/bootstrap-heavy modules whose behavior is exercised by focused smoke or contract tests; review exclusions when those modules change.
 - Always fix lint warnings; do not leave lint warnings unresolved.
 - When editing files, keep behavior aligned with the specifications and update tests when behavior changes.
 - Tests are expected to pass cleanly on Linux, Windows, and GitHub Actions; keep the entire repository cross-platform friendly and avoid platform-specific assumptions.
