@@ -12,7 +12,7 @@ import { sendMessage } from './agent-session/session-service.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
-import { appendCliTranscript, buildRequestMessage, buildRequestOverride, isWorkerProcess, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
+import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, resolveAgentApiKey } from './agent-flow.mjs';
 import { promptResumeMenu } from './resume-menu.mjs';
 import { promptRollbackMenu } from './rollback-menu.mjs';
 import { promptRecoveryMenu } from './recovery-menu.mjs';
@@ -143,11 +143,9 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   const agentsText = await readAgentsFromCwdAndParents(cwd).catch((error) => {
     throw new Error(`Unable to read AGENTS.md files under ${cwd}: ${error?.message || String(error)}`);
   });
-  const savedState = isWorkerProcess()
-    ? null
-    : oneShot
-      ? ((await readLatestCheckpoint(checkpointPath, sessionStatePath)) || null)
-      : await readSessionState(statePath);
+  const savedState = oneShot
+    ? ((await readLatestCheckpoint(checkpointPath, sessionStatePath)) || null)
+    : await readSessionState(statePath);
   const savedResponseId = savedState?.response_id || '';
   const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
   const debugEnabled = process.argv.includes('--debug');
@@ -175,8 +173,10 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   process.stdout.write(`${formatStartupSettings(settingsFromEnv())}\n`);
   if (!agentsText) process.stdout.write(`${formatSystemMessage('AGENTS.md not found; ask AgentX to generate one for this project.')}\n`);
   process.stdout.write(`${formatSystemMessage(savedResponseId ? `${oneShot ? 'Branching from checkpoint' : 'Resuming conversation'} ${savedResponseId}` : 'Starting new session')}\n`);
-  printResumeMessage('Last user message', savedState?.last_user_message || '');
-  printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
+  if (!oneShot) {
+    printResumeMessage('Last user message', savedState?.last_user_message || '');
+    printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
+  }
   if (savedState?.failed_response) {
     process.stdout.write(`${formatSystemMessage('Previous request failed; starting from the last successful checkpoint.')}\n`);
   }

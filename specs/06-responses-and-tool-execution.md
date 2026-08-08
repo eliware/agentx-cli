@@ -12,6 +12,6 @@ Ctrl-T interruption: When the user presses Ctrl-T during an active model-request
 
 When `--debug` is enabled, AgentX must print transport lifecycle events and raw Responses protocol events from `@eliware/openai`, and suppress live status rendering. Debug output is diagnostic only and must not change request or tool behavior. API keys and authorization headers must never be printed.
 
-## Worker session isolation
+## Worker session context
 
-A spawned worker starts a fresh Responses conversation. Worker processes must not inherit the parent interactive checkpoint, response ID, pending tool calls, or conversation history. They retain only the explicit task supplied by the worker launcher and their normal project configuration.
+A spawned worker inherits the shared successful checkpoint and receives its task as a new message using the checkpoint response ID. One-shot workers suppress human-oriented session recap output while retaining the inherited conversation context.

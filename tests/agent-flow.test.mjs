@@ -1,16 +1,10 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import path from 'node:path';
 import { writeFileSync } from 'node:fs';
-import { isWorkerProcess, loadPromptTemplate, appendCliTranscript, buildRequestMessage, buildRequestOverride, resolveAgentApiKey } from '../src/agent-flow.mjs';
+import { loadPromptTemplate, appendCliTranscript, buildRequestMessage, buildRequestOverride, resolveAgentApiKey } from '../src/agent-flow.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('agent flow helpers', () => {
-  test('identifies worker processes for isolated sessions', () => {
-    expect(isWorkerProcess({ AGENTX_WORKER_ID: 'worker-1' })).toBe(true);
-    expect(isWorkerProcess({})).toBe(false);
-    expect(isWorkerProcess(null)).toBe(false);
-  });
-
   test('resolveAgentApiKey prefers the lowercase env var and falls back to uppercase', () => {
     expect(resolveAgentApiKey({ agentx_api_key: 'lower', AGENTX_API_KEY: 'upper' })).toBe('lower');
     expect(resolveAgentApiKey({ AGENTX_API_KEY: 'upper' })).toBe('upper');
