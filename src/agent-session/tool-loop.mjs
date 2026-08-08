@@ -76,6 +76,8 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           const args = parseFunctionInput(call);
           if (call.name === 'goal_complete') {
             goalFinished = true;
+            // Remove the live execution timer before printing the completion banner.
+            statusController?.clear();
             await streamOptions?.onGoalComplete?.(args);
             outputs.push(toolOutputForCall(call, 'Goal complete acknowledged.'));
             continue;
