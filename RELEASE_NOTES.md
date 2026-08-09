@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.6.4 - Image branch tool support
+
+- Enabled local shell calls and built-in image generation in isolated `view_image` branches.
+- Returned generated image paths to the inspection branch output while preserving tool isolation.
+- Added focused regression coverage and maintained 100% test coverage.
+
 ## 1.6.3 - Fix image generation tool schema
 
 - Removed the unsupported `description` field from the built-in `image_generation` Responses API tool.
