@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.6.1 - Multi-image view_image inspection
+
+- Updated `view_image` to inspect up to 10 local images per call with optional sequential captions.
+- Added a 10,000-character `prompt` limit and changed the default image detail to low.
+- Added schema, specification, validation, and regression-test coverage.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.6.0 - Delegated worker usage accounting
 
 - Aggregated delegated worker per-turn token usage into parent session totals.
