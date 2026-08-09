@@ -184,7 +184,7 @@ describe('interactive setup menu flow', () => {
 
   const drive = async (readlineInput, values) => {
     for (const value of values) {
-      await new Promise((resolve) => setTimeout(() => { readlineInput.emit('data', Buffer.from(`${value}\n`)); resolve(); }, 20));
+      await new Promise((resolve) => setTimeout(() => { readlineInput.emit('data', Buffer.from(`${value}\n`)); resolve(); }, 50));
     }
   };
 

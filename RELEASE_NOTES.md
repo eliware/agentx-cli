@@ -1,5 +1,10 @@
 # AgentX Release Notes
 
+## 1.6.5 - CI setup-flow stability
+
+- Increased the interactive setup test input interval for reliable Node.js 26 CI execution.
+- Verified full coverage and lint behavior before release repair.
+
 ## 1.6.4 - Image branch tool support
 
 - Enabled local shell calls and built-in image generation in isolated `view_image` branches.
