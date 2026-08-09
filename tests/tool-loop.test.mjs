@@ -339,5 +339,5 @@ test('handles goal questions and blocked outcomes', async () => {
   const blocked = { output: [{ type: 'function_call', name: 'goal_update', call_id: 'blocked-1', arguments: JSON.stringify({ method: 'blocked' }) }] };
   await expect(handleToolCalls(blockedOpenai, blocked, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, {
     goalMode: true, onGoalLimit: jest.fn(), goalIterations: 2,
-  })).resolves.toEqual({ id: 'blocked-final', output: [] });
+  })).resolves.toEqual({ id: 'blocked-next', output: [{ type: 'function_call', name: 'goal_update', call_id: 'blocked-complete', arguments: JSON.stringify({ method: 'complete' }) }] });
 });

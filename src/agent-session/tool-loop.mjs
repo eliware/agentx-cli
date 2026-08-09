@@ -8,6 +8,7 @@ import { createStreamedResponse } from './response-stream.mjs';
 import { isShellToolCall } from './response-format.mjs';
 
 const GOAL_TOOLS = new Set(['goal_update']);
+const GOAL_METHODS = new Set(['complete', 'incomplete', 'blocked', 'question']);
 const IMAGE_TOOL = 'view_image';
 const IMAGE_GENERATION_OUTPUT = 'image_generation_call';
 function parseFunctionInput(call) { try { return JSON.parse(call?.arguments ?? call?.input ?? '{}'); } catch { return {}; } }
@@ -89,6 +90,10 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         if (goalMode && GOAL_TOOLS.has(call?.name)) {
           const args = parseFunctionInput(call);
           const method = String(args?.method || '').toLowerCase();
+          if (!GOAL_METHODS.has(method)) {
+            outputs.push(toolOutputForCall(call, `Invalid goal_update method "${method || '(missing)'}". Use complete, incomplete, blocked, or question.`));
+            continue;
+          }
           if (method === 'complete') {
             goalFinished = true;
             statusController?.pause?.();
@@ -130,13 +135,23 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       input: dedupeToolOutputs(outputs),
       previous_response_id: current.id,
       store: true,
-      ...(goalFinished ? { tool_choice: 'none' } : (goalMode && calls.some((call) => !GOAL_TOOLS.has(call?.name)) ? { tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'goal_update' }] } } : {})),
+      ...(goalFinished ? { tool_choice: 'none' } : (goalMode ? { tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'goal_update' }] } } : {})),
     };
     try {
       current = await createStreamedResponse(openai, request, { liveStreaming: goalFinished ? false : liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
       currentPreviousResponseId = request.previous_response_id || '';
       if (goalFinished) {
-        continue;
+        const completionUsage = extractUsage(current);
+        const cumulativeUsage = onResponseUsage ? onResponseUsage(completionUsage) : null;
+        await onResponseState?.({ response: current, pendingToolCalls: [], isInitialResponse: false, cumulativeUsage });
+        if (!streamOptions?.suppressUsageOutput) {
+          process.stdout.write(`${formatUsageMessage(formatTurnUsageReport({ ...completionUsage, model: baseRequest?.model }))}\n`);
+          if (cumulativeUsage) process.stdout.write(`${formatUsageMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`);
+        }
+        const completionSnapshot = goalCompletionSnapshot || statusController?.snapshot?.() || { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' };
+        statusController?.clear();
+        process.stdout.write(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
+        return current;
       }
     } catch (error) {
       await streamOptions?.onRetryState?.({ request, response: current });

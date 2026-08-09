@@ -86,9 +86,9 @@ describe('goal mode', () => {
   test('rejects unknown goal_update methods without advancing the goal', async () => {
     const { client, requests } = openaiWithResponses({ id: 'resp-invalid-next', output: [] });
     const response = { id: 'resp-invalid', output: [goalCall('goal_update', { method: 'bogus' })] };
-    await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true });
+    await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, goalMaxIterations: 0 });
     expect(requests[0].input[0].output).toContain('Invalid goal_update method "bogus"');
-    expect(requests[0].tool_choice).toBe('required');
+    expect(requests[0].tool_choice).toMatchObject({ mode: 'required', tools: [{ name: 'goal_update' }] });
   });
 
   test('executes goal_update and invokes completion callback', async () => {
@@ -143,13 +143,14 @@ describe('goal mode', () => {
   test('returns the final response after goal completion', async () => {
     const { client, requests } = openaiWithResponses(
       { id: 'resp-2', output: [goalCall('goal_update', { method: 'complete', summary: 'done', evidence: 'verified' })] },
+      { id: 'resp-2-ack', output: [] },
     );
     const onGoalComplete = jest.fn();
     const response = { id: 'resp-1', output: [] };
 
     const result = await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalComplete });
 
-    expect(result).toEqual({ id: 'resp-2', output: [goalCall('goal_update', { method: 'complete', summary: 'done', evidence: 'verified' })] });
+    expect(result).toEqual({ id: 'resp-2-ack', output: [] });
     expect(requests).toHaveLength(2);
     expect(requests[0].input[0].content[0].text).toContain('MUST call goal_update');
     expect(requests[1].input[0]).toMatchObject({ type: 'function_call_output', output: 'Goal complete acknowledged.' });
