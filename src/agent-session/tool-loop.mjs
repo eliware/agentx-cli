@@ -43,7 +43,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     if (onResponseState) {
       await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
     }
-    if (shouldReportUsage) {
+    if (shouldReportUsage && !streamOptions?.suppressUsageOutput) {
       process.stdout.write(`${formatUsageMessage(formatTurnUsageReport({ ...usage, model: baseRequest?.model }))}\n`);
       if (cumulativeUsage) {
         process.stdout.write(`${formatUsageMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`);

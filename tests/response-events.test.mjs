@@ -34,6 +34,7 @@ describe('agent session modules', () => {
             { type: 'response.function_call_arguments.delta', delta: 'live"]}]}'},
             { raw: '{"type":"response.function_call_arguments.delta","delta":"live\\"]}]}"}', json: { type: 'response.function_call_arguments.delta', delta: 'live"]}]}' } },
           );
+          handlers?.onEvent?.({ type: 'response.function_call_arguments.delta', delta: 'custom' });
           handlers?.onItemDone({ type: 'shell_call', call_id: 'call-1', action: { commands: ['echo live'] } });
           handlers?.onItemDone({ type: 'reasoning', summary: [] });
           handlers?.onItemDone({ type: 'reasoning', summary: [{ type: 'input_text', text: 'thinking' }] });
@@ -58,6 +59,12 @@ describe('agent session modules', () => {
     expect(stdoutWrites.join('')).not.toContain('response.output_item.done');
     expect(stdoutWrites.join('')).not.toContain('response.completed');
     expect(stdoutWrites.join('')).toContain('thinking');
+  });
+  test('formats non-shell streamed tool arguments', () => {
+    const live = createLiveResponseHandlers({ liveStreaming: true, statusController: { beginWriting: jest.fn(), pause: jest.fn(), resume: jest.fn() } });
+    live.handlers.onEvent({ type: 'response.function_call_arguments.delta', delta: 'custom-tool' });
+    live.handlers.onEvent({ type: 'response.shell_call_command.delta', delta: 'shell-tool' });
+    expect(stdoutWrites.join('')).toContain('custom-tool');
   });
   test('sendMessage ignores unrelated live events and empty streamed deltas', async () => {
     const template = { model: 'test-model', input: [], tools: [] };

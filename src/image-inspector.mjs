@@ -1,5 +1,6 @@
 import { encodeImageInput } from './image-input.mjs';
 import { extractTextFromResponse } from './response.mjs';
+import { saveGeneratedImage } from './image-generation.mjs';
 
 const MAX_IMAGES = 10;
 const MAX_PROMPT_LENGTH = 10_000;
@@ -24,9 +25,30 @@ export async function inspectImage(openai, args, { cwd, responseId, callerRespon
       input: [{ role: 'user', content }],
       previous_response_id: callerResponse?.previous_response_id || responseId,
       store: true,
-      tools: [],
+      tools: [{ type: 'shell', environment: { type: 'local' } }, { type: 'image_generation' }],
     });
-    return extractTextFromResponse(response) || 'The image inspection returned no text.';
+    const { runToolCall, toolOutputForCall } = await import('./tool-dispatch.mjs');
+    let completed = response;
+    const generatedPaths = [];
+    for (let turn = 0; turn < 10; turn += 1) {
+      for (const item of completed?.output || []) {
+        if (item?.type === 'image_generation_call' && item?.result) generatedPaths.push(await saveGeneratedImage(item));
+      }
+      const calls = (completed?.output || []).filter((item) => item?.type === 'shell_call');
+      if (!calls.length) break;
+      const outputs = [];
+      for (const call of calls) outputs.push(toolOutputForCall(call, await runToolCall(call, cwd)));
+      completed = await openai.responses.create({
+        model,
+        input: outputs,
+        previous_response_id: completed.id,
+        store: true,
+        tools: [{ type: 'shell', environment: { type: 'local' } }, { type: 'image_generation' }],
+      });
+    }
+    const text = extractTextFromResponse(completed);
+    const generated = generatedPaths.length ? `Generated image path(s): ${generatedPaths.join(', ')}` : '';
+    return [text, generated].filter(Boolean).join('\n\n') || 'The image inspection returned no text.';
   } catch (error) {
     return `ERROR: ${error?.message || String(error)}`;
   }

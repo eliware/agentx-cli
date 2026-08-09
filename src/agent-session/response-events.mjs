@@ -169,7 +169,8 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
           const delta = String(event?.delta ?? '');
           if (delta) {
             streamedText += delta;
-            process.stdout.write(isShellCallCommandDeltaEvent(event) ? formatCommandMessage(delta) : formatCustomToolMessage(delta));
+            const formatted = isShellCallCommandDeltaEvent(event) ? formatCommandMessage(delta) : formatCustomToolMessage(delta);
+            process.stdout.write(formatted);
           }
         }
       },

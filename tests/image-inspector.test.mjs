@@ -2,9 +2,11 @@ import { describe, expect, jest, test, beforeEach } from '@jest/globals';
 
 const encodeImageInput = jest.fn();
 const extractTextFromResponse = jest.fn();
+const saveGeneratedImage = jest.fn();
 
 await jest.unstable_mockModule('../src/image-input.mjs', () => ({ encodeImageInput }));
 await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse }));
+await jest.unstable_mockModule('../src/image-generation.mjs', () => ({ saveGeneratedImage }));
 
 const { inspectImage } = await import('../src/image-inspector.mjs');
 
@@ -12,6 +14,7 @@ describe('image inspection', () => {
   beforeEach(() => {
     encodeImageInput.mockReset();
     extractTextFromResponse.mockReset();
+    saveGeneratedImage.mockReset();
   });
 
   test('requires an instruction', async () => {
@@ -42,8 +45,40 @@ describe('image inspection', () => {
       ] }],
       previous_response_id: 'parent',
       store: true,
-      tools: [],
+      tools: [{ type: 'shell', environment: { type: 'local' } }, { type: 'image_generation' }],
     });
+  });
+
+  test('allows branch shell calls and submits their output', async () => {
+    encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,abc', detail: 'low' });
+    extractTextFromResponse.mockReturnValue('Shell result.');
+    const create = jest.fn()
+      .mockResolvedValueOnce({ id: 'shell-call', output: [{ type: 'shell_call', call_id: 'shell-1', action: { commands: ['printf branch'] } }] })
+      .mockResolvedValueOnce({ id: 'shell-final', output: [] });
+    const openai = { responses: { create } };
+
+    await expect(inspectImage(openai, { images: [{ path: 'x' }], prompt: 'Inspect' }, {
+      cwd: process.cwd(), responseId: 'parent', model: 'model',
+    })).resolves.toBe('Shell result.');
+    expect(create.mock.calls[1][0].input[0]).toMatchObject({
+      type: 'shell_call_output', call_id: 'shell-1',
+    });
+    expect(create.mock.calls[1][0].input[0].output[0].stdout).toBe('branch');
+  });
+
+  test('returns generated image paths from the branch', async () => {
+    encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,x', detail: 'low' });
+    extractTextFromResponse.mockReturnValue('Generated.');
+    saveGeneratedImage.mockResolvedValue('/tmp/generated.png');
+    const openai = { responses: { create: jest.fn().mockResolvedValue({
+      id: 'generated',
+      output: [{ type: 'image_generation_call', result: 'base64-image' }],
+    }) } };
+
+    await expect(inspectImage(openai, { images: [{ path: 'x' }], prompt: 'Generate' }, {
+      cwd: '/tmp', responseId: 'parent', model: 'model',
+    })).resolves.toBe('Generated.\n\nGenerated image path(s): /tmp/generated.png');
+    expect(saveGeneratedImage).toHaveBeenCalledWith({ type: 'image_generation_call', result: 'base64-image' });
   });
 
   test('falls back to the supplied response ID when the caller response has no predecessor', async () => {
