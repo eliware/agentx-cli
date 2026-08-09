@@ -155,15 +155,18 @@ describe('goal mode', () => {
       { id: 'resp-4', output: [] },
     );
     const onGoalLimit = jest.fn();
+    const onGoalIteration = jest.fn();
 
     await handleToolCalls(client, { id: 'resp-1', output: [] }, baseRequest, '/tmp', null, undefined, {
       goalMode: true,
       goalMaxIterations: 2,
       onGoalLimit,
+      onGoalIteration,
     });
 
     expect(requests).toHaveLength(2);
     expect(onGoalLimit).toHaveBeenCalledWith(3);
+    expect(onGoalIteration.mock.calls.map(([iteration]) => iteration)).toEqual([1, 2, 3]);
   });
 });
 

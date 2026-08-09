@@ -207,8 +207,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let pendingRetryRequest = savedState?.pending_retry_request || null;
   let pendingTransaction = savedState?.pending_transaction || null;
   let activeGoal = savedState?.goal || null;
-  // Goals never resume implicitly after process restart.
-  if (activeGoal?.status === 'active') activeGoal = null;
+  // Goals pause on restart; explicit /goal resume is required before contacting OpenAI.
+  if (activeGoal?.status === 'active') activeGoal = { ...activeGoal, status: 'paused', paused_at: new Date().toISOString() };
   const globalConfirmationPath = confirmationFilePath();
   const globalConfirmations = await loadGlobalConfirmations(globalConfirmationPath);
   const sessionConfirmations = new Set();
@@ -291,6 +291,9 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     }
   }
   if (savedState?.goal?.status === 'active') await saveState();
+  if (activeGoal?.status === 'paused' && !oneShot) {
+    process.stdout.write(`${formatSystemMessage(`Paused goal: ${activeGoal.text}. Use /goal resume to continue.`)}\n`);
+  }
 
   async function confirmToolCall(call, toolCwd) {
     const key = confirmationKey(call, toolCwd);
@@ -452,7 +455,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   function attachGoalInterrupt() {
     if (oneShot || !activeGoal || !terminalInput?.on) return () => {};
     let interrupted = false;
-    const onInput = (chunk) => { if (String(chunk).includes('\x14')) { interrupted = true; activeGoal = { ...activeGoal, status: 'cancelled', cancelled_at: new Date().toISOString() }; } };
+    const onInput = (chunk) => {
+      if (!String(chunk).includes('\x14')) return;
+      interrupted = true;
+      activeGoal = { ...activeGoal, status: 'cancelled', cancelled_at: new Date().toISOString() };
+      void saveState().catch(() => {});
+    };
     terminalInput.setRawMode?.(true);
     terminalInput.on('data', onInput);
     return () => { terminalInput.removeListener?.('data', onInput); terminalInput.setRawMode?.(false); return interrupted; };
@@ -544,11 +552,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         continue;
       }
       if (internal?.type === 'goal_help') {
-        process.stdout.write(`${formatSystemMessage('Usage: /goal <text> | /goal status | /goal cancel')}\n`);
+        process.stdout.write(`${formatSystemMessage('Usage: /goal <text> | /goal status | /goal resume | /goal cancel')}\n`);
         continue;
       }
       if (internal?.type === 'goal_status') {
-        process.stdout.write(`${formatSystemMessage(activeGoal?.status === 'active' ? `Active goal: ${activeGoal.text} (iteration ${activeGoal.iterations || 0})` : 'No active goal.')}\n`);
+        const label = activeGoal?.status === 'active' ? `Active goal: ${activeGoal.text} (iteration ${activeGoal.iterations || 0})` : activeGoal?.status === 'paused' ? `Paused goal: ${activeGoal.text} (iteration ${activeGoal.iterations || 0}); use /goal resume` : 'No active goal.';
+        process.stdout.write(`${formatSystemMessage(label)}\n`);
         continue;
       }
       if (internal?.type === 'goal_cancel') {
@@ -556,8 +565,16 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         else process.stdout.write(`${formatSystemMessage('No active goal.')}\n`);
         continue;
       }
+      if (internal?.type === 'goal_resume') {
+        if (activeGoal?.status !== 'paused') { process.stdout.write(`${formatSystemMessage('No paused goal to resume.')}\n`); continue; }
+        activeGoal = { ...activeGoal, status: 'active', resumed_at: new Date().toISOString() };
+        await saveState();
+        process.stdout.write(`${formatSystemMessage(`Resuming goal: ${activeGoal.text}`)}\n`);
+        message = activeGoal.text;
+      }
       if (internal?.type === 'goal') {
         if (activeGoal?.status === 'active') { process.stdout.write(`${formatSystemMessage('A goal is already active; cancel it first.')}\n`); continue; }
+        if (activeGoal?.status === 'paused') { process.stdout.write(`${formatSystemMessage('A paused goal exists; use /goal resume or /goal cancel first.')}\n`); continue; }
         activeGoal = { text: internal.goal, status: 'active', iterations: 0, started_at: new Date().toISOString() };
         process.stdout.write(`${formatSystemMessage(`Goal started: ${internal.goal}`)}\n`);
         message = internal.goal;
@@ -655,7 +672,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request, response }) => { pendingRetryRequest = request; pendingTransaction = { ...(pendingTransaction || {}), base_response_id: response?.id || pendingTransaction?.base_response_id || '', request, calls: pendingToolCalls, outputs: request?.input || [], execution_journal: executionJournal, attempt_count: Number(pendingTransaction?.attempt_count || 0) + 1 }; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, onImageGeneration: handleImageGeneration, onViewImage: async ({ args, response: current, previousResponseId, baseRequest, cwd: imageCwd }) => inspectImage(openai, args, { cwd: imageCwd, responseId: current?.id, previousResponseId, callerResponse: current, model: baseRequest?.model, processWorker: true, onUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; } }), yolo: yoloEnabled, onWorkerUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; }, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, isGoalCancelled: () => activeGoal?.status !== 'active', onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
+          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request, response }) => { pendingRetryRequest = request; pendingTransaction = { ...(pendingTransaction || {}), base_response_id: response?.id || pendingTransaction?.base_response_id || '', request, calls: pendingToolCalls, outputs: request?.input || [], execution_journal: executionJournal, attempt_count: Number(pendingTransaction?.attempt_count || 0) + 1 }; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, onImageGeneration: handleImageGeneration, onViewImage: async ({ args, response: current, previousResponseId, baseRequest, cwd: imageCwd }) => inspectImage(openai, args, { cwd: imageCwd, responseId: current?.id, previousResponseId, callerResponse: current, model: baseRequest?.model, processWorker: true, onUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; } }), yolo: yoloEnabled, onWorkerUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; }, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, onGoalIteration: async (iterations) => { if (activeGoal?.status === 'active') { activeGoal = { ...activeGoal, iterations }; await saveState(); } }, isGoalCancelled: () => activeGoal?.status !== 'active', onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
         } catch (error) {
           const errorText = `${error?.message || ''} ${error?.cause?.message || ''}`;
           const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');
@@ -712,7 +729,6 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
       if (!response) continue;
       previousResponseId = response?.id || previousResponseId;
-      if (activeGoal?.status === 'active') activeGoal = { ...activeGoal, iterations: (activeGoal.iterations || 0) + 1 };
       lastAssistantMessage = extractTextFromResponse(response);
       pendingToolCalls = [];
       pendingRetryRequest = null;

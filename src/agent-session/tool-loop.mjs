@@ -58,7 +58,9 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         return current;
       }
       {
-        if (++goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
+        goalIterations += 1;
+        await streamOptions?.onGoalIteration?.(goalIterations);
+        if (goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
         const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nYou MUST call goal_update with method complete, incomplete, blocked, or question. Do not reply with prose.` }] }], previous_response_id: current.id, store: true, tool_choice: 'required' };
         current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
         currentPreviousResponseId = request.previous_response_id || '';
