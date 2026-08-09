@@ -1,18 +1,40 @@
 import { describe, expect, jest, test, beforeEach } from '@jest/globals';
+import { EventEmitter } from 'node:events';
+import { spawn as realSpawn } from 'node:child_process';
 
 const encodeImageInput = jest.fn();
 const extractTextFromResponse = jest.fn();
 const extractUsage = jest.fn((response) => ({ inputTokens: Number(response?.usage?.input_tokens ?? 0) - Number(response?.usage?.input_tokens_details?.cached_tokens ?? 0), cachedTokens: Number(response?.usage?.input_tokens_details?.cached_tokens ?? 0), outputTokens: Number(response?.usage?.output_tokens ?? 0) }));
 const saveGeneratedImage = jest.fn();
+const spawn = jest.fn();
+
+await jest.unstable_mockModule('node:child_process', () => ({ spawn }));
 
 await jest.unstable_mockModule('../src/image-input.mjs', () => ({ encodeImageInput }));
 await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse, extractUsage }));
 await jest.unstable_mockModule('../src/image-generation.mjs', () => ({ saveGeneratedImage }));
 
-const { inspectImage } = await import('../src/image-inspector.mjs');
+const { inspectImage, runImageInspection } = await import('../src/image-inspector.mjs');
 
 describe('image inspection', () => {
+  function mockWorker({ stdout = '', stderr = '', code = 0, error } = {}) {
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    spawn.mockImplementationOnce(() => {
+      queueMicrotask(() => {
+        if (stdout) child.stdout.emit('data', stdout);
+        if (stderr) child.stderr.emit('data', stderr);
+        if (error) child.emit('error', error);
+        else child.emit('close', code);
+      });
+      return child;
+    });
+  }
+
   beforeEach(() => {
+    spawn.mockReset();
+    spawn.mockImplementation((...args) => realSpawn(...args));
     encodeImageInput.mockReset();
     extractTextFromResponse.mockReset();
     extractUsage.mockClear();
@@ -20,18 +42,58 @@ describe('image inspection', () => {
   });
 
   test('runs validation through an isolated image worker process', async () => {
-    await expect(inspectImage({}, undefined, {
-      cwd: process.cwd(), responseId: 'resp', model: 'model', processWorker: true,
-    })).resolves.toBe('ERROR: image prompt is required');
+    mockWorker({ stdout: JSON.stringify({ text: 'validated', usage: { turns: 1 } }) });
+    const usage = [];
+    await expect(inspectImage({}, { prompt: 'Inspect', images: [{ path: 'x' }] }, {
+      cwd: process.cwd(), responseId: 'resp', model: 'model', processWorker: true, onUsage: value => usage.push(value),
+    })).resolves.toBe('validated');
+    expect(usage).toEqual([{ turns: 1 }]);
   });
 
   test('serializes concurrent workers sharing a branch parent', async () => {
+    mockWorker({ stdout: JSON.stringify({ text: 'first' }) });
+    mockWorker({ stdout: JSON.stringify({ error: 'second' }) });
     const options = { cwd: process.cwd(), responseId: 'resp', previousResponseId: 'parent', model: 'model', processWorker: true };
     const results = await Promise.all([
-      inspectImage({}, undefined, options),
-      inspectImage({}, undefined, options),
+      inspectImage({}, { prompt: 'Inspect', images: [{ path: 'x' }] }, options),
+      inspectImage({}, { prompt: 'Inspect', images: [{ path: 'x' }] }, options),
     ]);
-    expect(results).toEqual(['ERROR: image prompt is required', 'ERROR: image prompt is required']);
+    expect(results).toEqual(['first', 'second']);
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  test('continues after a rejected queued worker', async () => {
+    spawn.mockImplementationOnce(() => { throw new Error('worker launch failed'); });
+    const first = inspectImage({}, {}, { processWorker: true, cwd: '/queue' });
+    mockWorker({ stdout: JSON.stringify({ text: 'recovered' }) });
+    const second = inspectImage({}, {}, { processWorker: true, cwd: '/queue' });
+    await expect(first).rejects.toThrow('worker launch failed');
+    await expect(second).resolves.toBe('recovered');
+  });
+
+  test('handles worker errors, nonzero exits, and malformed output', async () => {
+    mockWorker({ error: new Error('spawn failed') });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: spawn failed');
+    mockWorker({ stderr: 'worker failed', code: 2 });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: worker failed');
+    mockWorker({ code: 3 });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: image worker exited with code 3');
+    mockWorker({ stdout: '{bad' });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: invalid image worker response');
+    mockWorker({ stdout: '{bad', stderr: 'parse detail' });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: invalid image worker response: parse detail');
+  });
+
+  test('handles worker fallback fields and omitted options', async () => {
+    mockWorker({ stdout: JSON.stringify({}) });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('The image inspection returned no text.');
+    mockWorker({ stdout: JSON.stringify({ text: '', error: 'worker detail' }) });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('worker detail');
+    mockWorker({ stdout: JSON.stringify({ text: '' }) });
+    await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('The image inspection returned no text.');
+    encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,x', detail: 'low' });
+    await expect(inspectImage({ responses: { create: jest.fn().mockResolvedValue({}) } }, { prompt: 'x', images: [{ path: 'x' }] })).resolves.toBe('The image inspection returned no text.');
+    await expect(runImageInspection({ responses: { create: jest.fn().mockResolvedValue({}) } }, { prompt: 'x', images: [{ path: 'x' }] })).resolves.toBe('The image inspection returned no text.');
   });
 
   test('requires an instruction', async () => {
