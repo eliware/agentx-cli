@@ -63,8 +63,15 @@ describe('agent session modules', () => {
   test('formats non-shell streamed tool arguments', () => {
     const live = createLiveResponseHandlers({ liveStreaming: true, statusController: { beginWriting: jest.fn(), pause: jest.fn(), resume: jest.fn() } });
     live.handlers.onEvent({ type: 'response.function_call_arguments.delta', delta: 'custom-tool' });
+    live.handlers.onItemDone({ type: 'function_call', name: 'custom_tool' });
     live.handlers.onEvent({ type: 'response.shell_call_command.delta', delta: 'shell-tool' });
+    live.handlers.onItemDone({ type: 'shell_call' });
     expect(stdoutWrites.join('')).toContain('custom-tool');
+    expect(stdoutWrites.join('')).toContain('shell-tool');
+    expect(stdoutWrites.at(-1)).toBe('\n');
+    const lines = stdoutWrites.join('').split('\n');
+    expect(lines[0]).toContain('custom-tool');
+    expect(lines[1]).toContain('shell-tool');
   });
   test('sendMessage ignores unrelated live events and empty streamed deltas', async () => {
     const template = { model: 'test-model', input: [], tools: [] };

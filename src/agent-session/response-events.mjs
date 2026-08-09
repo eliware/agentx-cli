@@ -193,7 +193,8 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
           finishWebSearch(item);
           return;
         }
-        if (isShellToolCall(item) || isMcpToolCall(item)) {
+        const isCustomToolCall = item?.type === 'function_call' || item?.type === 'custom_call';
+        if (isShellToolCall(item) || isMcpToolCall(item) || isCustomToolCall) {
           markOutput();
           if (isMcpToolCall(item)) process.stdout.write(formatMcpMessage(')'));
           streamedText += '\n';
