@@ -83,8 +83,16 @@ describe('goal mode', () => {
     expect(onGoalComplete).toHaveBeenNthCalledWith(2, { method: 'complete' });
   });
 
+  test('rejects unknown goal_update methods without advancing the goal', async () => {
+    const { client, requests } = openaiWithResponses({ id: 'resp-invalid-next', output: [] });
+    const response = { id: 'resp-invalid', output: [goalCall('goal_update', { method: 'bogus' })] };
+    await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true });
+    expect(requests[0].input[0].output).toContain('Invalid goal_update method "bogus"');
+    expect(requests[0].tool_choice).toBe('required');
+  });
+
   test('executes goal_update and invokes completion callback', async () => {
-    const { client, requests } = openaiWithResponses({ id: 'resp-next', output: [] });
+    const { client, requests } = openaiWithResponses({ id: 'resp-next', output: [{ type: 'function_call', name: 'goal_update', call_id: 'unexpected', arguments: JSON.stringify({ method: 'incomplete' }) }] });
     const onGoalComplete = jest.fn();
     const response = { id: 'resp-1', output: [goalCall('goal_update', { method: 'complete', summary: 'done', evidence: 'npm test passes' })] };
 
@@ -93,7 +101,7 @@ describe('goal mode', () => {
       onGoalComplete,
     });
 
-    expect(result).toEqual({ id: 'resp-next', output: [] });
+    expect(result).toEqual({ id: 'resp-next', output: [{ type: 'function_call', name: 'goal_update', call_id: 'unexpected', arguments: JSON.stringify({ method: 'incomplete' }) }] });
     expect(onGoalComplete).toHaveBeenCalledWith({ method: 'complete', summary: 'done', evidence: 'npm test passes' });
     expect(requests).toHaveLength(1);
     expect(requests[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'goal_update-1', output: 'Goal complete acknowledged.' });
@@ -139,8 +147,9 @@ describe('goal mode', () => {
     const onGoalComplete = jest.fn();
     const response = { id: 'resp-1', output: [] };
 
-    await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalComplete });
+    const result = await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalComplete });
 
+    expect(result).toEqual({ id: 'resp-2', output: [goalCall('goal_update', { method: 'complete', summary: 'done', evidence: 'verified' })] });
     expect(requests).toHaveLength(2);
     expect(requests[0].input[0].content[0].text).toContain('MUST call goal_update');
     expect(requests[1].input[0]).toMatchObject({ type: 'function_call_output', output: 'Goal complete acknowledged.' });
