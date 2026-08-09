@@ -23,6 +23,7 @@ import { confirmationKey, confirmationFilePath, loadGlobalConfirmations, saveGlo
 import { terminateWorkers } from './parallel-workers.mjs';
 import { inspectImage } from './image-inspector.mjs';
 import { saveGeneratedImage } from './image-generation.mjs';
+import { recreateOpenAIClient } from './retry-recovery.mjs';
 
 registerHandlers({ log });
 let activeOpenAI = null;
@@ -256,7 +257,24 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     const nextCalls = Array.isArray(snapshot?.pendingToolCalls) ? snapshot.pendingToolCalls : [];
     previousResponseId = response?.id || previousResponseId;
     pendingToolCalls = nextCalls;
+    if (response?.id && nextCalls.length === 0) {
+      failedResponse = false;
+      pendingRetryRequest = null;
+      lastAssistantMessage = extractTextFromResponse(response);
+      history = [...history.filter((entry) => entry.response_id !== response.id), {
+        response_id: response.id,
+        timestamp: new Date().toISOString(),
+        user_preview: lastUserMessage.slice(0, 20),
+        assistant_preview: lastAssistantMessage.slice(0, 20),
+        usage: { ...sessionUsage },
+        last_user_message: lastUserMessage,
+        last_assistant_message: lastAssistantMessage,
+      }].slice(-20);
+    }
     await saveState();
+    if (response?.id && nextCalls.length === 0 && !oneShot) {
+      await persistCheckpoint(checkpointPath, { response_id: response.id, usage: sessionUsage, last_user_message: lastUserMessage, last_assistant_message: lastAssistantMessage, history });
+    }
   }
   if (savedState?.goal?.status === 'active') await saveState();
 
@@ -616,8 +634,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');
           if (websocketExpired && websocketRecoveryAttempts < 1) {
             websocketRecoveryAttempts += 1;
-            try { await openai?.responses?.close?.(); } catch { /* stale transport cleanup is best effort */ }
-            openai = createSessionClient();
+            openai = await recreateOpenAIClient(openai, createSessionClient);
             activeOpenAI = openai;
             process.stdout.write(`${formatSystemMessage('Responses connection expired; reconnecting.')}\n`);
             continue;
@@ -641,6 +658,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           try { choice = await promptRecoveryMenu(error, { input: terminalInput, output: terminalOutput }); }
           catch (menuError) { if (menuError?.name === 'AbortError') { process.stdout.write(`${formatSystemMessage('Recovery cancelled; session preserved.')}\n`); break; } throw menuError; }
           if (choice === 'retry' || choice === 'debug-retry') {
+            openai = await recreateOpenAIClient(openai, createSessionClient);
+            activeOpenAI = openai;
             if (choice === 'debug-retry' && !debugEnabled) { debugEnabled = true; bindOpenAIDebugListeners(openai); process.stderr.write('[agentx:debug] enabled for retry\n'); }
             recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue;
           }
