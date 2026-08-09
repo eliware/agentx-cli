@@ -183,11 +183,11 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     printResumeMessage('Last user message', savedState?.last_user_message || '');
     printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
   }
+  const hasPendingTransaction = Boolean(savedState?.failed_response && savedState?.pending_retry_request);
   if (savedState?.failed_response) {
-    process.stdout.write(`${formatSystemMessage('Previous request failed; starting from the last successful checkpoint.')}\n`);
+    process.stdout.write(`${formatSystemMessage(hasPendingTransaction ? 'Previous continuation failed; pending tool transaction preserved for recovery.' : 'Previous request failed; starting from the last successful checkpoint.')}\n`);
   }
-
-  let previousResponseId = savedState?.failed_response ? (savedState?.history?.at(-1)?.response_id || '') : savedResponseId;
+  let previousResponseId = savedState?.failed_response && !hasPendingTransaction ? (savedState?.history?.at(-1)?.response_id || '') : savedResponseId;
   let cwdNote = '';
   let previousCwd = null;
   let lastUserMessage = savedState?.last_user_message || '';
@@ -196,12 +196,13 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let sessionUsage = savedState?.usage
     ? { inputTokens: Number(savedState.usage.inputTokens ?? 0), cachedTokens: Number(savedState.usage.cachedTokens ?? 0), outputTokens: Number(savedState.usage.outputTokens ?? 0), turns: Number(savedState.usage.turns ?? 0) }
     : createUsageTotals();
-  let pendingToolCalls = savedState?.failed_response ? [] : (Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : []);
+  let pendingToolCalls = Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : [];
   let executionJournal = Array.isArray(savedState?.execution_journal) ? savedState.execution_journal : [];
   let history = Array.isArray(savedState?.history) ? savedState.history : [];
   let rollbackBackup = Array.isArray(savedState?.rollback_backup) ? savedState.rollback_backup : [];
   let failedResponse = Boolean(savedState?.failed_response);
   let pendingRetryRequest = savedState?.pending_retry_request || null;
+  let pendingTransaction = savedState?.pending_transaction || null;
   let activeGoal = savedState?.goal || null;
   // Goals never resume implicitly after process restart.
   if (activeGoal?.status === 'active') activeGoal = null;
@@ -248,6 +249,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       rollback_backup: rollbackBackup,
       failed_response: failedResponse,
       pending_retry_request: pendingRetryRequest,
+      pending_transaction: pendingTransaction,
       goal: activeGoal,
     });
   }
@@ -257,9 +259,18 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     const nextCalls = Array.isArray(snapshot?.pendingToolCalls) ? snapshot.pendingToolCalls : [];
     previousResponseId = response?.id || previousResponseId;
     pendingToolCalls = nextCalls;
+    if (response?.id && nextCalls.length > 0) {
+      pendingTransaction = {
+        base_response_id: response.id,
+        calls: nextCalls,
+        request: null,
+        execution_journal: executionJournal,
+      };
+    }
     if (response?.id && nextCalls.length === 0) {
       failedResponse = false;
       pendingRetryRequest = null;
+      pendingTransaction = null;
       lastAssistantMessage = extractTextFromResponse(response);
       history = [...history.filter((entry) => entry.response_id !== response.id), {
         response_id: response.id,
@@ -307,7 +318,19 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   if (hasPendingToolCalls && !oneShot) {
     const resumeChoice = await promptResumeMenu(savedState, { input: terminalInput, output: terminalOutput });
 
-    if (resumeChoice === 'new-session') {
+    if (resumeChoice === 'new-session' && hasPendingTransaction) {
+      const checkpoint = history.at(-1);
+      previousResponseId = checkpoint?.response_id || '';
+      lastUserMessage = checkpoint?.last_user_message || '';
+      lastAssistantMessage = checkpoint?.last_assistant_message || '';
+      sessionUsage = checkpoint?.usage ? { ...checkpoint.usage } : createUsageTotals();
+      pendingToolCalls = [];
+      pendingRetryRequest = null;
+      failedResponse = false;
+      await saveState();
+      if (checkpoint) await persistCheckpoint(checkpointPath, checkpoint);
+      process.stdout.write(`${formatSystemMessage('Interrupted work abandoned; returned to the last successful checkpoint.')}\n`);
+    } else if (resumeChoice === 'new-session') {
       previousResponseId = '';
       lastUserMessage = '';
       lastAssistantMessage = '';
@@ -378,7 +401,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           await clearSession(statePath);
         } else {
           failedResponse = true;
-          pendingToolCalls = [];
+          if (!pendingTransaction?.request) pendingToolCalls = [];
           await saveState();
           process.stdout.write(`${formatSystemMessage(`Pending response failed: ${error?.message || String(error)}. Session preserved.`)}\n`);
         }
@@ -628,7 +651,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, onImageGeneration: handleImageGeneration, onViewImage: async ({ args, response: current, previousResponseId, baseRequest, cwd: imageCwd }) => inspectImage(openai, args, { cwd: imageCwd, responseId: current?.id, previousResponseId, callerResponse: current, model: baseRequest?.model, processWorker: true, onUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; } }), yolo: yoloEnabled, onWorkerUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; }, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, isGoalCancelled: () => activeGoal?.status !== 'active', onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
+          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request, response }) => { pendingRetryRequest = request; pendingTransaction = { ...(pendingTransaction || {}), base_response_id: response?.id || pendingTransaction?.base_response_id || '', request, calls: pendingToolCalls, outputs: request?.input || [], execution_journal: executionJournal, attempt_count: Number(pendingTransaction?.attempt_count || 0) + 1 }; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, onImageGeneration: handleImageGeneration, onViewImage: async ({ args, response: current, previousResponseId, baseRequest, cwd: imageCwd }) => inspectImage(openai, args, { cwd: imageCwd, responseId: current?.id, previousResponseId, callerResponse: current, model: baseRequest?.model, processWorker: true, onUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; } }), yolo: yoloEnabled, onWorkerUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; }, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, isGoalCancelled: () => activeGoal?.status !== 'active', onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
         } catch (error) {
           const errorText = `${error?.message || ''} ${error?.cause?.message || ''}`;
           const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');
@@ -648,7 +671,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             continue;
           }
           failedResponse = true;
-          pendingToolCalls = [];
+          if (!pendingTransaction?.request) pendingToolCalls = [];
           await saveState();
           if (oneShot) {
             if (recoveryAttempts < 1) { recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue; }

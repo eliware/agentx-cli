@@ -1,10 +1,21 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { fs as commonFs } from '@eliware/common';
 import { existsSync, mkdirSync, utimesSync } from 'node:fs';
+import path from 'node:path';
 import { cleanupStaleOneShotStates, clearSession, persistCheckpoint, persistResponseState, readLatestCheckpoint, readSessionState } from '../src/session-state.mjs';
 import { cleanupTempDir, makeTempDir, makeFile } from './test-helpers.mjs';
 
 describe('session state', () => {
+  test('preserves durable pending transactions', async () => {
+    const tmp = await makeTempDir();
+    const statePath = path.join(tmp, '.agentx_responseid');
+    const transaction = { base_response_id: 'resp-tool', calls: [{ type: 'shell_call', call_id: 'call-1' }], request: { previous_response_id: 'resp-tool', input: [{ call_id: 'call-1' }] }, outputs: [{ call_id: 'call-1', output: 'interrupted' }] };
+    await persistResponseState(statePath, { response_id: 'resp-tool', pending_transaction: transaction });
+    await expect(readSessionState(statePath)).resolves.toMatchObject({ pending_transaction: transaction });
+    cleanupTempDir(tmp);
+  });
+
+
   test('persists, reads and clears state files', async () => {
     const tmp = makeTempDir('agentx-state-');
     const statePath = `${tmp}/.agentx_responseid`;
