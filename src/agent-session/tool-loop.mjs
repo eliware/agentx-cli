@@ -7,7 +7,7 @@ import { createStatusLineController, formatElapsedStatus, formatTransactionCompl
 import { createStreamedResponse } from './response-stream.mjs';
 import { isShellToolCall } from './response-format.mjs';
 
-const GOAL_TOOLS = new Set(['goal_update']);
+const GOAL_TOOLS = new Set(['goal_update', 'goal_blocked']);
 const GOAL_METHODS = new Set(['complete', 'incomplete', 'blocked', 'question']);
 const IMAGE_TOOL = 'view_image';
 const IMAGE_GENERATION_OUTPUT = 'image_generation_call';
@@ -62,7 +62,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         goalIterations += 1;
         await streamOptions?.onGoalIteration?.(goalIterations);
         if (goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
-        const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nYou MUST call goal_update with method complete, incomplete, blocked, or question. Do not reply with prose.` }] }], previous_response_id: current.id, store: true, tool_choice: 'required' };
+        const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nYou MUST call goal_update with method complete, incomplete, or blocked. If user input is required, call goal_blocked with a question and optional choices. Do not reply with prose.` }] }], previous_response_id: current.id, store: true, tool_choice: 'required' };
         current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
         currentPreviousResponseId = request.previous_response_id || '';
         isFirstResponse = false;
@@ -90,8 +90,15 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         if (goalMode && GOAL_TOOLS.has(call?.name)) {
           const args = parseFunctionInput(call);
           const method = String(args?.method || '').toLowerCase();
+          if (call?.name === 'goal_blocked') {
+            statusController?.pause();
+            let answer;
+            try { answer = await streamOptions?.onGoalBlocked?.(args); } finally { statusController?.resume({ renderNow: false }); }
+            outputs.push(toolOutputForCall(call, answer || 'Continue without user input.'));
+            continue;
+          }
           if (!GOAL_METHODS.has(method)) {
-            outputs.push(toolOutputForCall(call, `Invalid goal_update method "${method || '(missing)'}". Use complete, incomplete, blocked, or question.`));
+            outputs.push(toolOutputForCall(call, `Invalid goal_update method "${method || '(missing)'}". Use complete, incomplete, or blocked.`));
             continue;
           }
           if (method === 'complete') {
@@ -100,13 +107,6 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
             goalCompletionSnapshot = statusController?.snapshot?.() || null;
             await streamOptions?.onGoalComplete?.(args);
             outputs.push(toolOutputForCall(call, 'Goal complete acknowledged.'));
-            continue;
-          }
-          if (method === 'question') {
-            statusController?.pause();
-            let answer;
-            try { answer = await streamOptions?.onGoalBlocked?.(args); } finally { statusController?.resume({ renderNow: false }); }
-            outputs.push(toolOutputForCall(call, answer || 'Continue without user input.'));
             continue;
           }
           if (method === 'blocked') {
@@ -120,7 +120,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         }
         const output = call?.type === 'function_call' && call?.name === IMAGE_TOOL
           ? (await streamOptions?.onViewImage?.({ args: parseFunctionInput(call), response: current, previousResponseId: currentPreviousResponseId, baseRequest, cwd }) || 'ERROR: image inspection is unavailable')
-          : await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController, onWorkerUsage: streamOptions?.onWorkerUsage });
+          : await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController, onWorkerUsage: streamOptions?.onWorkerUsage, onWorkerComplete: streamOptions?.onWorkerComplete, debug: Boolean(streamOptions?.debug) });
         await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));
         completed += 1;
@@ -130,15 +130,17 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       statusController?.clear();
     }
 
+    const requestInput = dedupeToolOutputs(outputs);
+    if (goalMode && !goalFinished) requestInput.push({ role: 'user', content: [{ type: 'input_text', text: 'Review the tool results above. Do not repeat a command that completed successfully. If the goal is satisfied, call goal_update with method complete now and include a brief summary/evidence. Use another work tool only if it is genuinely required to finish the goal.' }] });
     const request = {
       ...baseRequest,
-      input: dedupeToolOutputs(outputs),
+      input: requestInput,
       previous_response_id: current.id,
       store: true,
-      ...(goalFinished ? { tool_choice: 'none' } : (goalMode ? { tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'goal_update' }] } } : {})),
+      ...(goalFinished ? { tool_choice: 'none' } : (goalMode ? { tool_choice: 'required' } : {})),
     };
     try {
-      current = await createStreamedResponse(openai, request, { liveStreaming: goalFinished ? false : liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
+      current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
       currentPreviousResponseId = request.previous_response_id || '';
       if (goalFinished) {
         const completionUsage = extractUsage(current);

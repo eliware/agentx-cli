@@ -222,14 +222,14 @@ describe('agent session modules', () => {
 
     const pending = handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('{"time":"0s","reasoning":"0s/0s","writing":"0s/0s",\u001b[32m"executing":"0s/0s"\u001b[0m');
+    expect(stdoutWrites.join('')).toContain('{"time":"0s","reasoning":"0s/0s","writing":"0s/0s",\u001b[32m"executing":"0s/0s"\u001b[38;5;255m');
 
     await new Promise((resolve) => setTimeout(resolve, 70));
 
     await pending;
     const output = stdoutWrites.join('');
-    expect(output).toContain('\u001b[32m"executing":"0s/0s"\u001b[0m');
-    expect(output).toContain('\u001b[94m{"time":');
+    expect(output).toContain('\u001b[32m"executing":"0s/0s"\u001b[38;5;255m');
+    expect(output).toContain('\u001b[38;5;255m{"time":');
   });
   test('handleToolCalls refuses unconfirmed state-changing calls', async () => {
     const openai = { responses: { create: jest.fn(async (request) => ({ id: 'resp-next', output: [], request })) } };
@@ -340,4 +340,102 @@ test('handles goal questions and blocked outcomes', async () => {
   await expect(handleToolCalls(blockedOpenai, blocked, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, {
     goalMode: true, onGoalLimit: jest.fn(), goalIterations: 2,
   })).resolves.toEqual({ id: 'blocked-next', output: [{ type: 'function_call', name: 'goal_update', call_id: 'blocked-complete', arguments: JSON.stringify({ method: 'complete' }) }] });
+});
+
+test('handles goal_blocked calls and resumes after the user answer', async () => {
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'blocked-next', output: [] }) } };
+  const response = { id: 'blocked', output: [{ type: 'function_call', name: 'goal_blocked', call_id: 'blocked-1', arguments: JSON.stringify({ question: 'Continue?' }) }] };
+  const statusController = { pause: jest.fn(), resume: jest.fn(), clear: jest.fn(), showExecuting: jest.fn(), updateExecuting: jest.fn(), snapshot: jest.fn(() => null) };
+  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, {
+    goalMode: true, onGoalBlocked: async () => '', statusController,
+  })).resolves.toEqual({ id: 'blocked-next', output: [] });
+  expect(statusController.pause).toHaveBeenCalled();
+  expect(statusController.resume).toHaveBeenCalledWith({ renderNow: false });
+  expect(openai.responses.create.mock.calls[0][0].input[0].output).toBe('Continue without user input.');
+});
+
+test('returns invalid goal_update methods as tool output', async () => {
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'invalid-next', output: [] }) } };
+  const response = { id: 'invalid', output: [{ type: 'function_call', name: 'goal_update', call_id: 'invalid-1', arguments: JSON.stringify({ method: 'unknown' }) }] };
+  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { goalMode: true })).resolves.toEqual({ id: 'invalid-next', output: [] });
+  expect(openai.responses.create.mock.calls[0][0].input[0].output).toContain('Invalid goal_update method "unknown"');
+});
+
+test('reports usage and completion after a goal completes', async () => {
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'goal-final', output: [], usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 } }) } };
+  const response = { id: 'goal', output: [{ type: 'function_call', name: 'goal_update', call_id: 'goal-1', arguments: JSON.stringify({ method: 'complete' }) }] };
+  const statusController = { pause: jest.fn(), clear: jest.fn(), showExecuting: jest.fn(), updateExecuting: jest.fn(), snapshot: jest.fn(() => null) };
+  const usage = [];
+  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', (value) => { usage.push(value); return { inputTokens: 2, cachedTokens: 1, outputTokens: 3, turns: 1 }; }, undefined, { goalMode: true, statusController })).resolves.toEqual({ id: 'goal-final', output: [], usage: expect.any(Object) });
+  expect(usage).toHaveLength(2);
+});
+
+test('handles malformed goal input and missing method', async () => {
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'bad-next', output: [] }) } };
+  const response = { output: [
+    { type: 'function_call', name: 'goal_update', call_id: 'bad-json', arguments: '{' },
+    { type: 'function_call', name: 'goal_update', call_id: 'missing-method', arguments: '{}' },
+  ] };
+  await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { goalMode: true });
+  const outputs = openai.responses.create.mock.calls[0][0].input.map((item) => item.output);
+  expect(outputs[0]).toContain('Invalid goal_update method "(missing)"');
+  expect(outputs[1]).toContain('Invalid goal_update method "(missing)"');
+});
+
+test('stops a goal when cancellation is requested', async () => {
+  const clear = jest.fn();
+  const response = { output: [] };
+  await expect(handleToolCalls({ responses: { create: jest.fn() } }, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, {
+    goalMode: true, isGoalCancelled: () => true, statusController: { clear },
+  })).resolves.toBe(response);
+  expect(clear).toHaveBeenCalled();
+});
+
+test('handles image generation callbacks and unavailable image inspection', async () => {
+  const imageGeneration = jest.fn();
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'image-next', output: [] }) } };
+  const response = { output: [
+    { type: 'image_generation_call', result: 'data', call_id: 'generation-1' },
+    { type: 'function_call', name: 'view_image', call_id: 'image-1', arguments: '{}' },
+  ] };
+  await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { onImageGeneration: imageGeneration });
+  expect(imageGeneration).toHaveBeenCalled();
+  expect(openai.responses.create.mock.calls[0][0].input[0].output).toBe('ERROR: image inspection is unavailable');
+});
+
+test('cancels during goal tool execution', async () => {
+  const clear = jest.fn();
+  const response = { output: [{ type: 'shell_call', call_id: 'shell-1', action: { commands: ['echo hi'] } }] };
+  let checks = 0;
+  await expect(handleToolCalls({ responses: { create: jest.fn() } }, response, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({}), {
+    goalMode: true, isGoalCancelled: () => checks++ > 0, statusController: { clear, showExecuting: jest.fn() },
+  })).resolves.toBe(response);
+  expect(clear).toHaveBeenCalled();
+});
+
+test('enforces the goal iteration limit', async () => {
+  const clear = jest.fn();
+  const onLimit = jest.fn();
+  const response = { output: [] };
+  await expect(handleToolCalls({ responses: { create: jest.fn() } }, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, {
+    goalMode: true, goalIterations: 2, goalMaxIterations: 2, onGoalLimit: onLimit, statusController: { clear },
+  })).resolves.toBe(response);
+  expect(onLimit).toHaveBeenCalledWith(3);
+  expect(clear).toHaveBeenCalled();
+});
+
+test('parses goal input and default arguments safely', async () => {
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'parse-next', output: [] }) } };
+  const response = { output: [
+    { type: 'function_call', name: 'goal_update', call_id: 'input-1', input: JSON.stringify({ method: 'invalid' }) },
+    { type: 'function_call', name: 'goal_update', call_id: 'empty-1' },
+  ] };
+  await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { goalMode: true });
+  expect(openai.responses.create).toHaveBeenCalled();
+});
+
+test('can suppress goal completion usage output', async () => {
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'quiet-final', output: [], usage: { input_tokens: 1, output_tokens: 1 } }) } };
+  const response = { output: [{ type: 'function_call', name: 'goal_update', call_id: 'quiet-1', arguments: JSON.stringify({ method: 'complete' }) }] };
+  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { goalMode: true, suppressUsageOutput: true })).resolves.toMatchObject({ id: 'quiet-final' });
 });
