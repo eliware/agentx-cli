@@ -1,5 +1,13 @@
 # AgentX Release Notes
 
+## 1.6.6 - Worker tooling, security, and release validation
+
+- Added safer asynchronous worker lifecycle handling, including persistent workers, bounded status output, cancellation, and corrected usage reporting.
+- Added autonomous goal controls and improved recovery, session persistence, terminal output, streaming, and shell-tool behavior.
+- Added destructive-command confirmation guidance and documented permission-classification limitations.
+- Added production dependency auditing and npm package-artifact validation to CI and local release checks.
+- Consolidated regression tests while preserving 100% coverage and clean lint results.
+
 ## 1.6.5 - CI setup-flow stability
 
 - Increased the interactive setup test input interval for reliable Node.js 26 CI execution.
