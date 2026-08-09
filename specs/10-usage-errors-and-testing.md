@@ -11,7 +11,7 @@ Errors should be actionable and human-readable:
 - noninteractive setup: say it requires an interactive terminal;
 - shell failures: preserve stderr and exit information for the model.
 
-Package behavior: ESM-only, Node executable scripts, MIT license, npm scripts `start`, `lint`, `test`, and `setup`. The test command runs Jest with coverage, VM modules, open-handle detection, silent output, and serial execution.
+Package behavior: ESM-only, Node executable scripts, MIT license, npm scripts `start`, `lint`, `audit`, `test`, and `setup`. The audit script checks production dependencies from the lockfile with `npm audit --omit=dev --audit-level=moderate`. The test command runs Jest with coverage, VM modules, open-handle detection, silent output, and serial execution.
 
 Tool execution tests must verify sequential ordering, duplicate-call suppression across retries/resume, and exactly one side effect per dispatch identity. `@eliware/openai` is the source of truth for Responses transport, WebSocket lifecycle, reconnect, framing, event normalization, streaming, API errors, and transport mocks; AgentX must not duplicate those tests or implementation. AgentX tests should cover only its client configuration/integration boundary plus pure helpers (settings, env serialization, path resolution/completion, prompt construction, response handling, usage math, persistence), command dispatch, setup menu behavior, and REPL lifecycle. Also verify direct-vs-imported launcher behavior, Windows path branches, interrupted tool resume, malformed saved state, missing MCP config, and no API contact before the first normal message.
 

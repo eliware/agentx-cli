@@ -7,6 +7,7 @@
     "scripts": {
         "start": "node agentx.mjs",
         "lint": "npx oxlint .",
+        "audit": "npm audit --omit=dev --audit-level=moderate",
         "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent --coverage",
         "setup": "node agentx-setup.mjs",
         "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'",

@@ -33,7 +33,8 @@ Before publishing, run:
 npm test
 npm run test:gaps
 npm run lint
+npm run audit
 npm pack --dry-run
 ```
 
-CI runs the same checks before the publish step.
+The audit checks production dependencies only and fails on moderate-or-higher advisories. CI runs the same checks before the publish step.
