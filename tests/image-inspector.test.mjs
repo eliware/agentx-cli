@@ -134,6 +134,20 @@ describe('image inspection', () => {
     });
   });
 
+  test('returns usage for every image response exactly once', async () => {
+    encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,abc', detail: 'low' });
+    extractTextFromResponse.mockReturnValue('Done.');
+    const create = jest.fn()
+      .mockResolvedValueOnce({ id: 'shell-call', usage: { input_tokens: 12, input_tokens_details: { cached_tokens: 2 }, output_tokens: 4 }, output: [{ type: 'shell_call', call_id: 'shell-1', action: { commands: ['printf branch'] } }] })
+      .mockResolvedValueOnce({ id: 'shell-final', usage: { input_tokens: 20, input_tokens_details: { cached_tokens: 5 }, output_tokens: 6 }, output: [] });
+    const usage = [];
+    await runImageInspection({ responses: { create } }, { images: [{ path: 'x' }], prompt: 'Inspect' }, { cwd: '/work', responseId: 'parent', model: 'model', onUsage: value => usage.push(value) });
+    expect(usage).toEqual([
+      { inputTokens: 10, cachedTokens: 2, outputTokens: 4 },
+      { inputTokens: 15, cachedTokens: 5, outputTokens: 6 },
+    ]);
+  });
+
   test('allows branch shell calls and submits their output', async () => {
     encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,abc', detail: 'low' });
     extractTextFromResponse.mockReturnValue('Shell result.');
