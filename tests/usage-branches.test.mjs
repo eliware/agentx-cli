@@ -2,6 +2,10 @@ import { describe, expect, test } from '@jest/globals';
 import { calculateUsageCost, calculateUsageCostNanoDollars, formatMoney, formatTurnUsage, formatTurnUsageReport, formatUsageReport, getModelPricing, isJumboPrompt, normalizeUsage } from '../src/usage.mjs';
 
 describe('usage branch coverage', () => {
+  test('normalizes non-finite token values to zero', () => {
+    expect(normalizeUsage({ inputTokens: 'not-a-number', cachedTokens: 'NaN', outputTokens: 'Infinity' })).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
+  });
+
   test('normalizes nullish fields', () => {
     expect(normalizeUsage({ inputTokens: null, cachedTokens: null, outputTokens: null })).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
     expect(normalizeUsage({ inputTokens: undefined, cachedTokens: undefined, outputTokens: undefined })).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });

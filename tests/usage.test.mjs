@@ -1,7 +1,10 @@
 import { describe, expect, test } from '@jest/globals';
-import { calculateUsageCost, calculateUsageCostNanoDollars, formatMoney, formatTurnUsage, formatTurnUsageReport, formatUsageReport, getModelPricing, isJumboPrompt, normalizeUsage } from '../src/usage.mjs';
+import { stripAnsi, calculateUsageCost, calculateUsageCostNanoDollars, formatMoney, formatTurnUsage, formatTurnUsageReport, formatUsageReport, getModelPricing, isJumboPrompt, normalizeUsage } from '../src/usage.mjs';
 
 describe('usage helpers', () => {
+  test('strips ANSI color from usage values before calculation', () => {
+    expect(stripAnsi('\u001b[33m1,234\u001b[0m')).toBe('1,234');
+  });
   test('normalize and format token counts', () => {
     expect(normalizeUsage(undefined)).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
     expect(normalizeUsage({})).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });

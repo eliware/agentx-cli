@@ -8,12 +8,16 @@ const DEFAULT_MODEL = 'gpt-5.6-luna';
 const JUMBO_PROMPT_THRESHOLD = 272_000;
 const NANO_DOLLARS_PER_DISPLAY_UNIT = 1_000_000n;
 const JUMBO_WARNING = '\u001b[91mLong-context pricing applied\u001b[0m';
+const ANSI_ESCAPE = new RegExp(String.raw`\u001b\[[0-?]*[ -/]*[@-~]`, 'g');
+
+export function stripAnsi(value) { return String(value ?? '').replace(ANSI_ESCAPE, ''); }
+function numericValue(value) { const parsed = Number(stripAnsi(value)); return Number.isFinite(parsed) ? parsed : 0; }
 
 export function normalizeUsage({ inputTokens = 0, cachedTokens = 0, outputTokens = 0 } = {}) {
-  const totalInputTokens = Number(inputTokens ?? 0);
-  const totalCachedTokens = Number(cachedTokens ?? 0);
+  const totalInputTokens = numericValue(inputTokens);
+  const totalCachedTokens = numericValue(cachedTokens);
   const hiddenInputTokens = Math.max(totalInputTokens - totalCachedTokens, 0);
-  return { inputTokens: hiddenInputTokens, cachedTokens: totalCachedTokens, outputTokens: Number(outputTokens ?? 0) };
+  return { inputTokens: hiddenInputTokens, cachedTokens: totalCachedTokens, outputTokens: numericValue(outputTokens) };
 }
 
 export function getModelPricing(model = DEFAULT_MODEL) {
@@ -31,7 +35,7 @@ function ratesForUsage({ inputTokens, cachedTokens, model }) {
   return { input: pricing.input * 2n, cached: pricing.cached * 2n, output: pricing.output * 3n / 2n };
 }
 
-function toTokenCount(value) { return BigInt(Math.max(0, Math.trunc(Number(value ?? 0)))); }
+function toTokenCount(value) { return BigInt(Math.max(0, Math.trunc(numericValue(value)))); }
 
 export function calculateUsageCostNanoDollars({ inputTokens = 0, cachedTokens = 0, outputTokens = 0, model = DEFAULT_MODEL } = {}) {
   const rates = ratesForUsage({ inputTokens, cachedTokens, model });
@@ -56,7 +60,7 @@ export function formatMoney(value) {
   return `$${sign}${whole.toString()}.${fractional}`;
 }
 
-function formatTokenCount(tokens) { return Number(tokens).toLocaleString('en-US'); }
+function formatTokenCount(tokens) { return numericValue(tokens).toLocaleString('en-US'); }
 function formatTokenCost(tokens, rateNanoDollarsPerToken) {
   return `${formatTokenCount(tokens)} (${formatMoney(BigInt(Math.trunc(Number(tokens ?? 0))) * rateNanoDollarsPerToken)})`;
 }
