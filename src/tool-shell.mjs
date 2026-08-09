@@ -5,6 +5,7 @@ import { getShellLaunchers, isMissingLauncherError } from './platform.mjs';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const OUTPUT_TRUNCATION_NOTE = '\n[output truncated]';
+const TERMINATION_GRACE_MS = 250;
 
 function killChildProcess(child, signal = 'SIGTERM') {
   if (process.platform !== 'win32' && child?.pid) {
@@ -61,6 +62,8 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
     let timedOut = false;
     let interrupted = false;
     let timer = null;
+    let terminationTimer = null;
+    let terminationRequested = false;
     let onAbort = null;
 
     const finalizeChunk = (chunk, channel) => {
@@ -84,6 +87,7 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
       if (finished) return;
       finished = true;
       if (timer) clearTimeout(timer);
+      if (terminationTimer) clearTimeout(terminationTimer);
       signal?.removeEventListener?.('abort', onAbort);
       resolve(result);
     };
@@ -120,17 +124,23 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
       done(makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength }));
     });
 
+    const terminate = () => {
+      if (terminationRequested || finished) return;
+      terminationRequested = true;
+      killChildProcess(child, 'SIGTERM');
+      terminationTimer = setTimeout(() => { if (!finished) killChildProcess(child, 'SIGKILL'); }, TERMINATION_GRACE_MS);
+    };
     const timeout = timeoutMs === null ? 0 : (Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS);
     if (timeout > 0) {
       timer = setTimeout(() => {
         timedOut = true;
-        killChildProcess(child, 'SIGTERM');
+        terminate();
       }, timeout);
     }
     onAbort = () => {
       if (finished) return;
       interrupted = true;
-      killChildProcess(child, 'SIGTERM');
+      terminate();
     };
     if (signal?.aborted) onAbort();
     else signal?.addEventListener?.('abort', onAbort, { once: true });
