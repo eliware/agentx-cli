@@ -1,7 +1,7 @@
 # Configuration and setup
 
 ## Configuration file
-The default file is `$HOME/.agentx`; it is dotenv-like `KEY=value` text. Preserve unrelated lines and comments when updating known keys. Duplicate known keys collapse to one updated entry. Values containing spaces or shell punctuation are double-quoted with backslash/quote escaping. Ensure the parent directory exists and end written files with one newline.
+The default file is `$HOME/.agentx`; it is dotenv-like `KEY=value` text. Preserve unrelated lines and comments when updating known keys. Duplicate known keys collapse to one updated entry. Values containing spaces or shell punctuation are double-quoted with backslash/quote escaping. Ensure the parent directory exists and end written files with one newline. Configuration files must be written atomically with mode `0600`; existing files must be tightened to `0600` when updated.
 
 Known settings:
 - `AGENTX_API_KEY` (required unless supplied in process environment)

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { buildMenuEntries, readEnvState, runSetup, setupInternals, setupPaths, writeEnvState } from '../src/setup.mjs';
@@ -82,6 +82,15 @@ describe('setup environment persistence', () => {
     const state = await readEnvState(file);
     expect(state.values).toMatchObject({ AGENTX_API_KEY: 'key', AGENTX_MODEL: 'gpt-5.6-terra' });
     expect(await readFile(file, 'utf8')).toContain('AGENTX_MODEL=gpt-5.6-terra');
+    if (process.platform !== 'win32') expect((await stat(file)).mode & 0o777).toBe(0o600);
+  });
+
+  test('tightens permissions on an existing config file', async () => {
+    const file = path.join(directory, '.agentx');
+    await writeEnvState(file, { AGENTX_API_KEY: 'key' });
+    if (process.platform !== 'win32') await chmod(file, 0o644);
+    await writeEnvState(file, { AGENTX_MODEL: 'gpt-5.6-sol' });
+    if (process.platform !== 'win32') expect((await stat(file)).mode & 0o777).toBe(0o600);
   });
 });
 

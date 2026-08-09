@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline/promises';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import nodePath from 'node:path';
 import { path } from '@eliware/common';
 import { readFileSync } from 'node:fs';
@@ -67,7 +68,18 @@ export async function writeEnvState(filePath, values, baseText = null) {
   const text = baseText === null ? await readOptionalText(filePath) : baseText;
   const updates = Object.fromEntries(Object.keys(values).map((key) => [key, values[key]]));
   const nextText = updateEnvText(text ?? '', updates);
-  await mkdir(nodePath.dirname(filePath), { recursive: true }); await writeFile(filePath, nextText, 'utf8'); return nextText;
+  const directory = nodePath.dirname(filePath);
+  const temporaryPath = nodePath.join(directory, `.${nodePath.basename(filePath)}.${randomUUID()}.tmp`);
+  await mkdir(directory, { recursive: true });
+  try {
+    await writeFile(temporaryPath, nextText, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    await chmod(temporaryPath, 0o600);
+    await rename(temporaryPath, filePath);
+    await chmod(filePath, 0o600);
+  } finally {
+    await unlink(temporaryPath).catch(() => {});
+  }
+  return nextText;
 }
 async function ask(rl, prompt) { return String(await rl.question(prompt)); }
 
