@@ -34,7 +34,7 @@ npm test
 npm run test:gaps
 npm run lint
 npm run audit
-npm pack --dry-run
+npm run validate:package
 ```
 
-The audit checks production dependencies only and fails on moderate-or-higher advisories. CI runs the same checks before the publish step.
+The audit checks production dependencies only and fails on moderate-or-higher advisories. Package validation checks the dry-run artifact for required runtime files and excludes tests, state, credentials, and build artifacts. CI runs the same checks before the publish step.

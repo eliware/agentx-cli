@@ -11,7 +11,8 @@
         "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent --coverage",
         "setup": "node agentx-setup.mjs",
         "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'",
-        "pack": "npm pack --dry-run"
+        "pack": "npm pack --dry-run",
+        "validate:package": "npm pack --dry-run --json | node scripts/validate-package.mjs"
     },
     "repository": {
         "type": "git",

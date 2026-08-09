@@ -27,7 +27,7 @@ jobs:
       - run: npm run test:gaps
       - run: npm run lint
       - run: npm run audit
-      - run: npm pack --dry-run
+      - run: npm run validate:package
       - name: Configure npm auth token
         run: npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
