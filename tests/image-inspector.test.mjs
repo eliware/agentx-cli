@@ -19,6 +19,21 @@ describe('image inspection', () => {
     saveGeneratedImage.mockReset();
   });
 
+  test('runs validation through an isolated image worker process', async () => {
+    await expect(inspectImage({}, undefined, {
+      cwd: process.cwd(), responseId: 'resp', model: 'model', processWorker: true,
+    })).resolves.toBe('ERROR: image prompt is required');
+  });
+
+  test('serializes concurrent workers sharing a branch parent', async () => {
+    const options = { cwd: process.cwd(), responseId: 'resp', previousResponseId: 'parent', model: 'model', processWorker: true };
+    const results = await Promise.all([
+      inspectImage({}, undefined, options),
+      inspectImage({}, undefined, options),
+    ]);
+    expect(results).toEqual(['ERROR: image prompt is required', 'ERROR: image prompt is required']);
+  });
+
   test('requires an instruction', async () => {
     const openai = { responses: { create: jest.fn() } };
     await expect(inspectImage(openai, undefined, { cwd: '/work', responseId: 'resp', model: 'model' }))
