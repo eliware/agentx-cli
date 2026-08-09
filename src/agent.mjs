@@ -185,7 +185,10 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   }
   const hasPendingTransaction = Boolean(savedState?.failed_response && savedState?.pending_retry_request);
   if (savedState?.failed_response) {
-    process.stdout.write(`${formatSystemMessage(hasPendingTransaction ? 'Previous continuation failed; pending tool transaction preserved for recovery.' : 'Previous request failed; starting from the last successful checkpoint.')}\n`);
+    const message = hasPendingTransaction
+      ? 'Previous continuation failed; pending tool transaction preserved for recovery.'
+      : 'Previous request failed; starting from the last successful checkpoint.';
+    process.stdout.write(`${formatSystemMessage(message)}\n`);
   }
   let previousResponseId = savedState?.failed_response && !hasPendingTransaction ? (savedState?.history?.at(-1)?.response_id || '') : savedResponseId;
   let cwdNote = '';
@@ -326,6 +329,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       sessionUsage = checkpoint?.usage ? { ...checkpoint.usage } : createUsageTotals();
       pendingToolCalls = [];
       pendingRetryRequest = null;
+      pendingTransaction = null;
       failedResponse = false;
       await saveState();
       if (checkpoint) await persistCheckpoint(checkpointPath, checkpoint);
