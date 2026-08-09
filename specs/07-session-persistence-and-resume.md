@@ -22,7 +22,7 @@ Only fully successful responses (`response.completed`, with no pending tool call
 
 Missing file returns null. Invalid JSON is treated as legacy state: its trimmed text becomes `response_id` and all other fields are defaults. Normalize malformed fields rather than crashing.
 
-On each completed user turn update response ID, last user/assistant messages, usage, and clear consumed CLI transcript. While tool execution is in flight, save the response ID and pending calls before execution finishes. Record each tool identity as `pending`, `started`, or `completed` in `execution_journal`; preserve `started` records across crashes as possibly executed. Clear pending calls after successful completion.
+On each completed user turn update response ID, last user/assistant messages, usage, and clear consumed CLI transcript. While tool execution is in flight, save the response ID and pending calls before execution finishes. When a tool continuation completes successfully with no pending calls, immediately persist that response as the latest successful session/checkpoint entry before returning to the prompt, so a crash after the continuation cannot resume the failed branch. Record each tool identity as `pending`, `started`, or `completed` in `execution_journal`; preserve `started` records across crashes as possibly executed. Clear pending calls after successful completion.
 
 If pending calls exist at startup, show a four-choice menu (default option 1):
 1. Resume with interruption notice and let the agent decide whether to retry.
