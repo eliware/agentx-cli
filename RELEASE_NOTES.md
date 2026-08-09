@@ -1,5 +1,11 @@
 # AgentX Release Notes
 
+## 1.6.3 - Fix image generation tool schema
+
+- Removed the unsupported `description` field from the built-in `image_generation` Responses API tool.
+- Added specification clarification and regression coverage.
+- Verified with focused tests and clean lint results.
+
 ## 1.6.2 - Bounded worker status waits
 
 - Added a 15-second default wait timeout for `agent_status`.
