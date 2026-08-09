@@ -2,10 +2,11 @@ import { describe, expect, jest, test, beforeEach } from '@jest/globals';
 
 const encodeImageInput = jest.fn();
 const extractTextFromResponse = jest.fn();
+const extractUsage = jest.fn((response) => ({ inputTokens: Number(response?.usage?.input_tokens ?? 0) - Number(response?.usage?.input_tokens_details?.cached_tokens ?? 0), cachedTokens: Number(response?.usage?.input_tokens_details?.cached_tokens ?? 0), outputTokens: Number(response?.usage?.output_tokens ?? 0) }));
 const saveGeneratedImage = jest.fn();
 
 await jest.unstable_mockModule('../src/image-input.mjs', () => ({ encodeImageInput }));
-await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse }));
+await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse, extractUsage }));
 await jest.unstable_mockModule('../src/image-generation.mjs', () => ({ saveGeneratedImage }));
 
 const { inspectImage } = await import('../src/image-inspector.mjs');
@@ -14,6 +15,7 @@ describe('image inspection', () => {
   beforeEach(() => {
     encodeImageInput.mockReset();
     extractTextFromResponse.mockReset();
+    extractUsage.mockClear();
     saveGeneratedImage.mockReset();
   });
 
@@ -28,14 +30,16 @@ describe('image inspection', () => {
   test('inspects an image in an isolated response', async () => {
     encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,abc', detail: 'high' });
     extractTextFromResponse.mockReturnValue('A cat.');
-    const create = jest.fn().mockResolvedValue({ id: 'child' });
+    const create = jest.fn().mockResolvedValue({ id: 'child', usage: { input_tokens: 12, input_tokens_details: { cached_tokens: 2 }, output_tokens: 4 } });
+    const usage = [];
     const openai = { responses: { create } };
 
     await expect(inspectImage(openai, { images: [{ path: 'cat.png', caption: 'A pet' }], prompt: 'Describe it', detail: 'high' }, {
-      cwd: '/work', responseId: 'tool-call', previousResponseId: 'parent', callerResponse: { id: 'tool-call' }, model: 'gpt-test',
+      cwd: '/work', responseId: 'tool-call', previousResponseId: 'parent', callerResponse: { id: 'tool-call' }, model: 'gpt-test', onUsage: (value) => usage.push(value),
     })).resolves.toBe('A cat.');
 
     expect(encodeImageInput).toHaveBeenCalledWith('cat.png', { cwd: '/work', detail: 'high' });
+    expect(usage).toEqual([{ inputTokens: 10, cachedTokens: 2, outputTokens: 4 }]);
     expect(create).toHaveBeenCalledWith({
       model: 'gpt-test',
       input: [{ role: 'user', content: [

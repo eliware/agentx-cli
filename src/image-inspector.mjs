@@ -1,11 +1,11 @@
 import { encodeImageInput } from './image-input.mjs';
-import { extractTextFromResponse } from './response.mjs';
+import { extractTextFromResponse, extractUsage } from './response.mjs';
 import { saveGeneratedImage } from './image-generation.mjs';
 
 const MAX_IMAGES = 10;
 const MAX_PROMPT_LENGTH = 10_000;
 
-export async function inspectImage(openai, args, { cwd, responseId, previousResponseId, callerResponse, model }) {
+export async function inspectImage(openai, args, { cwd, responseId, previousResponseId, callerResponse, model, onUsage }) {
   const prompt = String(args?.prompt ?? '').trim();
   if (!prompt) return 'ERROR: image prompt is required';
   if (prompt.length > MAX_PROMPT_LENGTH) return `ERROR: image prompt exceeds the ${MAX_PROMPT_LENGTH} character limit`;
@@ -29,6 +29,7 @@ export async function inspectImage(openai, args, { cwd, responseId, previousResp
     });
     const { runToolCall, toolOutputForCall } = await import('./tool-dispatch.mjs');
     let completed = response;
+    onUsage?.(extractUsage(completed));
     const generatedPaths = [];
     for (let turn = 0; turn < 10; turn += 1) {
       for (const item of completed?.output || []) {
@@ -45,6 +46,7 @@ export async function inspectImage(openai, args, { cwd, responseId, previousResp
         store: true,
         tools: [{ type: 'shell', environment: { type: 'local' } }, { type: 'image_generation' }],
       });
+      onUsage?.(extractUsage(completed));
     }
     const text = extractTextFromResponse(completed);
     const generated = generatedPaths.length ? `Generated image path(s): ${generatedPaths.join(', ')}` : '';
