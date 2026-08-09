@@ -1,4 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
+import { accessSync } from 'node:fs';
 import { getShellLaunchers, runShellCommandSequence, runShellCommands, shellExec } from '../src/tool-shell.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
@@ -56,6 +57,36 @@ describe('tool shell', () => {
       expect(result.output[0]).toMatchObject({ stdout: 'abc', stderr: '', outcome: { type: 'exit', exit_code: 0 } });
       expect(result.output[1]).toMatchObject({ outcome: { type: 'timeout' } });
       expect(result.max_output_length).toBe(10);
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('escalates when a shell process ignores SIGTERM', async () => {
+    if (process.platform === 'win32') return;
+    const tmp = makeTempDir('agentx-shell-stubborn-');
+    try {
+      const result = await runShellCommands([
+        `node -e "process.on('SIGTERM', () => {}); setTimeout(() => {}, 5000)"`,
+      ], tmp, { callId: 'call-stubborn', timeoutMs: 25 });
+      expect(result.status).toBe('incomplete');
+      expect(result.output[0].outcome).toEqual({ type: 'timeout' });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('terminates descendants with the timed-out shell process group', async () => {
+    if (process.platform === 'win32') return;
+    const tmp = makeTempDir('agentx-shell-descendant-');
+    try {
+      const marker = `${tmp}/descendant-ran`;
+      const command = `node -e "const fs=require('fs'); const cp=require('child_process'); cp.spawn(process.execPath,['-e',"setTimeout(()=>fs.writeFileSync('${marker}','bad'),300)"],{stdio:'ignore'}); setTimeout(()=>{},5000)"`;
+      const result = await runShellCommands([command], tmp, { callId: 'call-descendant', timeoutMs: 25 });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(result.status).toBe('incomplete');
+      expect(result.output[0].outcome).toEqual({ type: 'timeout' });
+      expect(() => accessSync(marker)).toThrow();
     } finally {
       cleanupTempDir(tmp);
     }
