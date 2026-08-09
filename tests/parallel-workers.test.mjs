@@ -1,7 +1,8 @@
-import { describe, expect, test } from '@jest/globals';
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { parseWorkerUsage, reportWorkerUsage, runParallelWorkerFunction, selectWorkerOutput } from '../src/parallel-workers.mjs';
 
 describe('parallel workers', () => {
+  beforeEach(() => { delete process.env.AGENTX_WORKER_ID; });
   test('parses structured usage summaries', () => {
     expect(parseWorkerUsage('{"in":"12 ($0.000)","cache":"3 ($0.000)","out":"7 ($0.000)","total":"$0.000"}')).toEqual({ turns: 1, inputTokens: 12, cachedTokens: 3, outputTokens: 7 });
     expect(parseWorkerUsage('{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004"}\n{"in":"800 ($0.002)","cache":"100 ($0.000)","out":"30 ($0.000)","total":"$0.002"}\n{"in":"2,000","cache":"400","out":"100","turns":"3"}')).toEqual({ turns: 2, inputTokens: 2000, cachedTokens: 400, outputTokens: 100 });
@@ -65,3 +66,21 @@ describe('parallel workers', () => {
 
 });
 
+
+test('does not re-announce usage for recovered workers', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { saveWorkerRecord, appendWorkerLog } = await import('../src/worker-registry.mjs');
+  const cwd = await mkdtemp(join(tmpdir(), 'agentx-worker-recovery-'));
+  try {
+    const id = 'agent-old';
+    await saveWorkerRecord(cwd, { id, task: 'old', cwd, status: 'completed', started_at: new Date(0).toISOString(), finished_at: new Date().toISOString(), lines: 1, usage: { turns: 1, inputTokens: 1, cachedTokens: 0, outputTokens: 1 } });
+    await appendWorkerLog(cwd, id, 'done\n');
+    const onComplete = jest.fn();
+    const onUsage = jest.fn();
+    await runParallelWorkerFunction({ name: 'agent_status', arguments: JSON.stringify({ agent_ids: [id] }) }, cwd, { onComplete, onUsage });
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(onUsage).not.toHaveBeenCalled();
+  } finally { await rm(cwd, { recursive: true, force: true }); }
+});

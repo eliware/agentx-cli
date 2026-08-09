@@ -6,6 +6,24 @@ import os from 'node:os';
 import path from 'node:path';
 
 describe('runtime helpers', () => {
+  test('hits ENOENT handling through a mocked module import', async () => {
+    await jest.isolateModulesAsync(async () => {
+      await jest.unstable_mockModule('@eliware/common', () => ({
+        fs: {
+          promises: {
+            readFile: async () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },
+            unlink: async () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },
+            writeFile: async () => {},
+          },
+        },
+        path: () => '',
+      }));
+      const { readOptionalText: readMissing, deleteOptional: deleteMissing } = await import('../src/runtime.mjs');
+      await expect(readMissing('/tmp/anything')).resolves.toBeNull();
+      await expect(deleteMissing('/tmp/anything')).resolves.toBeUndefined();
+    });
+  });
+
   test('isDirectInvocation returns a boolean', () => {
     expect(typeof isDirectInvocation()).toBe('boolean');
   });

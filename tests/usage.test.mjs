@@ -40,4 +40,34 @@ describe('usage helpers', () => {
   test('formats totals from token counts without per-turn rounding drift', () => {
     expect(formatUsageReport({ inputTokens: 0, cachedTokens: 0, outputTokens: 2_000, turns: 2 })).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"2,000 ($0.002)","turns":"2","avg":"$0.001","total":"$0.002"}');
   });
+  test('covers normalization defaults and pricing edge branches', () => {
+    expect(normalizeUsage({ inputTokens: 'not-a-number', cachedTokens: 'NaN', outputTokens: 'Infinity' })).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
+    expect(getModelPricing()).toEqual(getModelPricing('gpt-5.6-luna'));
+    expect(getModelPricing(undefined)).toEqual(getModelPricing());
+    expect(Reflect.apply(getModelPricing, null, [])).toEqual(getModelPricing());
+    expect(getModelPricing(null)).toEqual(getModelPricing());
+    expect(getModelPricing('unknown-model')).toEqual(getModelPricing());
+    expect(getModelPricing('GPT-5.6-TERRA')).toEqual({ input: 2_000n, cached: 200n, output: 12_000n });
+    expect(isJumboPrompt()).toBe(false);
+    expect(isJumboPrompt({ inputTokens: 272_002, cachedTokens: 1 })).toBe(true);
+    expect(calculateUsageCost()).toBe(0);
+    expect(calculateUsageCostNanoDollars()).toBe(0n);
+    expect(Reflect.apply(calculateUsageCostNanoDollars, null, [])).toBe(0n);
+    expect(calculateUsageCostNanoDollars({ inputTokens: 1.9, cachedTokens: -2, outputTokens: null })).toBe(200n);
+  });
+
+  test('covers empty and negative formatting branches', () => {
+    expect(formatMoney(-1.2345)).toBe('$-1.235');
+    expect(formatMoney(-0.0004)).toBe('$0.000');
+    expect(formatTurnUsage()).toContain('"turns":"1"');
+    expect(formatUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}');
+    expect(formatTurnUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","total":"$0.000"}');
+  });
+
+});
+
+test('covers nullish jumbo and token-cost branches', () => {
+  expect(isJumboPrompt({ inputTokens: null, cachedTokens: null })).toBe(false);
+  expect(formatUsageReport({ inputTokens: null, cachedTokens: null, outputTokens: null })).toContain('"in":"0');
+  expect(formatTurnUsageReport({ inputTokens: 272_001, cachedTokens: 0, outputTokens: 1 })).toContain('Long-context pricing applied');
 });

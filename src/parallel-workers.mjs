@@ -62,7 +62,7 @@ async function recover(cwd, onUsage, onComplete) {
     if (workers.has(record.id)) continue;
     const worker = { id: record.id, task: record.task, cwd: record.cwd || cwd, permissions: record.permissions, debug: record.debug, status: record.status, pid: record.pid, startedAt: Date.parse(record.started_at) || Date.now(), finishedAt: record.finished_at ? Date.parse(record.finished_at) : null, lines: record.lines || 0, usage: record.usage, output: await readWorkerLog(record.cwd || cwd, record.id), usageReported: true, exited: terminal(record.status) };
     if (!terminal(worker.status) && worker.pid) { try { process.kill(worker.pid, 0); } catch { worker.status = 'failed'; worker.error = 'worker process no longer exists'; worker.finishedAt = Date.now(); await persist(worker); } }
-    workers.set(worker.id, worker); if (terminal(worker.status)) reportWorkerUsage(worker, onUsage); if (terminal(worker.status)) onComplete?.(worker);
+    workers.set(worker.id, worker); if (terminal(worker.status)) { const reported = reportWorkerUsage(worker, onUsage); if (reported) onComplete?.(worker); }
   }
 }
 
