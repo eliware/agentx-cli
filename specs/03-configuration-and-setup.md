@@ -19,6 +19,6 @@ Known settings:
 
 `agentx-setup` requires an interactive TTY; otherwise print `AgentX setup requires an interactive terminal.` and return. Display version, install path, config path, MCP path, and whether the API key is set. Provide a raw-keyboard menu with number keys, arrows, Enter, and Ctrl-C/quit handling, with readline fallback for individual values.
 
-The setup menu edits API key, model, reasoning mode/effort/summary, output verbosity, and compaction threshold. API key cannot be saved blank. Threshold strips non-digits and must be a positive integer; warn when above 270000 tokens.
+The setup menu edits API key, model, reasoning mode/effort/summary, output verbosity, and compaction threshold. When editing an existing API key, show only its last 8 characters in the prompt; typed characters are masked with `*`. API key cannot be saved blank. Threshold strips non-digits and must be a positive integer; warn when above 270000 tokens.
 
 `/setup` runs this flow during a session without leaving two readline interfaces attached, then reloads settings into `process.env` (except API key) and applies them to future requests.

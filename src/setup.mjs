@@ -82,6 +82,29 @@ export async function writeEnvState(filePath, values, baseText = null) {
   return nextText;
 }
 async function ask(rl, prompt) { return String(await rl.question(prompt)); }
+async function askMasked(input, output, prompt, fallback = '') {
+  output.write(prompt);
+  input.setRawMode?.(true); input.resume?.();
+  return await new Promise((resolve) => {
+    let value = '';
+    const onData = (chunk) => {
+      for (const char of String(chunk)) {
+        if (char === '\r' || char === '\n') {
+          input.setRawMode?.(false); input.off?.('data', onData); output.write('\n'); resolve(value || fallback); return;
+        }
+        if (char === '\u0003') {
+          input.setRawMode?.(false); input.off?.('data', onData); resolve(fallback); return;
+        }
+        if (char === '\b' || char === '\u007f') {
+          if (value) { value = value.slice(0, -1); output.write('\b \b'); }
+          continue;
+        }
+        if (char >= ' ') { value += char; output.write('*'); }
+      }
+    };
+    input.on('data', onData);
+  });
+}
 
 const choices = {
   model: ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol'],
@@ -113,8 +136,10 @@ async function editValue(stdin, stdout, rl, envState, key, label, valuesList) {
   const value = await selectChoice(stdin, stdout, rl, label, valuesList, envState.values[key]);
   if (value && value !== envState.values[key]) await saveEnvValue(envState, key, value);
 }
-async function editApiKey(rl, envState, stdout) {
-  while (true) { const input = (await ask(rl, `API key [${formatMaybeBlank(envState.values.AGENTX_API_KEY)}]: `)).trim(); const next = input || envState.values.AGENTX_API_KEY; if (!next) { stdout.write('API key is required.\n'); continue; } await saveEnvValue(envState, 'AGENTX_API_KEY', next); stdout.write('API key saved.\n'); return 'API key saved.'; }
+async function editApiKey(input, envState, stdout) {
+  const current = String(envState.values.AGENTX_API_KEY || '');
+  const suffix = current ? `********${current.slice(-8)}` : '(blank)';
+  while (true) { const answer = (await askMasked(input, stdout, `API key [${suffix}]: `, current)).trim(); const next = answer || current; if (!next) { stdout.write('API key is required.\n'); continue; } await saveEnvValue(envState, 'AGENTX_API_KEY', next); stdout.write('API key saved.\n'); return 'API key saved.'; }
 }
 async function editCompaction(rl, envState, stdout) {
   const input = (await ask(rl, `Compaction threshold tokens [${envState.values.AGENTX_COMPACTION_THRESHOLD}]: `)).trim();
@@ -166,7 +191,7 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
   const envState = await readEnvState(configPath);
   envState.values = { ...DEFAULTS, ...envState.values };
   if (!stdin?.isTTY || !stdout?.isTTY) { stdout.write('AgentX setup requires an interactive terminal.\n'); return; }
-  const rl = createInterface({ input: readlineInput, output: stdout }); let message = '';
+  let rl = createInterface({ input: readlineInput, output: stdout }); let message = '';
   try { while (true) {
     const entries = buildMenuEntries({ values: envState.values, includeSettings: true });
     let selected = await selectMenu(stdin, stdout, entries, 0, { rootDir, envPath: configPath, mcpPath: mcpConfigPath });
@@ -177,7 +202,7 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
     }
     if (!selected) { message = 'Unknown option.'; continue; } if (selected.id === 'quit') break;
     switch (selected.id) {
-      case 'api': message = await editApiKey(rl, envState, stdout); break;
+      case 'api': rl.close(); message = await editApiKey(readlineInput, envState, stdout); rl = createInterface({ input: readlineInput, output: stdout }); break;
       case 'model': await editValue(stdin, stdout, rl, envState, 'AGENTX_MODEL', labels.model, choices.model); break;
       case 'mode': await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_MODE', labels.mode, choices.mode); break;
       case 'effort': await editValue(stdin, stdout, rl, envState, 'AGENTX_REASONING_EFFORT', labels.effort, choices.effort); break;
