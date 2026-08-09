@@ -27,6 +27,7 @@ export function parseInternalCommand(message) {
   if (message === '/goal' || message.startsWith('/goal ')) {
     const value = message.slice(5).trim();
     if (value === 'status') return { type: 'goal_status' };
+    if (value === 'resume' || value === 'continue') return { type: 'goal_resume' };
     if (value === 'cancel' || value === 'stop') return { type: 'goal_cancel' };
     return value ? { type: 'goal', goal: value } : { type: 'goal_help' };
   }
