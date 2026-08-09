@@ -54,7 +54,7 @@
     {
       "type": "function",
       "name": "spawn_agent",
-      "description": "Start independent AgentX workers asynchronously with read, write, or execute permissions. Returns agent IDs immediately.",
+      "description": "Start independent AgentX workers to parallelize genuinely independent work. Use only when you will use the results; do not delegate small/easy tasks you can do directly. Set wait=true to wait for completion, with optional timeout_ms; otherwise returns immediately for background work.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -79,6 +79,16 @@
           "debug": {
             "type": "boolean",
             "description": "Enable --debug output in the worker. Defaults to false."
+          },
+          "wait": {
+            "type": "boolean",
+            "description": "Wait for all spawned workers to finish. Defaults to false."
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "minimum": 10000,
+            "maximum": 180000,
+            "description": "Maximum wait time when wait is true; defaults to 15000ms."
           }
         },
         "required": [

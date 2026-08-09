@@ -111,9 +111,20 @@ export async function runParallelWorkerFunction(call, cwd, options = {}) {
     if (process.env.AGENTX_WORKER_ID) return { error: 'nested worker spawning is disabled' };
     const permissions = ['read', 'write', 'execute'].includes(args.permissions) ? args.permissions : 'execute';
     const debug = args.debug === true;
+    const wait = args.wait === true;
+    const requestedTimeout = args.timeout_ms === undefined ? DEFAULT_STATUS_TIMEOUT_MS : Number(args.timeout_ms);
+    const timeout = Number.isFinite(requestedTimeout)
+      ? Math.min(Math.max(requestedTimeout, MIN_STATUS_TIMEOUT_MS), MAX_STATUS_TIMEOUT_MS)
+      : DEFAULT_STATUS_TIMEOUT_MS;
     const tasks = Array.isArray(args.tasks) ? args.tasks.filter((task) => typeof task === 'string' && task.trim()).slice(0, MAX_WORKERS) : [];
     if (!tasks.length) return { error: 'tasks must contain 1-3 non-empty strings' };
-    return { agents: tasks.map((task) => { const worker = startWorker(task, cwd, permissions, debug, options.onWorkerUsage); return { id: worker.id, task, permissions, debug, status: worker.status }; }) };
+    const started = tasks.map((task) => { const worker = startWorker(task, cwd, permissions, debug, options.onWorkerUsage); return { id: worker.id, task, permissions, debug, status: worker.status }; });
+    if (!wait) return { agents: started, waited: false, timed_out: false };
+    const deadline = Date.now() + timeout;
+    let agents = started.map((agent) => ({ ...agent, ...snapshot(workers.get(agent.id), args) }));
+    const done = (items) => items.every((item) => ['completed', 'failed', 'timed_out', 'terminated', 'cancelled', 'unknown'].includes(item.status));
+    while (!done(agents) && Date.now() < deadline) { await new Promise((resolve) => setTimeout(resolve, 100)); agents = started.map((agent) => ({ ...agent, ...snapshot(workers.get(agent.id), args) })); }
+    return { agents, waited: true, timed_out: !done(agents) };
   }
   if (call?.name === 'cancel_agent') {
     const ids = Array.isArray(args.agent_ids) ? args.agent_ids.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_WORKERS) : [];
