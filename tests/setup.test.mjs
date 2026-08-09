@@ -16,6 +16,44 @@ class FakeOutput extends EventEmitter { constructor() { super(); this.isTTY = tr
 const send = (stdin, value) => setImmediate(() => stdin.emit('data', Buffer.from(value)));
 
 describe('setup helpers', () => {
+  test('covers masked input cancellation and backspace handling', async () => {
+    const input = new FakeTerminal(); const output = new FakeOutput();
+    const cancelled = setupInternals.askMasked(input, output, 'Key: ', 'fallback');
+    send(input, '\u0003');
+    await expect(cancelled).resolves.toBe('fallback');
+
+    const editedInput = new FakeTerminal();
+    const edited = setupInternals.askMasked(editedInput, output, 'Key: ');
+    send(editedInput, 'a\x01\b\b\r');
+    await expect(edited).resolves.toBe('');
+    expect(output.text).toContain('\b \b');
+  });
+
+
+  test('uses the blank API-key suffix branch', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'agentx-setup-api-'));
+    const input = new FakeTerminal(); const output = new FakeOutput();
+    try {
+      const state = { filePath: path.join(directory, '.agentx'), text: '', values: { AGENTX_API_KEY: '' } };
+      const pending = setupInternals.editApiKey(input, state, output);
+      send(input, '\r');
+      await new Promise((resolve) => setImmediate(resolve));
+      send(input, 'valid-key\r');
+      await expect(pending).resolves.toBe('API key saved.');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  test('uses the existing API-key suffix branch', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'agentx-setup-api-set-'));
+    const input = new FakeTerminal(); const output = new FakeOutput();
+    try {
+      const state = { filePath: path.join(directory, '.agentx'), text: '', values: { AGENTX_API_KEY: 'existing-key' } };
+      const pending = setupInternals.editApiKey(input, state, output);
+      send(input, '\r');
+      await expect(pending).resolves.toBe('API key saved.');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
   test('formats and decodes values', () => {
     expect(setupInternals.formatMaybeBlank()).toBe('(blank)');
     expect(setupInternals.formatMaybeBlank(' x ')).toBe('x');

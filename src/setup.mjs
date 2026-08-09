@@ -216,4 +216,4 @@ export async function runSetup({ stdin = process.stdin, stdout = process.stdout,
 }
 
 export const setupPaths = { rootDir, envPath, mcpConfigPath };
-export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, renderScreen, selectMenu, selectChoice, DEFAULTS, choices };
+export const setupInternals = { decodeEnvValue, formatMaybeBlank, parseEnvLines, serializeEnvValue, updateEnvText, buildMenuEntries, renderScreen, selectMenu, selectChoice, askMasked, editApiKey, DEFAULTS, choices };
