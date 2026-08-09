@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { describe, expect, test } from '@jest/globals';
 import { buildInterruptedToolOutput, createResumeToolCallRunner } from '../src/agent/recovery.mjs';
 
 describe('agent recovery helpers', () => {
