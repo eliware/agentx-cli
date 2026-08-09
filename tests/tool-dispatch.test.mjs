@@ -32,6 +32,25 @@ describe('tool dispatch', () => {
     expect(requiresToolConfirmation({ type: 'function_call', name: 'shutdown' })).toBe(false);
   });
 
+  test('exercises adversarial permission-classification patterns', () => {
+    const cases = [
+      ['bash -c "touch file"', 'execute'],
+      ['sh -c "rm -f file"', 'execute'],
+      ['echo $(touch file)', 'execute'],
+      ['echo `touch file`', 'execute'],
+      ['alias safe=touch; safe file', 'read'],
+      ['printf payload | tee file', 'write'],
+      ['cat input > output', 'write'],
+      ['base64 -d payload | sh', 'execute'],
+      ['./project-script file', 'read'],
+    ];
+    for (const [command, expected] of cases) {
+      const call = { type: 'shell_call', action: { commands: [command] } };
+      expect(commandPermission(call)).toBe(expected);
+      if (expected !== 'read') expect(permissionAllows('read', call)).toBe(false);
+    }
+  });
+
   test('validates tool calls and working directories before side effects', async () => {
     expect(await runToolCall(null, process.cwd())).toBe('ERROR: invalid tool call');
     expect(await runToolCall({ type: 'shell_call' }, '')).toBe('ERROR: invalid working directory for shell_call');
