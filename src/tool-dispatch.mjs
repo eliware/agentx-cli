@@ -27,6 +27,12 @@ export function permissionAllows(permission, call) {
   return level === 'execute' || (level === 'write' && required !== 'execute') || (level === 'read' && required === 'read');
 }
 
+export function requiresDestructiveConfirmation(call) {
+  if (call?.type !== 'shell_call') return false;
+  const commands = normalizeCommandList(call?.action?.commands).join(' && ').toLowerCase();
+  return /\brm\s+(?:-\S*r\S*|--recursive)\b|\b(?:rmdir|shred|mkfs(?:\.\w+)?|shutdown|reboot|poweroff|halt)\b|\bdd\s+.*\b(?:of=\/dev\/|if=\/dev\/)\S*|\bterraform\s+destroy\b|\bkubectl\s+delete\b|\bgit\s+reset\s+--hard\b|\bgit\s+clean\s+-\S*f\S*\b|\bgit\s+push\s+.*--force\b|\b(?:drop\s+(?:database|table)|truncate\s+table)\b/.test(commands);
+}
+
 export function requiresToolConfirmation(call) {
   if (call?.type !== 'shell_call') return false;
   const commands = normalizeCommandList(call?.action?.commands).join(' && ').toLowerCase();

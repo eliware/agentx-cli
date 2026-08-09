@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { commandPermission, dedupeToolCalls, dedupeToolOutputs, permissionAllows, requiresToolConfirmation, runToolCall, toolCallIdentity, toolCallSummary, toolOutputForCall } from '../src/tool-dispatch.mjs';
+import { commandPermission, dedupeToolCalls, dedupeToolOutputs, permissionAllows, requiresDestructiveConfirmation, requiresToolConfirmation, runToolCall, toolCallIdentity, toolCallSummary, toolOutputForCall } from '../src/tool-dispatch.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('tool dispatch', () => {
@@ -30,6 +30,9 @@ describe('tool dispatch', () => {
     expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['xe vm-shutdown uuid=1'] } })).toBe(true);
     expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['printf safe'] } })).toBe(false);
     expect(requiresToolConfirmation({ type: 'function_call', name: 'shutdown' })).toBe(false);
+    expect(requiresDestructiveConfirmation({ type: 'shell_call', action: { commands: ['rm -rf /tmp/test'] } })).toBe(true);
+    expect(requiresDestructiveConfirmation({ type: 'shell_call', action: { commands: ['git reset --hard'] } })).toBe(true);
+    expect(requiresDestructiveConfirmation({ type: 'shell_call', action: { commands: ['printf safe'] } })).toBe(false);
   });
 
   test('exercises adversarial permission-classification patterns', () => {

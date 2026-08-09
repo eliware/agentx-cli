@@ -1,5 +1,5 @@
 import { extractUsage } from '../response.mjs';
-import { dedupeToolCalls, dedupeToolOutputs, requiresToolConfirmation, runToolCall, toolCallIdentity, toolOutputForCall } from '../tool-dispatch.mjs';
+import { dedupeToolCalls, dedupeToolOutputs, requiresDestructiveConfirmation, requiresToolConfirmation, runToolCall, toolCallIdentity, toolOutputForCall } from '../tool-dispatch.mjs';
 import { createUsageTotals } from '../response.mjs';
 import { formatTurnUsageReport, formatUsageReport } from '../usage.mjs';
 import { formatInfoMessage, formatUsageMessage } from '../shell-display.mjs';
@@ -74,7 +74,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     try {
       for (const [callIndex, call] of calls.entries()) {
         let approved = true;
-        if (!yolo && requiresToolConfirmation(call) && confirmToolCall) {
+        if ((requiresDestructiveConfirmation(call) || (!yolo && requiresToolConfirmation(call))) && confirmToolCall) {
           statusController?.pause();
           try { approved = await confirmToolCall(call, cwd); } finally { statusController?.resume({ renderNow: false }); }
         }
