@@ -26,6 +26,12 @@ describe('session state', () => {
       await makeFile(tmp, '.agentx_responseid', JSON.stringify({ pending_retry_request: null }));
       await expect(readSessionState(statePath)).resolves.toMatchObject({ pending_retry_request: null });
 
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({ response_id: 'resp-null-transaction', pending_transaction: null }));
+      await expect(readSessionState(statePath)).resolves.toMatchObject({ response_id: 'resp-null-transaction', pending_transaction: null });
+
+      await makeFile(tmp, '.agentx_responseid', JSON.stringify({ response_id: 'resp-null-goal', goal: null }));
+      await expect(readSessionState(statePath)).resolves.toMatchObject({ response_id: 'resp-null-goal', goal: null });
+
       await makeFile(tmp, '.agentx_responseid', 'resp-legacy\n');
       await expect(readSessionState(statePath)).resolves.toEqual({ response_id: 'resp-legacy', usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }, last_user_message: '', last_assistant_message: '', pending_cli_transcript: '', pending_tool_calls: [] });
 
