@@ -53,7 +53,7 @@ describe('image input encoding', () => {
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
     await writeFile(join(dir, 'picture.png'), png);
     const result = await encodeImageInput(join(dir, 'picture.png'));
-    expect(result.detail).toBe('auto');
+    expect(result.detail).toBe('low');
     expect(result.mimeType).toBe('image/jpeg');
     expect(result.bytes).toBeGreaterThan(0);
     expect(result.dataUrl).toMatch(/^data:image\/jpeg;base64,/);

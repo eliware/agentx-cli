@@ -2,7 +2,7 @@ import { access, readFile, stat } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import path from 'node:path';
 
-const DEFAULT_DETAIL = 'auto';
+const DEFAULT_DETAIL = 'low';
 const DETAILS = new Set(['low', 'auto', 'high']);
 const MAX_INPUT_BYTES = 50 * 1024 * 1024;
 const DEFAULT_MAX_DIMENSION = 4096;

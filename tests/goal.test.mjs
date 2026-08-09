@@ -210,7 +210,7 @@ describe('tool-loop edge paths', () => {
   });
 
   test('dispatches image inspection with and without a result', async () => {
-    const image = { type: 'function_call', name: 'view_image', call_id: 'image-1', arguments: JSON.stringify({ path: '/tmp/a.png' }) };
+    const image = { type: 'function_call', name: 'view_image', call_id: 'image-1', arguments: JSON.stringify({ images: [{ path: '/tmp/a.png' }], prompt: 'Inspect' }) };
     const { client, requests } = openaiWithResponses({ id: 'image-next', output: [] });
     await handleToolCalls(client, { id: 'image-start', output: [image] }, baseRequest, '/tmp', null, undefined, {
       onViewImage: jest.fn().mockResolvedValue('looks good'),

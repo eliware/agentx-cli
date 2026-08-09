@@ -158,17 +158,37 @@
     {
       "type": "function",
       "name": "view_image",
-      "description": "Inspect a local image in an isolated vision request. Return only the requested information.",
+      "description": "Inspect 1-10 local images in an isolated vision request. Return only the requested information.",
       "parameters": {
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "Local image path."
+          "images": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Local image path."
+                },
+                "caption": {
+                  "type": "string",
+                  "description": "Optional caption inserted immediately before this image."
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "additionalProperties": false
+            }
           },
-          "instruction": {
+          "prompt": {
             "type": "string",
-            "description": "What to inspect or extract."
+            "minLength": 1,
+            "maxLength": 10000,
+            "description": "What to inspect or extract; maximum 10,000 characters."
           },
           "detail": {
             "type": "string",
@@ -177,12 +197,13 @@
               "auto",
               "high"
             ],
-            "description": "Image detail level; defaults to auto."
+            "default": "low",
+            "description": "Image detail level; defaults to low."
           }
         },
         "required": [
-          "path",
-          "instruction"
+          "images",
+          "prompt"
         ],
         "additionalProperties": false
       }

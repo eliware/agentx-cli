@@ -20,13 +20,13 @@ A spawned worker inherits the shared successful checkpoint and receives its task
 
 The default tool set includes a `view_image` function available to normal AgentX sessions and delegated one-shot workers when image inspection is supported. Workers cannot use orchestration tools, but may inspect local images from their own active working directory. Its arguments are:
 
-- `path`: local image path, resolved relative to the active cwd when not absolute.
-- `instruction`: what information to extract or inspect.
-- `detail`: optional `low`, `auto`, or `high`; default `auto`.
+- `images`: required array of 1-10 objects, each containing `path` and optional `caption`. Paths are resolved relative to the active cwd when not absolute.
+- `prompt`: required inspection instruction, maximum 10,000 characters.
+- `detail`: optional `low`, `auto`, or `high`; default `low`.
 
-AgentX must validate that the path is a readable regular file. The tool may read images outside the cwd when the resolved path is explicitly supplied. Errors are returned as concise tool output for the model; they do not create a separate user prompt.
+AgentX must validate that every path is a readable regular file and reject more than 10 images. The tool may read images outside the cwd when the resolved path is explicitly supplied. Errors are returned as concise tool output for the model; they do not create a separate user prompt.
 
-Image inspection runs in an isolated Responses API branch from the response immediately preceding the caller’s tool-call response. AgentX must use the caller response’s `previous_response_id` when available, falling back to the supplied response ID; for delegated workers this remains the worker chain, never the parent agent’s live response. The branch request contains only the inspection instruction and an inline base64 `input_image` data URL; it has no custom functions, MCP tools, or other tools. AgentX should transcode supported and unsupported local image formats to a temporary JPEG before encoding, using a cross-platform image library, with bounded dimensions and output size. The configured AgentX model is used by default; a separate vision model is optional future configuration.
+Image inspection runs in an isolated Responses API branch from the response immediately preceding the caller’s tool-call response. AgentX must use the caller response’s `previous_response_id` when available, falling back to the supplied response ID; for delegated workers this remains the worker chain, never the parent agent’s live response. The branch request contains the prompt and, sequentially, each image with its caption text immediately before that image; it has no custom functions, MCP tools, or other tools. AgentX should transcode supported and unsupported local image formats to a temporary JPEG before encoding, using a cross-platform image library, with bounded dimensions and output size. The configured AgentX model is used by default; a separate vision model is optional future configuration.
 
 Only the branch's text response is returned as the `view_image` tool output. Temporary converted data and branch checkpoint state are discarded after completion. The main conversation continues from its original response ID, so image bytes are not included in the main conversation chain.
 
