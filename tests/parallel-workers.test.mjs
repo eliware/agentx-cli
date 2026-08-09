@@ -7,6 +7,7 @@ describe('parallel workers', () => {
     expect(parseWorkerUsage('{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004"}\n{"in":"800 ($0.002)","cache":"100 ($0.000)","out":"30 ($0.000)","total":"$0.002"}\n{"in":"2,000","cache":"400","out":"100","turns":"3"}')).toEqual({ turns: 3, inputTokens: 2000, cachedTokens: 400, outputTokens: 100 });
     expect(parseWorkerUsage(`{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004","turns":"2","avg":"$0.002"}
 {"in":"2,000 ($0.004)","cache":"400 ($0.000)","out":"100 ($0.000)","total":"$0.004"}`)).toEqual({ turns: 2, inputTokens: 1200, cachedTokens: 300, outputTokens: 70 });
+    expect(parseWorkerUsage('{"in":"1 ($0.000)","cache":"0 ($0.000)","out":"2 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}\n{"in":"3 ($0.000)","cache":"1 ($0.000)","out":"4 ($0.000)","turns":"2","avg":"$0.000","total":"$0.000"}')).toEqual({ turns: 2, inputTokens: 3, cachedTokens: 1, outputTokens: 4 });
     expect(parseWorkerUsage('no usage')).toBeNull();
   });
   test('reports worker usage exactly once, including canceled workers', () => {
