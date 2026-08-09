@@ -5,7 +5,7 @@ import { saveGeneratedImage } from './image-generation.mjs';
 const MAX_IMAGES = 10;
 const MAX_PROMPT_LENGTH = 10_000;
 
-export async function inspectImage(openai, args, { cwd, responseId, callerResponse, model }) {
+export async function inspectImage(openai, args, { cwd, responseId, previousResponseId, callerResponse, model }) {
   const prompt = String(args?.prompt ?? '').trim();
   if (!prompt) return 'ERROR: image prompt is required';
   if (prompt.length > MAX_PROMPT_LENGTH) return `ERROR: image prompt exceeds the ${MAX_PROMPT_LENGTH} character limit`;
@@ -23,7 +23,7 @@ export async function inspectImage(openai, args, { cwd, responseId, callerRespon
     const response = await openai.responses.create({
       model,
       input: [{ role: 'user', content }],
-      previous_response_id: callerResponse?.previous_response_id || responseId,
+      ...(previousResponseId || callerResponse?.previous_response_id || responseId ? { previous_response_id: previousResponseId || callerResponse?.previous_response_id || responseId } : {}),
       store: true,
       tools: [{ type: 'shell', environment: { type: 'local' } }, { type: 'image_generation' }],
     });

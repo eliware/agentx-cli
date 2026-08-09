@@ -14,6 +14,7 @@ function parseFunctionInput(call) { try { return JSON.parse(call?.arguments ?? c
 
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
   let current = response;
+  let currentPreviousResponseId = baseRequest?.previous_response_id || '';
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
   const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus) }) : null);
@@ -60,6 +61,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         if (++goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
         const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nYou MUST call goal_update with method complete, incomplete, blocked, or question. Do not reply with prose.` }] }], previous_response_id: current.id, store: true, tool_choice: 'required' };
         current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
+        currentPreviousResponseId = request.previous_response_id || '';
         isFirstResponse = false;
         continue;
       }
@@ -110,7 +112,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
           continue;
         }
         const output = call?.type === 'function_call' && call?.name === IMAGE_TOOL
-          ? (await streamOptions?.onViewImage?.({ args: parseFunctionInput(call), response: current, baseRequest, cwd }) || 'ERROR: image inspection is unavailable')
+          ? (await streamOptions?.onViewImage?.({ args: parseFunctionInput(call), response: current, previousResponseId: currentPreviousResponseId, baseRequest, cwd }) || 'ERROR: image inspection is unavailable')
           : await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController, onWorkerUsage: streamOptions?.onWorkerUsage });
         await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
         outputs.push(toolOutputForCall(call, output));
@@ -130,6 +132,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     };
     try {
       current = await createStreamedResponse(openai, request, { liveStreaming: goalFinished ? false : liveStreaming, statusController, debug: Boolean(streamOptions?.debug) });
+      currentPreviousResponseId = request.previous_response_id || '';
       if (goalFinished) {
         continue;
       }

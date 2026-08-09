@@ -32,7 +32,7 @@ describe('image inspection', () => {
     const openai = { responses: { create } };
 
     await expect(inspectImage(openai, { images: [{ path: 'cat.png', caption: 'A pet' }], prompt: 'Describe it', detail: 'high' }, {
-      cwd: '/work', responseId: 'tool-call', callerResponse: { id: 'tool-call', previous_response_id: 'parent' }, model: 'gpt-test',
+      cwd: '/work', responseId: 'tool-call', previousResponseId: 'parent', callerResponse: { id: 'tool-call' }, model: 'gpt-test',
     })).resolves.toBe('A cat.');
 
     expect(encodeImageInput).toHaveBeenCalledWith('cat.png', { cwd: '/work', detail: 'high' });

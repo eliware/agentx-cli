@@ -39,6 +39,16 @@ describe('agent session modules', () => {
 
     expect(usageCalls).toEqual([{ inputTokens: 3, cachedTokens: 1, outputTokens: 2 }]);
   });
+  test('passes the caller response predecessor to image inspection', async () => {
+    const predecessors = [];
+    const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'resp-after-image', output: [] }) } };
+    const response = { id: 'resp-image-call', output: [{ type: 'function_call', name: 'view_image', call_id: 'image-1', arguments: '{}' }] };
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [], previous_response_id: 'resp-before-image' }, '/tmp/work', null, undefined, {
+      onViewImage: async ({ previousResponseId }) => { predecessors.push(previousResponseId); return 'image result'; },
+    });
+    expect(predecessors).toEqual(['resp-before-image']);
+    expect(openai.responses.create.mock.calls[0][0]).toMatchObject({ previous_response_id: 'resp-image-call', input: [{ type: 'function_call_output', call_id: 'image-1', output: 'image result' }] });
+  });
   test('persists failed tool continuation for retry', async () => {
     const retryStates = [];
     const openai = { responses: { create: jest.fn().mockRejectedValue(new Error('overloaded')) } };
