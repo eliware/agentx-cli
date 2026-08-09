@@ -10,6 +10,7 @@ import { extractTextFromResponse } from './response.mjs';
 import { handleToolCalls } from './agent-session/tool-loop.mjs';
 import { sendMessage } from './agent-session/session-service.mjs';
 import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from './shell.mjs';
+import { formatFinalUsageMessage } from './shell-display.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport } from './response.mjs';
 import { getTerminalWidth, wrapText } from './text-wrap.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, withGoalTools, resolveAgentApiKey, WORKER_ROLE_MESSAGE } from './agent-flow.mjs';
@@ -59,7 +60,7 @@ function createReplInterface(getCwd, input = defaultInput, output = defaultOutpu
 }
 
 function printUsageReport(totals, { leadingNewline = false, model } = {}) {
-  process.stdout.write(`${leadingNewline ? '\n' : ''}${formatSystemMessage(formatUsageReport({ ...totals, model }))}\n`);
+  process.stdout.write(`${leadingNewline ? '\n' : ''}${formatFinalUsageMessage(formatUsageReport({ ...totals, model }))}\n`);
 }
 
 function createPendingResponse(savedState) {

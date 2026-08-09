@@ -1,8 +1,8 @@
-import { formatCommandMessage, formatInfoMessage, formatMcpMessage, formatSystemMessage } from '../shell-display.mjs';
+import { formatCommandMessage, formatCustomToolMessage, formatInfoMessage, formatMcpMessage, formatSystemMessage } from '../shell-display.mjs';
 import { isMcpToolCall, isShellToolCall, responseItemToTranscript } from './response-format.mjs';
 
 const PINK = '\u001b[95m';
-const LIGHT_ORANGE = '\u001b[38;5;214m';
+const LIGHT_ORANGE = '\u001b[33m';
 const RESET = '\u001b[0m';
 
 function isResponseCompletedEvent(event, raw) {
@@ -169,7 +169,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
           const delta = String(event?.delta ?? '');
           if (delta) {
             streamedText += delta;
-            process.stdout.write(formatCommandMessage(delta));
+            process.stdout.write(isShellCallCommandDeltaEvent(event) ? formatCommandMessage(delta) : formatCustomToolMessage(delta));
           }
         }
       },

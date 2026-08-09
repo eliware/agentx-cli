@@ -2,7 +2,7 @@ import { extractUsage } from '../response.mjs';
 import { dedupeToolCalls, dedupeToolOutputs, requiresToolConfirmation, runToolCall, toolCallIdentity, toolOutputForCall } from '../tool-dispatch.mjs';
 import { createUsageTotals } from '../response.mjs';
 import { formatTurnUsageReport, formatUsageReport } from '../usage.mjs';
-import { formatInfoMessage, formatSystemMessage } from '../shell-display.mjs';
+import { formatInfoMessage, formatUsageMessage } from '../shell-display.mjs';
 import { createStatusLineController, formatElapsedStatus, formatTransactionCompletionMessage } from './status-controller.mjs';
 import { createStreamedResponse } from './response-stream.mjs';
 import { isShellToolCall } from './response-format.mjs';
@@ -44,9 +44,9 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
     }
     if (shouldReportUsage) {
-      process.stdout.write(`${formatSystemMessage(formatTurnUsageReport({ ...usage, model: baseRequest?.model }))}\n`);
+      process.stdout.write(`${formatUsageMessage(formatTurnUsageReport({ ...usage, model: baseRequest?.model }))}\n`);
       if (cumulativeUsage) {
-        process.stdout.write(`${formatSystemMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`);
+        process.stdout.write(`${formatUsageMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`);
       }
     }
     if (calls.length === 0) {

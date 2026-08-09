@@ -51,8 +51,8 @@ describe('agent session modules', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].handlers).toBe(true);
     expect(stdoutWrites.join('')).toContain('Hi there');
-    expect(stdoutWrites.join('')).toContain('[32m{"p":[{"s":["echo ');
-    expect(stdoutWrites.join('')).toContain('[32mlive"]}]}');
+    expect(stdoutWrites.join('')).toContain('[38;5;214m{"p":[{"s":["echo ');
+    expect(stdoutWrites.join('')).toContain('[38;5;214mlive"]}]}');
     expect(stdoutWrites.join('')).toContain('\n');
     expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
     expect(stdoutWrites.join('')).not.toContain('response.output_item.done');

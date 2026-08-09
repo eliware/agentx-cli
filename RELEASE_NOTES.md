@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.6.2 - Bounded worker status waits
+
+- Added a 15-second default wait timeout for `agent_status`.
+- Bounded waits to 10-180 seconds and documented adjusting the timeout from progress estimates.
+- Added regression coverage for timeout bounds.
+- Verified with 100% test coverage and clean lint results.
+
 ## 1.6.1 - Multi-image view_image inspection
 
 - Updated `view_image` to inspect up to 10 local images per call with optional sequential captions.

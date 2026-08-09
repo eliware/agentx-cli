@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { clearTerminal, formatCommandMessage, formatInfoMessage, formatMcpMessage, formatPromptForCwd, formatSystemMessage } from '../src/shell-display.mjs';
+import { clearTerminal, formatCommandMessage, formatCustomToolMessage, formatInfoMessage, formatMcpMessage, formatPromptForCwd, formatSystemMessage, formatUsageMessage, formatFinalUsageMessage } from '../src/shell-display.mjs';
 
 describe('shell display', () => {
   test('formats prompt and messages and clears the terminal', () => {
@@ -22,11 +22,14 @@ describe('shell display', () => {
       delete process.env.USERNAME;
       delete process.env.COMPUTERNAME;
 
-      expect(formatPromptForCwd('/tmp/work')).toBe(`[33malice@laptop:/tmp/work#[0m `);
+      expect(formatPromptForCwd('/tmp/work')).toBe(`[94malice@laptop:/tmp/work#[0m `);
       expect(formatSystemMessage('hello')).toBe(`[33mhello[0m`);
       expect(formatCommandMessage('hello')).toBe(`[32mhello[0m`);
       expect(formatInfoMessage('hello')).toBe(`[94mhello[0m`);
       expect(formatMcpMessage('hello')).toBe(`[36mhello[0m`);
+      expect(formatCustomToolMessage('hello')).toBe(`[38;5;214mhello[0m`);
+      expect(formatUsageMessage('hello')).toBe(`[33mhello[0m`);
+      expect(formatFinalUsageMessage('hello')).toBe(`[34mhello[0m`);
       clearTerminal();
       expect(writes).toContain('\n');
 
