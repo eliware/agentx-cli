@@ -112,7 +112,7 @@
     {
       "type": "function",
       "name": "agent_status",
-      "description": "Get worker status and a small log view. Defaults to the last 2048 bytes; supports byte-based pagination and regex search.",
+      "description": "Get worker status and a small log view. When waiting, defaults to 15000ms; use 10000-180000ms and adjust based on prior elapsed times and progress estimates.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -130,8 +130,10 @@
           },
           "timeout_ms": {
             "type": "integer",
-            "description": "Maximum wait time when wait is true. 0 means no limit.",
-            "minimum": 0
+            "default": 15000,
+            "description": "Maximum wait time when wait is true. Defaults to 15000ms; minimum 10000ms, maximum 180000ms. Adjust based on prior elapsed times and progress estimates.",
+            "minimum": 10000,
+            "maximum": 180000
           },
           "output_bytes": {
             "type": "integer",

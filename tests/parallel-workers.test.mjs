@@ -35,6 +35,11 @@ describe('parallel workers', () => {
     await expect(runParallelWorkerFunction({ type: 'function_call', name: 'cancel_agent', arguments: JSON.stringify({ agent_ids: ['missing-agent'] }) }, process.cwd())).resolves.toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }] });
   });
 
+  test('reports unknown agents with bounded wait settings', async () => {
+    await expect(runParallelWorkerFunction({ type: 'function_call', name: 'agent_status', arguments: JSON.stringify({ agent_ids: ['missing-agent'], wait: true, timeout_ms: 1 }) }, process.cwd())).resolves.toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }], waited: true, timed_out: false });
+    await expect(runParallelWorkerFunction({ type: 'function_call', name: 'agent_status', arguments: JSON.stringify({ agent_ids: ['missing-agent'], wait: true, timeout_ms: 999999 }) }, process.cwd())).resolves.toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }], waited: true, timed_out: false });
+  });
+
   test('reports unknown agents', async () => {
     await expect(runParallelWorkerFunction({ type: 'function_call', name: 'agent_status', arguments: JSON.stringify({ agent_ids: ['missing-agent'] }) }, process.cwd())).resolves.toEqual({ agents: [{ id: 'missing-agent', status: 'unknown' }], waited: false, timed_out: false });
   });

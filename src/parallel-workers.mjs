@@ -8,6 +8,9 @@ const WORKER_TIMEOUT_MS = 10 * 60 * 1000;
 const workers = new Map();
 const workerChildren = new Map();
 const SHUTDOWN_GRACE_MS = 2_000;
+const DEFAULT_STATUS_TIMEOUT_MS = 15_000;
+const MIN_STATUS_TIMEOUT_MS = 10_000;
+const MAX_STATUS_TIMEOUT_MS = 180_000;
 const entrypoint = path(import.meta, '../agentx.mjs');
 
 function argsFor(call) {
@@ -132,8 +135,11 @@ export async function runParallelWorkerFunction(call, cwd, options = {}) {
   if (call?.name === 'agent_status') {
     const ids = Array.isArray(args.agent_ids) ? args.agent_ids.filter((id) => typeof id === 'string' && id.trim()).slice(0, MAX_WORKERS) : [];
     const wait = args.wait === true;
-    const timeout = Number(args.timeout_ms);
-    const deadline = Number.isFinite(timeout) && timeout > 0 ? Date.now() + timeout : 0;
+    const requestedTimeout = args.timeout_ms === undefined ? DEFAULT_STATUS_TIMEOUT_MS : Number(args.timeout_ms);
+    const timeout = Number.isFinite(requestedTimeout)
+      ? Math.min(Math.max(requestedTimeout, MIN_STATUS_TIMEOUT_MS), MAX_STATUS_TIMEOUT_MS)
+      : DEFAULT_STATUS_TIMEOUT_MS;
+    const deadline = wait ? Date.now() + timeout : 0;
     const read = () => ids.map((id) => workers.has(id) ? snapshot(workers.get(id), args) : { id, status: 'unknown' });
     const done = (items) => items.every((item) => ['completed', 'failed', 'timed_out', 'terminated', 'cancelled', 'unknown'].includes(item.status));
     let agents = read();
