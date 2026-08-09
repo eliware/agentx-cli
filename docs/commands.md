@@ -72,6 +72,6 @@ Interactive mode writes prompts, responses, and status to stdout. Diagnostics, s
 
 Invalid startup/configuration failures return a nonzero exit status. Successful help, version, and one-shot requests return zero.
 
-AgentX does not provide `--dry-run`: its write-capable behavior is limited to user-local session/configuration state and model-requested shell commands. Use `--confirm` for tool execution and inspect commands before approval when writes are possible.
+AgentX does not provide `--dry-run`: its write-capable behavior is limited to user-local session/configuration state and model-requested shell commands. Permission classification is advisory, not a sandbox; wrappers, scripts, aliases, substitutions, and encoded commands may bypass it. Use `--confirm` for tool execution and inspect commands before approval when writes are possible.
 
 `cd -` returns to the previous working directory; `cd ~` changes to the user home directory.

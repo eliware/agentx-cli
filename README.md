@@ -105,6 +105,9 @@ AgentX automatically loads an optional `.agentx.mcp.json` from your home directo
 
 ## Security
 
+Tool permission classifications are advisory, not a sandbox. Shell wrappers, scripts, aliases, substitutions, and encoded commands may bypass name-based classification. Use `--confirm` when human review is needed; do not run AgentX as a strong isolation boundary for untrusted prompts or workspaces.
+
+
 - Never commit `agentx_api_key`, `AGENTX_API_KEY`, MCP credentials, or other secrets.
 - Store the API key in the environment or in the user-owned `~/.agentx` configuration file.
 - Keep `~/.agentx.mcp.json` user-owned and protect any credentials referenced by MCP servers.
