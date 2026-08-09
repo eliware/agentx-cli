@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process';
+import { path } from '@eliware/common';
 import { encodeImageInput } from './image-input.mjs';
 import { extractTextFromResponse, extractUsage } from './response.mjs';
 import { saveGeneratedImage } from './image-generation.mjs';
@@ -5,7 +7,35 @@ import { saveGeneratedImage } from './image-generation.mjs';
 const MAX_IMAGES = 10;
 const MAX_PROMPT_LENGTH = 10_000;
 
-export async function inspectImage(openai, args, { cwd, responseId, previousResponseId, callerResponse, model, onUsage }) {
+export async function inspectImage(openai, args, options = {}) {
+  if (options.processWorker) return await runImageInspectionProcess(args, options);
+  return await runImageInspection(openai, args, options);
+}
+
+async function runImageInspectionProcess(args, { cwd, responseId, previousResponseId, model, onUsage }) {
+  return await new Promise((resolve) => {
+    const child = spawn(process.execPath, [path(import.meta, './image-worker.mjs')], {
+      cwd,
+      env: { ...process.env, AGENTX_IMAGE_REQUEST: JSON.stringify({ args, cwd, responseId, previousResponseId, model }) },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += String(chunk); });
+    child.stderr.on('data', (chunk) => { stderr += String(chunk); });
+    child.on('error', (error) => resolve(`ERROR: ${error.message}`));
+    child.on('close', (code) => {
+      if (code !== 0) { resolve(`ERROR: ${stderr.trim() || `image worker exited with code ${code}`}`); return; }
+      try {
+        const result = JSON.parse(stdout);
+        if (result.usage) onUsage?.(result.usage);
+        resolve(result.text || result.error || 'The image inspection returned no text.');
+      } catch { resolve(`ERROR: invalid image worker response${stderr.trim() ? `: ${stderr.trim()}` : ''}`); }
+    });
+  });
+}
+
+export async function runImageInspection(openai, args, { cwd, responseId, previousResponseId, callerResponse, model, onUsage } = {}) {
   const prompt = String(args?.prompt ?? '').trim();
   if (!prompt) return 'ERROR: image prompt is required';
   if (prompt.length > MAX_PROMPT_LENGTH) return `ERROR: image prompt exceeds the ${MAX_PROMPT_LENGTH} character limit`;
