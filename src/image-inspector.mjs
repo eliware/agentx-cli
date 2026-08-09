@@ -6,13 +6,25 @@ import { saveGeneratedImage } from './image-generation.mjs';
 
 const MAX_IMAGES = 10;
 const MAX_PROMPT_LENGTH = 10_000;
+const imageBranchQueues = new Map();
 
 export async function inspectImage(openai, args, options = {}) {
   if (options.processWorker) return await runImageInspectionProcess(args, options);
   return await runImageInspection(openai, args, options);
 }
 
-async function runImageInspectionProcess(args, { cwd, responseId, previousResponseId, model, onUsage }) {
+async function runImageInspectionProcess(args, options) {
+  const key = `${options?.cwd || ''}:${options?.previousResponseId || options?.responseId || ''}`;
+  const prior = imageBranchQueues.get(key) || Promise.resolve();
+  const current = prior.catch(() => {}).then(() => runQueuedImageInspectionProcess(args, options));
+  const tracked = current.finally(() => {
+    if (imageBranchQueues.get(key) === tracked) imageBranchQueues.delete(key);
+  });
+  imageBranchQueues.set(key, tracked);
+  return current;
+}
+
+async function runQueuedImageInspectionProcess(args, { cwd, responseId, previousResponseId, model, onUsage }) {
   return await new Promise((resolve) => {
     const child = spawn(process.execPath, [path(import.meta, './image-worker.mjs')], {
       cwd,
