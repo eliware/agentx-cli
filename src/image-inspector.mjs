@@ -37,12 +37,16 @@ async function runQueuedImageInspectionProcess(args, { cwd, responseId, previous
     child.stderr.on('data', (chunk) => { stderr += String(chunk); });
     child.on('error', (error) => resolve(`ERROR: ${error.message}`));
     child.on('close', (code) => {
-      if (code !== 0) { resolve(`ERROR: ${stderr.trim() || `image worker exited with code ${code}`}`); return; }
+      let result;
       try {
-        const result = JSON.parse(stdout);
+        result = JSON.parse(stdout);
         if (result.usage) onUsage?.(result.usage);
-        resolve(result.text || result.error || 'The image inspection returned no text.');
-      } catch { resolve(`ERROR: invalid image worker response${stderr.trim() ? `: ${stderr.trim()}` : ''}`); }
+      } catch {
+        resolve(`ERROR: ${code !== 0 ? (stderr.trim() || `image worker exited with code ${code}`) : `invalid image worker response${stderr.trim() ? `: ${stderr.trim()}` : ''}`}`);
+        return;
+      }
+      if (code !== 0) { resolve(`ERROR: ${stderr.trim() || result.error || `image worker exited with code ${code}`}`); return; }
+      resolve(result.text || result.error || 'The image inspection returned no text.');
     });
   });
 }

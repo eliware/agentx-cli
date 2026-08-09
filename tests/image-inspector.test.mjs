@@ -78,6 +78,10 @@ describe('image inspection', () => {
     await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: worker failed');
     mockWorker({ code: 3 });
     await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: image worker exited with code 3');
+    const usage = [];
+    mockWorker({ stdout: JSON.stringify({ error: 'partial failure', usage: { turns: 2, inputTokens: 11, outputTokens: 5 } }), code: 7 });
+    await expect(inspectImage({}, {}, { processWorker: true, onUsage: value => usage.push(value) })).resolves.toBe('ERROR: partial failure');
+    expect(usage).toEqual([{ turns: 2, inputTokens: 11, outputTokens: 5 }]);
     mockWorker({ stdout: '{bad' });
     await expect(inspectImage({}, {}, { processWorker: true })).resolves.toBe('ERROR: invalid image worker response');
     mockWorker({ stdout: '{bad', stderr: 'parse detail' });

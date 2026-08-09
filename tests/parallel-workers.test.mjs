@@ -1,12 +1,23 @@
 import { describe, expect, test } from '@jest/globals';
-import { parseWorkerUsage, runParallelWorkerFunction, selectWorkerOutput } from '../src/parallel-workers.mjs';
+import { parseWorkerUsage, reportWorkerUsage, runParallelWorkerFunction, selectWorkerOutput } from '../src/parallel-workers.mjs';
 
 describe('parallel workers', () => {
   test('parses structured usage summaries', () => {
     expect(parseWorkerUsage('{"in":"12 ($0.000)","cache":"3 ($0.000)","out":"7 ($0.000)","total":"$0.000"}')).toEqual({ turns: 1, inputTokens: 12, cachedTokens: 3, outputTokens: 7 });
-    expect(parseWorkerUsage('{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004"}\n{"in":"800 ($0.002)","cache":"100 ($0.000)","out":"30 ($0.000)","total":"$0.002"}\n{"in":"2,000","cache":"400","out":"100","turns":"3"}')).toEqual({ turns: 2, inputTokens: 2000, cachedTokens: 400, outputTokens: 100 });
+    expect(parseWorkerUsage('{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004"}\n{"in":"800 ($0.002)","cache":"100 ($0.000)","out":"30 ($0.000)","total":"$0.002"}\n{"in":"2,000","cache":"400","out":"100","turns":"3"}')).toEqual({ turns: 3, inputTokens: 2000, cachedTokens: 400, outputTokens: 100 });
+    expect(parseWorkerUsage(`{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004","turns":"2","avg":"$0.002"}
+{"in":"2,000 ($0.004)","cache":"400 ($0.000)","out":"100 ($0.000)","total":"$0.004"}`)).toEqual({ turns: 2, inputTokens: 1200, cachedTokens: 300, outputTokens: 70 });
     expect(parseWorkerUsage('no usage')).toBeNull();
   });
+  test('reports worker usage exactly once, including canceled workers', () => {
+    const usage = { turns: 2, inputTokens: 10, cachedTokens: 3, outputTokens: 4 };
+    const reported = [];
+    const worker = { status: 'cancelled', usage, usageReported: false };
+    expect(reportWorkerUsage(worker, (value) => reported.push(value))).toBe(true);
+    expect(reportWorkerUsage(worker, (value) => reported.push(value))).toBe(false);
+    expect(reported).toEqual([usage]);
+  });
+
   test('selects bounded log tails and regex matches', () => {
     const log = Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join('\n');
     expect(selectWorkerOutput(log)).toBe(log);

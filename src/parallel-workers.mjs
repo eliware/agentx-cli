@@ -20,16 +20,28 @@ function argsFor(call) {
 }
 
 export function parseWorkerUsage(text) {
+  const reports = String(text).split(/\r?\n/).map((line) => {
+    try { return JSON.parse(line); } catch { return null; }
+  }).filter((report) => report && typeof report === 'object' && typeof report.in === 'string' && typeof report.cache === 'string' && typeof report.out === 'string');
+  if (!reports.length) return null;
+  const cumulative = reports.some((report) => Object.prototype.hasOwnProperty.call(report, 'turns'));
+  const selected = cumulative ? [reports.filter((report) => Object.prototype.hasOwnProperty.call(report, 'turns')).at(-1)] : reports;
   const usage = { turns: 0, inputTokens: 0, cachedTokens: 0, outputTokens: 0 };
-  const pattern = /\{"in":"([\d,]+) \([^"]*\)","cache":"([\d,]+) \([^"]*\)","out":"([\d,]+) \([^"]*\)","total":"[^"]*"\}/g;
-  let match;
-  while ((match = pattern.exec(text))) {
-    usage.inputTokens += Number(match[1].replaceAll(',', ''));
-    usage.cachedTokens += Number(match[2].replaceAll(',', ''));
-    usage.outputTokens += Number(match[3].replaceAll(',', ''));
-    usage.turns += 1;
+  for (const report of selected) {
+    const parseTokens = (value) => Number(String(value).split(' ')[0].replaceAll(',', ''));
+    usage.inputTokens += parseTokens(report.in);
+    usage.cachedTokens += parseTokens(report.cache);
+    usage.outputTokens += parseTokens(report.out);
+    usage.turns += cumulative ? Number(report.turns || 0) : 1;
   }
   return usage.turns ? usage : null;
+}
+
+export function reportWorkerUsage(worker, onUsage) {
+  if (!worker?.usage || worker.usageReported) return false;
+  worker.usageReported = true;
+  onUsage?.(worker.usage);
+  return true;
 }
 
 export function selectWorkerOutput(text, options = {}) {
@@ -75,7 +87,7 @@ function startWorker(task, cwd, permissions, debug = false, onUsage) {
   child.stdout.on('data', append);
   child.stderr.on('data', append);
   child.on('error', (error) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); worker.status = 'failed'; worker.error = error.message; worker.finishedAt = Date.now(); });
-  child.on('close', (code, signal) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (worker.status === 'cancelled' ? 'cancelled' : (code === 0 ? 'completed' : 'failed')); worker.exitCode = code; if (worker.status === 'completed' && worker.usage && !worker.usageReported) { worker.usageReported = true; onUsage?.(worker.usage); } worker.signal = signal; worker.finishedAt = Date.now(); });
+  child.on('close', (code, signal) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (worker.status === 'cancelled' ? 'cancelled' : (code === 0 ? 'completed' : 'failed')); worker.exitCode = code; reportWorkerUsage(worker, onUsage); worker.signal = signal; worker.finishedAt = Date.now(); });
   return worker;
 }
 
