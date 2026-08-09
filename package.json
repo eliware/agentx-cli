@@ -8,7 +8,7 @@
         "start": "node agentx.mjs",
         "lint": "npx oxlint .",
         "audit": "npm audit --omit=dev --audit-level=moderate",
-        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent --coverage",
+        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent --coverage --setupFilesAfterEnv=./tests/jest-setup.mjs",
         "setup": "node agentx-setup.mjs",
         "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'",
         "pack": "npm pack --dry-run",
@@ -39,7 +39,7 @@
     "jest": {
         "testEnvironment": "node",
         "coveragePathIgnorePatterns": [
-            "/src/agent\\.mjs$",
+            "/src/agent/runtime\\.mjs$",
             "/src/completion\\.mjs$",
             "/src/shell\\.mjs$",
             "/src/tool-shell\\.mjs$",

@@ -25,7 +25,7 @@ describe('agent session modules', () => {
       const controller = createStatusLineController();
       controller.showReasoning();
       expect(stdoutWrites.join('')).toContain('{"time":"0s"');
-      expect(stdoutWrites.join('')).toContain('\u001b[32m"reasoning":"0s/0s"\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('\u001b[32m"reasoning":"0s/0s"\u001b[38;5;255m');
     } finally {
       jest.useRealTimers();
     }
@@ -52,7 +52,7 @@ describe('agent session modules', () => {
     try {
       const controller = createStatusLineController(Date.parse('2026-07-08T00:00:00Z'));
       controller.showReasoning();
-      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[38;5;255m');
       expect(stdoutWrites.join('')).toContain('"executing":"0s/0s"');
 
       jest.setSystemTime(Date.parse('2026-07-08T00:00:01Z'));
@@ -100,6 +100,14 @@ describe('agent session modules', () => {
       writing: null,
     })).toBe('{"time":"42","reasoning":"1s/2s"}');
   });
+  test('reports whether the status controller is currently writing', () => {
+    const controller = createStatusLineController(Date.now());
+    expect(controller.isWriting()).toBe(false);
+    controller.beginWriting();
+    expect(controller.isWriting()).toBe(true);
+    controller.clear();
+    expect(controller.isWriting()).toBe(false);
+  });
   test('clearing after writing does not erase the final streamed response line', () => {
     const controller = createStatusLineController(Date.now());
     controller.showReasoning();
@@ -134,7 +142,7 @@ describe('agent session modules', () => {
       controller.beginWriting();
       controller.refresh();
       expect(stdoutWrites.join('')).toContain('{"time":"0s"');
-      expect(stdoutWrites.join('')).toContain('[32m"executing":"0s/0s"[0m');
+      expect(stdoutWrites.join('')).toContain('[32m"executing":"0s/0s"[38;5;255m');
     } finally {
       jest.useRealTimers();
     }

@@ -54,18 +54,13 @@
     {
       "type": "function",
       "name": "spawn_agent",
-      "description": "Start independent AgentX workers to parallelize genuinely independent work. Use only when you will use the results; do not delegate small/easy tasks you can do directly. Set wait=true to wait for completion, with optional timeout_ms; otherwise returns immediately for background work.",
+      "description": "Start one independent AgentX worker. Use only for genuinely independent work whose result you will use. The task text may contain multiple related steps.",
       "parameters": {
         "type": "object",
         "properties": {
-          "tasks": {
-            "type": "array",
-            "description": "Independent worker instructions.",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "maxItems": 3
+          "task": {
+            "type": "string",
+            "description": "One worker task; include multiple related steps in this text if needed."
           },
           "permissions": {
             "type": "string",
@@ -76,23 +71,16 @@
             ],
             "description": "Worker permission level. Defaults to execute."
           },
-          "debug": {
-            "type": "boolean",
-            "description": "Enable --debug output in the worker. Defaults to false."
-          },
-          "wait": {
-            "type": "boolean",
-            "description": "Wait for all spawned workers to finish. Defaults to false."
-          },
-          "timeout_ms": {
+          "wait_ms": {
             "type": "integer",
-            "minimum": 10000,
+            "minimum": 0,
             "maximum": 180000,
-            "description": "Maximum wait time when wait is true; defaults to 15000ms."
+            "default": 0,
+            "description": "Wait up to this many milliseconds. 0 returns immediately."
           }
         },
         "required": [
-          "tasks"
+          "task"
         ],
         "additionalProperties": false
       }
@@ -122,7 +110,7 @@
     {
       "type": "function",
       "name": "agent_status",
-      "description": "Get worker status and a small log view. When waiting, defaults to 15000ms; use 10000-180000ms and adjust based on prior elapsed times and progress estimates.",
+      "description": "Get worker status and bounded log output. Use wait_ms to optionally wait for completion.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -133,17 +121,6 @@
             },
             "minItems": 1,
             "maxItems": 10
-          },
-          "wait": {
-            "type": "boolean",
-            "description": "Wait until all requested workers finish. Defaults false."
-          },
-          "timeout_ms": {
-            "type": "integer",
-            "default": 15000,
-            "description": "Maximum wait time when wait is true. Defaults to 15000ms; minimum 10000ms, maximum 180000ms. Adjust based on prior elapsed times and progress estimates.",
-            "minimum": 10000,
-            "maximum": 180000
           },
           "output_bytes": {
             "type": "integer",
@@ -159,6 +136,13 @@
           "search": {
             "type": "string",
             "description": "Regular expression applied to the retained log; returns matching lines instead of a paginated tail."
+          },
+          "wait_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 180000,
+            "default": 0,
+            "description": "Wait up to this many milliseconds. 0 returns immediately."
           }
         },
         "required": [
@@ -226,7 +210,7 @@
     {
       "type": "function",
       "name": "goal_update",
-      "description": "Report the current goal state after reviewing work and evidence.",
+      "description": "Report autonomous goal progress or completion.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -235,8 +219,7 @@
             "enum": [
               "complete",
               "incomplete",
-              "blocked",
-              "question"
+              "blocked"
             ]
           },
           "summary": {
@@ -244,7 +227,21 @@
           },
           "evidence": {
             "type": "string"
-          },
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "goal_blocked",
+      "description": "Pause goal work and ask the user a question with optional choices. Use only when user input is required.",
+      "parameters": {
+        "type": "object",
+        "properties": {
           "question": {
             "type": "string"
           },
@@ -258,7 +255,7 @@
           }
         },
         "required": [
-          "method"
+          "question"
         ],
         "additionalProperties": false
       }

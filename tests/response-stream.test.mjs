@@ -32,14 +32,14 @@ describe('agent session modules', () => {
     await expect(createStreamedResponse(openai, {}, { liveStreaming: true, statusController })).resolves.toEqual({ id: 'resp-live' });
     expect(statusController.showReasoning).toHaveBeenCalled();
     expect(statusController.clear).toHaveBeenCalled();
-    expect(stdoutWrites.join('')).toBe('hello\n');
+    expect(stdoutWrites.join('')).toBe(`\x1b[38;5;255mhello\x1b[0m\n`);
   });
 
   test('does not append a newline when streamed output already ends with one', async () => {
     const statusController = { showReasoning: jest.fn(), beginWriting: jest.fn(), clear: jest.fn() };
     const openai = { responses: { create: async (_request, handlers) => { handlers.onTextDelta('hello\n'); return { id: 'resp-live' }; } } };
     await createStreamedResponse(openai, {}, { liveStreaming: true, statusController });
-    expect(stdoutWrites.join('')).toBe('hello\n');
+    expect(stdoutWrites.join('')).toBe(`\x1b[38;5;255mhello\n\x1b[0m`);
   });
 
   test('clears status when the response request fails', async () => {

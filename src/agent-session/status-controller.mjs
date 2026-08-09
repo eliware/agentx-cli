@@ -1,5 +1,6 @@
 const STATUS_UPDATE_INTERVAL_MS = 250;
-const GREEN = '\u001b[32m';
+const STATUS_WHITE = '\u001b[38;5;255m';
+const STATUS_GREEN = '\u001b[32m';
 const RESET = '\u001b[0m';
 
 export function formatElapsedStatus(elapsedMs) {
@@ -98,7 +99,7 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
 
   function formatStatusField(name, snapshotValue) {
     const field = `"${name}":"${snapshotValue.value}"`;
-    return snapshotValue.active ? `${GREEN}${field}${RESET}` : field;
+    return snapshotValue.active ? `${STATUS_GREEN}${field}${STATUS_WHITE}` : field;
   }
 
   function snapshot(now = Date.now()) {
@@ -125,7 +126,7 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
   function render() {
     if (quiet || paused || !state || state === 'writing') return;
     const stats = snapshot();
-    writeLine(`{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}`);
+    writeLine(`${STATUS_WHITE}{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}${RESET}`);
   }
 
   function prepareOutput() {
@@ -193,6 +194,9 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
     },
     snapshot() {
       return snapshot();
+    },
+    isWriting() {
+      return state === 'writing';
     },
     refresh() {
       render();

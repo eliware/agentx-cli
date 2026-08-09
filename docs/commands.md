@@ -20,7 +20,7 @@ Inputs over 272,000 tokens use long-context pricing: 2x input/cached input and 1
 
 ## Autonomous goals
 
-Goal mode continues through model-requested tool calls until `goal_update` (`complete`, `incomplete`, `blocked`, or `question`), cancellation, or the iteration limit. A blocked goal pauses for the user's choice; active goals are resumable after restart.
+Goal mode continues through model-requested tool calls until `goal_update` (`complete`, `incomplete`, or `blocked`), `goal_blocked` user input, cancellation, or the iteration limit. A blocked goal pauses for the user's choice; saved goals are discarded on restart and never resume automatically.
 
 ## Local shell commands
 

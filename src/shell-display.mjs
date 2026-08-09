@@ -1,11 +1,13 @@
 import { getPromptIdentity } from './platform.mjs';
 
-const YELLOW = '\u001b[33m';
-const GREEN = '\u001b[32m';
-const LIGHT_BLUE = '\u001b[94m';
-const BLUE = '\u001b[34m';
-const CYAN = '\u001b[36m';
-const ORANGE = '\u001b[38;5;214m';
+const SYSTEM_RED = '\u001b[38;5;160m';
+const COMMAND_GREEN = '\u001b[32m';
+const FINAL_BLUE = '\u001b[38;5;33m';
+const INFO_CYAN = '\u001b[38;5;37m';
+const MCP_CYAN = '\u001b[38;5;45m';
+const CUSTOM_MAGENTA = '\u001b[38;5;163m';
+const USAGE_ORANGE = '\u001b[38;5;208m';
+const WHITE = '\u001b[38;5;255m';
 const RESET = '\u001b[0m';
 
 export function clearTerminal() {
@@ -19,33 +21,35 @@ export function clearTerminal() {
 export function formatPromptForCwd(cwd) {
   const { user, host } = getPromptIdentity(process.env);
   const shortHost = host.split('.')[0];
-  return `${LIGHT_BLUE}${user}@${shortHost}:${cwd}#${RESET} `;
+  return `${FINAL_BLUE}${user}@${shortHost}:${cwd}${WHITE}#${RESET}${WHITE} `;
 }
 
 export function formatSystemMessage(message) {
-  return `${YELLOW}${message}${RESET}`;
+  return `${SYSTEM_RED}${message}${RESET}`;
 }
 
 export function formatCommandMessage(message) {
-  return `${GREEN}${message}${RESET}`;
+  return `${COMMAND_GREEN}${message}${RESET}`;
 }
 
 export function formatMcpMessage(message) {
-  return `${CYAN}${message}${RESET}`;
+  return `${MCP_CYAN}${message}${RESET}`;
 }
 
 export function formatCustomToolMessage(message) {
-  return `${ORANGE}${message}${RESET}`;
+  return `${CUSTOM_MAGENTA}${message}${RESET}`;
 }
 
 export function formatInfoMessage(message) {
-  return `${LIGHT_BLUE}${message}${RESET}`;
+  return `${INFO_CYAN}${message}${RESET}`;
 }
 
 export function formatUsageMessage(message) {
-  return `${YELLOW}${message}${RESET}`;
+  return `${USAGE_ORANGE}${message}${RESET}`;
 }
 
 export function formatFinalUsageMessage(message) {
-  return `${BLUE}${message}${RESET}`;
+  return `${FINAL_BLUE}${message}${RESET}`;
 }
+
+export function formatWhiteMessage(message) { return `${WHITE}${message}${RESET}`; }

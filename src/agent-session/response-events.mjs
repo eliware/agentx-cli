@@ -1,9 +1,13 @@
+import { writeTerminal } from '../terminal-output.mjs';
 import { formatCommandMessage, formatCustomToolMessage, formatInfoMessage, formatMcpMessage, formatSystemMessage } from '../shell-display.mjs';
 import { isMcpToolCall, isShellToolCall, responseItemToTranscript } from './response-format.mjs';
 
-const PINK = '\u001b[95m';
-const LIGHT_ORANGE = '\u001b[33m';
+const PINK = '\u001b[38;5;213m';
+const REASONING_LIME = '\u001b[38;5;230m';
+const UNDERLINE = '\u001b[4m';
+const UNDERLINE_OFF = '\u001b[24m';
 const RESET = '\u001b[0m';
+const WHITE = '\u001b[38;5;255m';
 
 function isResponseCompletedEvent(event, raw) {
   if (event?.type === 'response.completed') return true;
@@ -31,7 +35,7 @@ function isReasoningSummaryEvent(event) {
 }
 
 function colorizeReasoningSummary(text) {
-  return `${LIGHT_ORANGE}${text}${RESET}`;
+  return `${REASONING_LIME}${text}${RESET}`;
 }
 
 function formatMcpProgress(event) {
@@ -65,6 +69,34 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
   let sawOutput = false;
   let streamedText = '';
   let streamedReasoningSummary = false;
+  let reasoningHeaderBuffer = '';
+  let reasoningHeaderDone = false;
+  let pendingAnsi = '';
+  let textOutputStarted = false;
+
+  const writeTextDelta = (text) => {
+    const input = `${pendingAnsi}${text}`;
+    pendingAnsi = '';
+    let output = '';
+    let index = 0;
+    while (index < input.length) {
+      if (input[index] !== '\u001b') { output += input[index++]; continue; }
+      if (index + 1 >= input.length) { pendingAnsi = input.slice(index); break; }
+      if (input[index + 1] !== '[') { output += input[index++]; continue; }
+      let end = index + 2;
+      while (end < input.length && !(input.charCodeAt(end) >= 0x40 && input.charCodeAt(end) <= 0x7e)) end += 1;
+      if (end >= input.length) { pendingAnsi = input.slice(index); break; }
+      output += input.slice(index, end + 1);
+      index = end + 1;
+    }
+    if (!output) return;
+    writeTerminal(`${textOutputStarted ? '' : WHITE}${output}`);
+    textOutputStarted = true;
+  };
+
+  const flushTextDelta = () => {
+    if (pendingAnsi) { writeTextDelta(pendingAnsi); pendingAnsi = ''; }
+  };
 
   const markOutput = () => {
     if (sawOutput) return;
@@ -76,7 +108,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
     if (!statusController) return;
     statusController.showExecuting(0, 0, { renderNow: false });
     statusController.pause();
-    process.stdout.write(`${webSearchStatusLine(stage)}\n`);
+    writeTerminal(`${webSearchStatusLine(stage)}\n`);
   };
 
   const finishWebSearch = (item) => {
@@ -84,7 +116,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
     const completionLine = webSearchCompletionLine(item);
     if (!completionLine) return;
     statusController.showReasoning({ renderNow: false });
-    process.stdout.write(`${completionLine}\n`);
+    writeTerminal(`${completionLine}\n`);
     statusController.resume();
   };
 
@@ -92,14 +124,33 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
     if (delta === undefined || delta === null || delta === '') return;
     streamedReasoningSummary = true;
     statusController?.pause();
-    process.stdout.write(colorizeReasoningSummary(String(delta)));
+    reasoningHeaderBuffer += String(delta);
+    if (!reasoningHeaderDone) {
+      const start = reasoningHeaderBuffer.indexOf('**');
+      const end = start < 0 ? -1 : reasoningHeaderBuffer.indexOf('**', start + 2);
+      if (start >= 0 && end >= 0) {
+        const before = reasoningHeaderBuffer.slice(0, start);
+        const header = reasoningHeaderBuffer.slice(start + 2, end);
+        const after = reasoningHeaderBuffer.slice(end + 2);
+        writeTerminal(colorizeReasoningSummary(before) + `${REASONING_LIME}${UNDERLINE}${header}${UNDERLINE_OFF}${REASONING_LIME}${after}${RESET}`);
+        reasoningHeaderBuffer = '';
+        reasoningHeaderDone = true;
+      }
+      return;
+    }
+    writeTerminal(colorizeReasoningSummary(reasoningHeaderBuffer));
+    reasoningHeaderBuffer = '';
   };
 
   const reasoningSummaryDelta = (event) => event?.delta ?? event?.text ?? event?.summary_text;
 
   const finishReasoningSummary = () => {
+    if (reasoningHeaderBuffer) {
+      writeTerminal(colorizeReasoningSummary(reasoningHeaderBuffer));
+      reasoningHeaderBuffer = '';
+    }
     if (!statusController) return;
-    process.stdout.write('\n');
+    writeTerminal('\n');
     // Do not immediately render a fresh status line after the summary's
     // newline. The next shell-call delta will transition to writing and own
     // the cursor without leaving a temporary line behind.
@@ -119,11 +170,12 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
     if (type.includes('progress') || type.includes('update')) {
       statusController?.showExecuting(0, 0, { renderNow: false });
       const line = formatMcpProgress(event);
-      if (line) process.stdout.write(`${formatInfoMessage(line)}\n`);
+      if (line) writeTerminal(`${formatInfoMessage(line)}\n`);
     }
   };
 
   return {
+    flushTextDelta,
     sawOutput: () => sawOutput,
     streamedText: () => streamedText,
     handlers: liveStreaming ? {
@@ -145,7 +197,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
           if (event.type === 'response.mcp_call_arguments.delta') {
             markOutput();
             const delta = String(event?.delta ?? '');
-            if (delta) process.stdout.write(formatMcpMessage(delta));
+            if (delta) writeTerminal(formatMcpMessage(delta));
             return;
           }
           handleMcpEvent(event);
@@ -157,7 +209,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
             return;
           }
           if (event.type.endsWith('.searching')) {
-            process.stdout.write(`${webSearchStatusLine('searching')}\n`);
+            writeTerminal(`${webSearchStatusLine('searching')}\n`);
             return;
           }
           if (event.type.endsWith('.completed')) {
@@ -170,7 +222,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
           if (delta) {
             streamedText += delta;
             const formatted = isShellCallCommandDeltaEvent(event) ? formatCommandMessage(delta) : formatCustomToolMessage(delta);
-            process.stdout.write(formatted);
+            writeTerminal(formatted);
           }
         }
       },
@@ -180,13 +232,13 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
         statusController?.pause();
         statusController?.beginWriting();
         const label = item.name || item.server_label || 'mcp_call';
-        process.stdout.write(formatMcpMessage(`${label}(`));
+        writeTerminal(formatMcpMessage(`${label}(`));
       },
       onTextDelta(delta) {
         markOutput();
         const text = String(delta ?? '');
         streamedText += text;
-        process.stdout.write(text);
+        writeTextDelta(text);
       },
       onItemDone(item) {
         if (item?.type === 'web_search_call') {
@@ -196,9 +248,9 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
         const isCustomToolCall = item?.type === 'function_call' || item?.type === 'custom_call';
         if (isShellToolCall(item) || isMcpToolCall(item) || isCustomToolCall) {
           markOutput();
-          if (isMcpToolCall(item)) process.stdout.write(formatMcpMessage(')'));
+          if (isMcpToolCall(item)) writeTerminal(formatMcpMessage(')'));
           streamedText += '\n';
-          process.stdout.write('\n');
+          writeTerminal('\n');
           if (isMcpToolCall(item)) {
             // Keep the status line paused while the next response takes over
             // the terminal. Resume then immediately pause only to preserve
@@ -211,7 +263,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
         if (item?.type === 'reasoning') {
           if (debug) return;
           const transcript = responseItemToTranscript(item);
-          if (transcript && !streamedReasoningSummary) process.stdout.write(`${formatSystemMessage(transcript)}\n`);
+          if (transcript && !streamedReasoningSummary) writeTerminal(`${formatSystemMessage(transcript)}\n`);
         }
       },
     } : null,

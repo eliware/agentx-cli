@@ -16,6 +16,34 @@ describe('agent session modules', () => {
 
   afterEach(() => { process.stdout.write = originalStdoutWrite; });
 
+  test('buffers split ANSI escape sequences across text deltas', () => {
+    const live = createLiveResponseHandlers({ liveStreaming: true });
+    live.handlers.onTextDelta('before \u001b[');
+    live.handlers.onTextDelta('31mred');
+    live.flushTextDelta();
+    expect(stdoutWrites.join('')).toBe('\u001b[38;5;255mbefore \u001b[31mred');
+  });
+  test('buffers incomplete and non-CSI ANSI fragments safely', () => {
+    const live = createLiveResponseHandlers({ liveStreaming: true });
+    live.handlers.onTextDelta('x\u001b');
+    live.flushTextDelta();
+    live.handlers.onTextDelta('y\u001bZ');
+    expect(stdoutWrites.join('')).toContain('x');
+    expect(stdoutWrites.join('')).toContain('y');
+  });
+
+  test('underlines a split reasoning header and continues lime output', () => {
+    const live = createLiveResponseHandlers({ liveStreaming: true, statusController: { pause: jest.fn(), resume: jest.fn() } });
+    live.handlers.onEvent({ type: 'response.reasoning_summary_text.delta', delta: '**Head' });
+    live.handlers.onEvent({ type: 'response.reasoning_summary_text.delta', delta: 'er**\n\nbody' });
+    live.handlers.onEvent({ type: 'response.reasoning_summary_text.delta', delta: ' more' });
+    live.handlers.onEvent({ type: 'response.reasoning_summary_text.done' });
+    const output = stdoutWrites.join('');
+    expect(output).toContain('\u001b[4mHeader\u001b[24m');
+    expect(output).toContain('body');
+    expect(output).toContain(' more');
+  });
+
   test('sendMessage streams live output, streamed arguments, and reasoning transcripts', async () => {
     const template = { model: 'test-model', input: [], tools: [] };
     const calls = [];
@@ -51,9 +79,10 @@ describe('agent session modules', () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0].handlers).toBe(true);
-    expect(stdoutWrites.join('')).toContain('Hi there');
-    expect(stdoutWrites.join('')).toContain('[38;5;214m{"p":[{"s":["echo ');
-    expect(stdoutWrites.join('')).toContain('[38;5;214mlive"]}]}');
+    expect(stdoutWrites.join('')).toContain('Hi');
+    expect(stdoutWrites.join('')).toContain('there');
+    expect(stdoutWrites.join('')).toContain('[38;5;163m{"p":[{"s":["echo ');
+    expect(stdoutWrites.join('')).toContain('[38;5;163mlive"]}]}');
     expect(stdoutWrites.join('')).toContain('\n');
     expect(stdoutWrites.join('')).not.toContain('response.output_item.added');
     expect(stdoutWrites.join('')).not.toContain('response.output_item.done');
@@ -159,10 +188,10 @@ describe('agent session modules', () => {
       };
       await createStreamedResponse(normalOpenai, template, { liveStreaming: true, statusController });
       expect(stdoutWrites.join('')).toContain('lookup(');
-      expect(stdoutWrites.join('')).toContain('\u001b[36mlookup(\u001b[0m');
-      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m\u001b[36m)\u001b[0m\n');
+      expect(stdoutWrites.join('')).toContain('\u001b[38;5;45mlookup(\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('\u001b[38;5;45mabc\u001b[0m\u001b[38;5;45m)\u001b[0m\n');
       expect(stdoutWrites.join('')).not.toContain('assistant mcp call:');
-      expect(stdoutWrites.join('')).toContain('\u001b[36mabc\u001b[0m');
+      expect(stdoutWrites.join('')).toContain('\u001b[38;5;45mabc\u001b[0m');
       expect(statusController.pause).toHaveBeenCalled();
       expect(statusController.resume).toHaveBeenCalled();
       expect(stdoutWrites.join('')).toContain('plan');
@@ -182,7 +211,7 @@ describe('agent session modules', () => {
       };
       await createStreamedResponse(debugOpenai, template, { liveStreaming: true, statusController });
       expect(stdoutWrites.join('')).toContain('{"mcp":"hidden"}');
-      expect(stdoutWrites.join('')).not.toContain('\u001b[95mhidden\u001b[0m');
+      expect(stdoutWrites.join('')).not.toContain('\u001b[38;5;213mhidden\u001b[0m');
     } finally {
       process.argv = originalArgv;
     }

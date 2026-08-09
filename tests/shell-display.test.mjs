@@ -22,14 +22,14 @@ describe('shell display', () => {
       delete process.env.USERNAME;
       delete process.env.COMPUTERNAME;
 
-      expect(formatPromptForCwd('/tmp/work')).toBe(`[94malice@laptop:/tmp/work#[0m `);
-      expect(formatSystemMessage('hello')).toBe(`[33mhello[0m`);
+      expect(formatPromptForCwd('/tmp/work')).toBe(`[38;5;33malice@laptop:/tmp/work[38;5;255m#[0m[38;5;255m `);
+      expect(formatSystemMessage('hello')).toBe(`[38;5;160mhello[0m`);
       expect(formatCommandMessage('hello')).toBe(`[32mhello[0m`);
-      expect(formatInfoMessage('hello')).toBe(`[94mhello[0m`);
-      expect(formatMcpMessage('hello')).toBe(`[36mhello[0m`);
-      expect(formatCustomToolMessage('hello')).toBe(`[38;5;214mhello[0m`);
-      expect(formatUsageMessage('hello')).toBe(`[33mhello[0m`);
-      expect(formatFinalUsageMessage('hello')).toBe(`[34mhello[0m`);
+      expect(formatInfoMessage('hello')).toBe(`[38;5;37mhello[0m`);
+      expect(formatMcpMessage('hello')).toBe(`[38;5;45mhello[0m`);
+      expect(formatCustomToolMessage('hello')).toBe(`[38;5;163mhello[0m`);
+      expect(formatUsageMessage('hello')).toBe(`[38;5;208mhello[0m`);
+      expect(formatFinalUsageMessage('hello')).toBe(`[38;5;33mhello[0m`);
       clearTerminal();
       expect(writes).toContain('\n');
 

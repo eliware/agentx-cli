@@ -37,10 +37,10 @@ describe('goal mode', () => {
       await persistResponseState(statePath, { response_id: 'r1', goal: null });
       await expect(readSessionState(statePath)).resolves.toMatchObject({ response_id: 'r1', goal: null });
       const { client } = openaiWithResponses({ id: 'r2', output: [] });
-      const blocked = { type: 'function_call', name: 'goal_update', call_id: 'blocked-invalid', arguments: JSON.stringify({ method: 'question', question: 'Need input' }) };
+      const blocked = { type: 'function_call', name: 'goal_blocked', call_id: 'blocked-invalid', arguments: JSON.stringify({ question: 'Need input' }) };
       const onGoalBlocked = jest.fn();
       await handleToolCalls(client, { id: 'r1', output: [blocked] }, baseRequest, '/tmp', null, undefined, { goalMode: true, goalMaxIterations: 0, onGoalBlocked });
-      expect(onGoalBlocked).toHaveBeenCalledWith({ method: 'question', question: 'Need input' });
+      expect(onGoalBlocked).toHaveBeenCalledWith({ question: 'Need input' });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -88,7 +88,25 @@ describe('goal mode', () => {
     const response = { id: 'resp-invalid', output: [goalCall('goal_update', { method: 'bogus' })] };
     await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, goalMaxIterations: 0 });
     expect(requests[0].input[0].output).toContain('Invalid goal_update method "bogus"');
-    expect(requests[0].tool_choice).toMatchObject({ mode: 'required', tools: [{ name: 'goal_update' }] });
+    expect(requests[0].tool_choice).toBe('required');
+  });
+
+  test('handles goal_blocked choices', async () => {
+    const { client, requests } = openaiWithResponses({ id: 'resp-choice-next', output: [{ type: 'function_call', name: 'goal_update', call_id: 'next', arguments: JSON.stringify({ method: 'complete' }) }] });
+    const onGoalBlocked = jest.fn(async () => 'Continue refactor');
+    const response = { id: 'resp-choice', output: [goalCall('goal_blocked', { question: 'Continue?', choices: ['Continue refactor', 'Stop'] })] };
+    await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalBlocked });
+    expect(onGoalBlocked).toHaveBeenCalled();
+    expect(requests[0].input[0].output).toBe('Continue refactor');
+  });
+
+  test('handles goal_blocked questions', async () => {
+    const { client, requests } = openaiWithResponses({ id: 'resp-question-next', output: [{ type: 'function_call', name: 'goal_update', call_id: 'next', arguments: JSON.stringify({ method: 'complete' }) }] });
+    const onGoalBlocked = jest.fn(async () => 'Proceed');
+    const response = { id: 'resp-question', output: [goalCall('goal_blocked', { question: 'Proceed?', choices: ['Proceed', 'Stop'] })] };
+    await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalBlocked });
+    expect(onGoalBlocked).toHaveBeenCalledWith(expect.objectContaining({ question: 'Proceed?' }));
+    expect(requests[0].input[0].output).toBe('Proceed');
   });
 
   test('executes goal_update and invokes completion callback', async () => {
@@ -119,12 +137,12 @@ describe('goal mode', () => {
       expect(choices).toEqual(['A', 'B']);
       return 'A';
     });
-    const response = { id: 'resp-1', output: [goalCall('goal_update', { method: 'question', question: 'Which approach?', choices: ['A', 'B'] })] };
+    const response = { id: 'resp-1', output: [goalCall('goal_blocked', { question: 'Which approach?', choices: ['A', 'B'] })] };
 
     await handleToolCalls(client, response, baseRequest, '/tmp', null, undefined, { goalMode: true, onGoalBlocked });
 
     expect(onGoalBlocked).toHaveBeenCalledTimes(1);
-    expect(requests[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'goal_update-1', output: 'A' });
+    expect(requests[0].input[0]).toMatchObject({ type: 'function_call_output', call_id: 'goal_blocked-1', output: 'A' });
   });
 
   test('continues goal work with live streaming enabled', async () => {
@@ -240,7 +258,7 @@ describe('tool-loop edge paths', () => {
 
     const mixed = openaiWithResponses({ id: 'mixed-next', output: [{ ...goalCall('goal_update'), arguments: JSON.stringify({ method: 'complete' }) }] });
     await handleToolCalls(mixed.client, { id: 'mixed-start', output: [image, goalCall('goal_update', { method: 'incomplete' }, 'goal-2')] }, baseRequest, '/tmp', null, undefined, { goalMode: true, onViewImage: async () => 'mixed image' });
-    expect(mixed.requests[0].tool_choice).toMatchObject({ mode: 'required', tools: [{ name: 'goal_update' }] });
+    expect(mixed.requests[0].tool_choice).toBe('required');
 
     const fallback = { ...image, call_id: 'image-2' };
     const second = openaiWithResponses({ id: 'image-fallback-next', output: [] });

@@ -158,7 +158,7 @@ describe('agent loop', () => {
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(persistResponseState.mock.calls.some(([, state]) => state.response_id === 'resp-first' && state.pending_tool_calls.length === 1)).toBe(true);
@@ -232,7 +232,7 @@ describe('agent loop', () => {
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(handleToolCalls).toHaveBeenCalledTimes(1);
@@ -341,7 +341,7 @@ Ask the user what they want to do next.`,
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(shellExec).not.toHaveBeenCalled();
@@ -412,7 +412,7 @@ Ask the user what they want to do next.`,
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(sendMessage).toHaveBeenCalledTimes(2);
@@ -494,7 +494,7 @@ Ask the user what they want to do next.`,
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(readJson).toHaveBeenCalledWith(promptPath);
@@ -582,7 +582,7 @@ Ask the user what they want to do next.`,
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(persistResponseState).toHaveBeenCalledTimes(5);
@@ -677,7 +677,7 @@ Ask the user what they want to do next.`,
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
@@ -735,7 +735,7 @@ Ask the user what they want to do next.`,
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await runAgent({ promptPath, cwd });
 
     expect(process.exit).toHaveBeenCalledWith(0);
@@ -786,7 +786,7 @@ Ask the user what they want to do next.`,
       wrapText: (text) => text,
     }));
 
-    const { runAgent } = await import('../src/agent.mjs');
+    const { runAgent } = await import('../src/agent/runtime.mjs');
     await expect(runAgent({ promptPath, cwd })).rejects.toThrow('boom');
   });
 });

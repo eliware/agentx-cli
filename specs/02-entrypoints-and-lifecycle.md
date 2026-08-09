@@ -28,7 +28,7 @@ On interactive TTY startup, if configuration is absent, ask `AgentX is not confi
 10. Create a readline interface with path completion only for interactive mode and enter the prompt loop.
 11. One-shot API failures retry automatically once; a second failure prints the error and exits nonzero. Interactive recovery must honor every explicit `retry` choice without an arbitrary retry limit, while `new-chain` recovery remains bounded to prevent accidental loops. Each manual `retry` or `debug-retry` must close and recreate the Responses client before retrying; preserve the exact pending continuation request only when one exists, otherwise rebuild from the last active user request. `previous_response_not_found` recovery also consumes that single automatic retry and must not loop indefinitely.
 
-Exit on EOF/AbortError or quit commands after printing usage totals. Register shared signal handlers for SIGTERM, SIGINT, and SIGHUP; shutdown must cleanly close readline, terminate active workers, and remove handlers without duplicate registration. One-shot failures do not open recovery menus; they go to stderr and process exit code 1. Startup failures go to stderr and process exit code 1.
+Exit on EOF/AbortError or quit commands after printing usage totals. Ctrl-C from recovery menus must restore cooked terminal mode, remove listeners, recreate the REPL interface, and return to the prompt without hanging. Register shared signal handlers for SIGTERM, SIGINT, and SIGHUP; shutdown must cleanly close readline, terminate active workers, and remove handlers without duplicate registration. One-shot failures do not open recovery menus; they go to stderr and process exit code 1. Startup failures go to stderr and process exit code 1.
 
 ## WebSocket lifetime errors
 

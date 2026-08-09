@@ -147,16 +147,16 @@ describe('agent session modules', () => {
       });
 
       const output = stdoutWrites.join('');
-      expect(output).toContain('[95m{"web_search":"in_progress"}[0m');
-      expect(output).toContain('[95m{"web_search":"searching"}[0m');
-      expect(output).toContain('\u001b[95m{\n  "web_search": "complete",');
+      expect(output).toContain('[38;5;213m{"web_search":"in_progress"}[0m');
+      expect(output).toContain('[38;5;213m{"web_search":"searching"}[0m');
+      expect(output).toContain('\u001b[38;5;213m{\n  "web_search": "complete",');
       expect(output).toContain(`"queries": [
     "alpha"
   ]`);
       expect(output).toContain(`"sources": [
     "https://example.com"
   ]`);
-      expect(output).toContain('[32m"reasoning":"0s/0s"[0m');
+      expect(output).toContain('[32m"reasoning":"0s/0s"[38;5;255m');
 
       const beforeBlank = stdoutWrites.length;
       handlers.onItemDone({ type: 'web_search_call', action: { queries: [], sources: [] } });
@@ -181,7 +181,7 @@ describe('agent session modules', () => {
 
     await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('done\n');
+    expect(stdoutWrites.join('')).toContain(`done\x1b[0m\n`);
   });
   test('sendMessage does not append an extra newline when streamed text already ends with one', async () => {
     const template = { model: 'test-model', input: [], tools: [] };
@@ -196,7 +196,7 @@ describe('agent session modules', () => {
 
     await sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-    expect(stdoutWrites.join('')).toContain('done\n');
+    expect(stdoutWrites.join('')).toContain(`done\n\x1b[0m`);
     expect(stdoutWrites.join('')).not.toContain('done\n\n');
   });
   test('sendMessage shows live stats until the first streamed delta and formats long waits as minutes', async () => {
@@ -218,7 +218,7 @@ describe('agent session modules', () => {
 
       const pending = sendMessage(openai, template, '', 'hello', 'AGENTS body', '/tmp/work', null, null, { liveStreaming: true });
 
-      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[0m,"writing":"0s/0s"');
+      expect(stdoutWrites.join('')).toContain('{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[38;5;255m,"writing":"0s/0s"');
 
       await jest.advanceTimersByTimeAsync(1000);
       expect(stdoutWrites.join('')).toContain('{"time":"1s"');
@@ -229,7 +229,7 @@ describe('agent session modules', () => {
 
       const output = stdoutWrites.join('');
       expect(output).toContain('Hi');
-      expect(output).toContain('\u001b[94m{"time":');
+      expect(output).toContain('\u001b[38;5;255m{"time":');
     } finally {
       jest.useRealTimers();
     }

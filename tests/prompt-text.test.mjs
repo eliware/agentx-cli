@@ -16,6 +16,7 @@ describe('prompt text', () => {
     expect(text).toMatch(/Terminal guidance: [\s\S]*Be extremely consice\. Sacrifice grammar for concision\.$/);
     expect(text).toContain('AGENTS body');
     expect(text).toContain('Terminal guidance: You are in a terminal.');
+    expect(text).toContain('inline ANSI SGR styling');
   });
 
   test('falls back to template instructions and a missing AGENTS notice', () => {

@@ -61,7 +61,7 @@ export function buildRequestMessage({ pendingCliTranscript, cwdNote, message }) 
 
 export const WORKER_ROLE_MESSAGE = 'You are a delegated worker, not the orchestrator. Complete only the task in the user message. Do not spawn agents, orchestrate other work, broaden scope, or wait for further instructions. Inspect, change, and verify only what is needed for this task, then report the result.';
 
-export const GOAL_TOOL_NAMES = new Set(['goal_update']);
+export const GOAL_TOOL_NAMES = new Set(['goal_update', 'goal_blocked']);
 
 export function withGoalTools(template, enabled) {
   const tools = (template?.tools || []).filter((tool) => !GOAL_TOOL_NAMES.has(tool?.name));
