@@ -27,6 +27,14 @@ describe('recovery menu', () => {
     }
   });
 
+  test('offers debug retry', async () => {
+    const { input, output } = makeIO();
+    const prompt = promptRecoveryMenu(new Error('broken'), { input, output, forceInteractive: true });
+    process.nextTick(() => input.emit('keypress', '2', { name: '2' }));
+    await expect(prompt).resolves.toBe('debug-retry');
+    expect(output.write.mock.calls.some(([chunk]) => String(chunk).includes('Enable debug mode and retry'))).toBe(true);
+  });
+
   test('moves up/down and accepts enter/return', async () => {
     const { input, output } = makeIO();
     const prompt = promptRecoveryMenu('oops', { input, output, forceInteractive: true });
@@ -36,7 +44,7 @@ describe('recovery menu', () => {
       input.emit('keypress', '', { name: 'return' });
     });
     await expect(prompt).resolves.toBe('retry');
-    expect(output.write.mock.calls.some(([chunk]) => String(chunk).includes('Use 1-5'))).toBe(true);
+    expect(output.write.mock.calls.some(([chunk]) => String(chunk).includes('Use 1-6'))).toBe(true);
   });
 
   test('ignores invalid and empty keys', async () => {

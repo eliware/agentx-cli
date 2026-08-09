@@ -151,7 +151,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     : await readSessionState(statePath);
   const savedResponseId = savedState?.response_id || '';
   const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
-  const debugEnabled = process.argv.includes('--debug');
+  let debugEnabled = process.argv.includes('--debug');
   const yoloEnabled = !process.argv.includes('--confirm');
   const attachOpenAIListeners = (client) => {
     if (typeof client?.responses?.on !== 'function') return;
@@ -159,10 +159,12 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     client.responses.on('error', (detail) => {
       if (debugEnabled) process.stderr.write(`[openai:error] ${JSON.stringify(detail ?? {})}\n`);
     });
-    if (debugEnabled) {
-      for (const event of ['connecting', 'open', 'reconnecting', 'reconnected', 'close']) {
-        client.responses.on(event, (detail) => process.stderr.write(`[openai:${event}] ${JSON.stringify(detail ?? {})}\n`));
-      }
+    if (debugEnabled) bindOpenAIDebugListeners(client);
+  };
+  const bindOpenAIDebugListeners = (client) => {
+    if (typeof client?.responses?.on !== 'function') return;
+    for (const event of ['connecting', 'open', 'reconnecting', 'reconnected', 'close']) {
+      client.responses.on(event, (detail) => process.stderr.write(`[openai:${event}] ${JSON.stringify(detail ?? {})}\n`));
     }
   };
   const createSessionClient = () => {
@@ -638,7 +640,10 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
           let choice;
           try { choice = await promptRecoveryMenu(error, { input: terminalInput, output: terminalOutput }); }
           catch (menuError) { if (menuError?.name === 'AbortError') { process.stdout.write(`${formatSystemMessage('Recovery cancelled; session preserved.')}\n`); break; } throw menuError; }
-          if (choice === 'retry') { recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue; }
+          if (choice === 'retry' || choice === 'debug-retry') {
+            if (choice === 'debug-retry' && !debugEnabled) { debugEnabled = true; bindOpenAIDebugListeners(openai); process.stderr.write('[agentx:debug] enabled for retry\n'); }
+            recoveryAttempts += 1; retryRequest = pendingRetryRequest; continue;
+          }
           if (choice === 'new-chain' && recoveryAttempts < 2) { recoveryAttempts += 1; previousResponseId = ''; retryRequest = null; pendingRetryRequest = null; continue; }
           if (choice === 'rollback') {
             const selected = await promptRollbackMenu(history, { input: terminalInput, output: terminalOutput });

@@ -4,6 +4,7 @@ import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 
 const OPTIONS = [
   { id: 'retry', label: 'Retry the request once' },
+  { id: 'debug-retry', label: 'Enable debug mode and retry the request' },
   { id: 'new-chain', label: 'Start a new response chain and retry' },
   { id: 'rollback', label: 'Rollback to a successful checkpoint' },
   { id: 'clear', label: 'Clear the session' },
@@ -19,7 +20,7 @@ export async function promptRecoveryMenu(error, { input = defaultInput, output =
     if (count) output.write(`\x1b[${count - 1}A\r\x1b[0J`);
     const rows = [`OpenAI request failed: ${formatOpenAIError(error)}`, 'Choose recovery:'];
     OPTIONS.forEach((option, index) => rows.push(`${index === selected ? '>' : ' '} ${index + 1}. ${option.label}`));
-    rows.push('', 'Use 1-5, ↑/↓, or Enter.');
+    rows.push('', 'Use 1-6, ↑/↓, or Enter.');
     output.write(rows.join('\n')); count = rows.length;
   };
   return await new Promise((resolve, reject) => {

@@ -13,6 +13,8 @@ Commands:
 - `!clear`: execute the shell clear-screen command locally.
 - `/usage`: print session token/cost totals.
 - `/rollback`: open the successful-response checkpoint menu and restore a selected checkpoint.
+
+When a recoverable OpenAI request fails, the recovery menu includes an option to enable debug logging and retry the request. Enabling it applies to the current session and prints raw transport/protocol diagnostics without changing the request.
 - `/setup`: run setup and reload settings.
 - `quit`, `exit`, `/quit`, `/exit`: leave after usage summary.
 
