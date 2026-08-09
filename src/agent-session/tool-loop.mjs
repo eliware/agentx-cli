@@ -9,6 +9,7 @@ import { isShellToolCall } from './response-format.mjs';
 
 const GOAL_TOOLS = new Set(['goal_update']);
 const IMAGE_TOOL = 'view_image';
+const IMAGE_GENERATION_OUTPUT = 'image_generation_call';
 function parseFunctionInput(call) { try { return JSON.parse(call?.arguments ?? call?.input ?? '{}'); } catch { return {}; } }
 
 export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
@@ -34,6 +35,9 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     if (goalMode && !goalFinished && goalCancelled()) { statusController?.clear(); return current; }
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
     const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
+    for (const item of current?.output ?? []) {
+      if (item?.type === IMAGE_GENERATION_OUTPUT && item?.result) await streamOptions?.onImageGeneration?.({ item, response: current, cwd });
+    }
     const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && (['spawn_agent', 'agent_status', 'cancel_agent'].includes(item?.name) || (goalMode && GOAL_TOOLS.has(item?.name)) || item?.name === IMAGE_TOOL))), cwd);
     const cumulativeUsage = shouldReportUsage && onResponseUsage ? onResponseUsage(usage, { skipIncrement: false }) : null;
     if (onResponseState) {

@@ -21,6 +21,7 @@ import { runSetup } from './setup.mjs';
 import { confirmationKey, confirmationFilePath, loadGlobalConfirmations, saveGlobalConfirmations } from './confirmation-policy.mjs';
 import { terminateWorkers } from './parallel-workers.mjs';
 import { inspectImage } from './image-inspector.mjs';
+import { saveGeneratedImage } from './image-generation.mjs';
 
 registerHandlers({ log });
 let activeOpenAI = null;
@@ -216,6 +217,20 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     rl = createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
   };
 
+  async function handleImageGeneration({ item }) {
+    try {
+      const filePath = await saveGeneratedImage(item);
+      pendingCliTranscript = appendCliTranscript(pendingCliTranscript, 'generated image', filePath);
+      process.stdout.write(`${formatSystemMessage(`Generated image saved: ${filePath}`)}\n`);
+      await saveState();
+      return `Generated image saved to ${filePath}`;
+    } catch (error) {
+      const message = `Unable to save generated image: ${error?.message || String(error)}`;
+      process.stdout.write(`${formatSystemMessage(message)}\n`);
+      return message;
+    }
+  }
+
   async function saveState() {
     await persistResponseState(statePath, {
       response_id: previousResponseId,
@@ -320,6 +335,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             debug: debugEnabled,
             transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
             runToolCall: runInteractiveToolCall,
+            onImageGeneration: handleImageGeneration,
             onViewImage: async ({ args, response: current, baseRequest, cwd: imageCwd }) => inspectImage(openai, args, { cwd: imageCwd, responseId: current?.id, callerResponse: current, model: baseRequest?.model }),
             yolo: yoloEnabled,
             onWorkerUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; },
@@ -591,7 +607,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               sessionUsage.turns += 1;
             }
             return sessionUsage;
-          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, onViewImage: async ({ args, response: current, baseRequest, cwd: imageCwd }) => inspectImage(openai, args, { cwd: imageCwd, responseId: current?.id, callerResponse: current, model: baseRequest?.model }), yolo: yoloEnabled, onWorkerUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; }, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, isGoalCancelled: () => activeGoal?.status !== 'active', onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
+          }, retryRequest || activeOverride, { liveStreaming: true, sessionStartedAt, onResponseState: persistResponseSnapshot, onRetryState: async ({ request }) => { pendingRetryRequest = request; await saveState(); }, onToolExecutionState: persistToolExecutionState, confirmToolCall, suppressStatusOutput: debugEnabled, debug: debugEnabled, transitionOnlyStatus: oneShot || !terminalInput?.isTTY, runToolCall: runInteractiveToolCall, onImageGeneration: handleImageGeneration, onViewImage: async ({ args, response: current, baseRequest, cwd: imageCwd }) => inspectImage(openai, args, { cwd: imageCwd, responseId: current?.id, callerResponse: current, model: baseRequest?.model }), yolo: yoloEnabled, onWorkerUsage: (usage) => { addUsageTotals(sessionUsage, usage); sessionUsage.turns += usage.turns || 0; }, goalMode: activeGoal?.status === 'active', goalText: activeGoal?.text || message, goalIterations: activeGoal?.iterations || 0, isGoalCancelled: () => activeGoal?.status !== 'active', onGoalComplete: async (result) => { activeGoal = { ...activeGoal, status: 'completed', result, completed_at: new Date().toISOString() }; await saveState(); process.stdout.write(`${formatSystemMessage('GOAL COMPLETE')}\n`); }, onGoalBlocked: async ({ question, choices = [] }) => { process.stdout.write(`${formatSystemMessage(`GOAL BLOCKED: ${question}`)}\n`); choices.forEach((choice, index) => process.stdout.write(`${String.fromCharCode(65 + index)}) ${choice}\n`)); const answer = await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: '); activeGoal = { ...activeGoal, iterations: (activeGoal?.iterations || 0) + 1, last_question: question }; await saveState(); return answer; }, onGoalLimit: async (iterations) => { activeGoal = { ...activeGoal, status: 'blocked', iterations }; await saveState(); process.stdout.write(`${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`); } });
         } catch (error) {
           const errorText = `${error?.message || ''} ${error?.cause?.message || ''}`;
           const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');

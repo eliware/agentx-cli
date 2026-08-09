@@ -209,6 +209,14 @@ describe('tool-loop edge paths', () => {
     expect(statusController.clear).toHaveBeenCalled();
   });
 
+  test('dispatches completed image generation output to the saver callback', async () => {
+    const { client, requests } = openaiWithResponses({ id: 'generated-next', output: [] });
+    const onImageGeneration = jest.fn().mockResolvedValue('Generated image saved to /tmp/generated.png');
+    await handleToolCalls(client, { id: 'generated-start', output: [{ type: 'image_generation_call', result: 'aGVsbG8=', status: 'completed' }] }, baseRequest, '/tmp', null, undefined, { onImageGeneration });
+    expect(onImageGeneration).toHaveBeenCalledWith(expect.objectContaining({ item: expect.objectContaining({ type: 'image_generation_call', result: 'aGVsbG8=' }) }));
+    expect(requests).toHaveLength(0);
+  });
+
   test('dispatches image inspection with and without a result', async () => {
     const image = { type: 'function_call', name: 'view_image', call_id: 'image-1', arguments: JSON.stringify({ images: [{ path: '/tmp/a.png' }], prompt: 'Inspect' }) };
     const { client, requests } = openaiWithResponses({ id: 'image-next', output: [] });

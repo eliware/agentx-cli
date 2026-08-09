@@ -30,6 +30,10 @@ Image inspection runs in an isolated Responses API branch from the response imme
 
 Only the branch's text response is returned as the `view_image` tool output. Temporary converted data and branch checkpoint state are discarded after completion. The main conversation continues from its original response ID, so image bytes are not included in the main conversation chain.
 
+## Image generation tool
+
+The default tool set includes the Responses built-in `image_generation` tool. Supported host models may generate or edit images. When a completed `image_generation_call` contains a base64 `result`, AgentX writes it as a temporary PNG, prints the absolute path to the user, and appends that path to the pending CLI transcript so the next user request tells the agent where to find it. Generated files use the system temporary directory and are not automatically deleted during the session. Partial-image streaming events are not persisted as files. If saving fails or no result is present, AgentX reports a concise error and continues without crashing.
+
 ## Goal state tool
 
 Goal mode exposes one `goal_update` function instead of separate lifecycle functions. Its required `method` is one of `complete`, `incomplete`, `blocked`, or `question`; optional fields carry summary/evidence or question/choices. Goal work requests require a tool call. After ordinary work-tool results, the next request restricts required tool selection to `goal_update`, preventing prose-only continuation loops. `complete` stops live status rendering, sends the completion acknowledgement, reports the final response usage and completion timing with tool selection disabled for the acknowledgement response, without streaming that response, and returns the final response to the interactive prompt, `blocked` ends it as blocked, `question` pauses for user input and resumes, and `incomplete` continues autonomous work.

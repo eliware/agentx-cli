@@ -209,6 +209,10 @@
       }
     },
     {
+      "type": "image_generation",
+      "description": "Generate or edit an image. AgentX saves the generated image to a temporary local file and reports its path to the user and the next prompt."
+    },
+    {
       "type": "function",
       "name": "goal_update",
       "description": "Report the current goal state after reviewing work and evidence.",
