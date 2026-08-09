@@ -305,3 +305,39 @@ describe('agent session modules', () => {
     expect(createCalls[0].input.map((item) => item.call_id)).toEqual(['call-1', 'call-2']);
   });
 });
+
+test('covers missing response ids on ordinary tool continuation', async () => {
+  const openai = { responses: { create: jest.fn().mockResolvedValue({ output: [] }) } };
+  const response = { output: [{ type: 'shell_call', call_id: 'missing-id', action: { commands: ['printf x'] } }] };
+  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, async () => ({ type: 'shell_call_output', call_id: 'missing-id', output: [], status: 'completed' }))).resolves.toEqual({ output: [] });
+});
+
+test('covers missing response ids while a goal continues', async () => {
+  const openai = {
+    responses: {
+      create: jest.fn()
+        .mockResolvedValueOnce({ output: [] })
+        .mockResolvedValueOnce({ id: 'goal-complete', output: [{ type: 'function_call', name: 'goal_update', call_id: 'goal-1', arguments: JSON.stringify({ method: 'complete', summary: 'done' }) }] })
+        .mockResolvedValueOnce({ output: [] }),
+    },
+  };
+  const response = { output: [{ type: 'function_call', name: 'goal_update', call_id: 'goal-0', arguments: JSON.stringify({ method: 'incomplete' }) }] };
+  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { goalMode: true, goalText: 'test goal' })).resolves.toEqual({ output: [] });
+});
+
+test('handles goal questions and blocked outcomes', async () => {
+  const makeOpenai = (method) => ({ responses: { create: jest.fn()
+    .mockResolvedValueOnce({ id: `${method}-next`, output: [{ type: 'function_call', name: 'goal_update', call_id: `${method}-complete`, arguments: JSON.stringify({ method: 'complete' }) }] })
+    .mockResolvedValueOnce({ id: `${method}-final`, output: [] }) } });
+  const questionOpenai = makeOpenai('question');
+  const question = { output: [{ type: 'function_call', name: 'goal_update', call_id: 'question-1', arguments: JSON.stringify({ method: 'question', question: 'Continue?' }) }] };
+  await expect(handleToolCalls(questionOpenai, question, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, {
+    goalMode: true, onGoalBlocked: async () => 'yes',
+  })).resolves.toEqual({ id: 'question-final', output: [] });
+
+  const blockedOpenai = makeOpenai('blocked');
+  const blocked = { output: [{ type: 'function_call', name: 'goal_update', call_id: 'blocked-1', arguments: JSON.stringify({ method: 'blocked' }) }] };
+  await expect(handleToolCalls(blockedOpenai, blocked, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, {
+    goalMode: true, onGoalLimit: jest.fn(), goalIterations: 2,
+  })).resolves.toEqual({ id: 'blocked-final', output: [] });
+});
