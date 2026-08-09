@@ -81,9 +81,11 @@ describe('tool shell', () => {
     const tmp = makeTempDir('agentx-shell-descendant-');
     try {
       const marker = `${tmp}/descendant-ran`;
-      const command = `node -e "const fs=require('fs'); const cp=require('child_process'); cp.spawn(process.execPath,['-e',"setTimeout(()=>fs.writeFileSync('${marker}','bad'),300)"],{stdio:'ignore'}); setTimeout(()=>{},5000)"`;
-      const result = await runShellCommands([command], tmp, { callId: 'call-descendant', timeoutMs: 25 });
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      const descendantScript = `const fs=require('fs'); setTimeout(()=>fs.writeFileSync(${JSON.stringify(marker)},'bad'),1000)`;
+      const parentScript = `const cp=require('child_process'); cp.spawn(process.execPath,['-e',${JSON.stringify(descendantScript)}],{stdio:'ignore'}); setTimeout(()=>{},5000)`;
+      const command = `node -e ${JSON.stringify(parentScript)}`;
+      const result = await runShellCommands([command], tmp, { callId: 'call-descendant', timeoutMs: 250 });
+      await new Promise((resolve) => setTimeout(resolve, 1200));
       expect(result.status).toBe('incomplete');
       expect(result.output[0].outcome).toEqual({ type: 'timeout' });
       expect(() => accessSync(marker)).toThrow();
