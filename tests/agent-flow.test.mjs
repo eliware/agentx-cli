@@ -131,6 +131,12 @@ describe('agent flow helpers', () => {
     } finally { cleanupTempDir(tmp); }
   });
 
+  test('built-in image generation tool uses the Responses API schema', async () => {
+    const promptPath = path.resolve('prompt.json');
+    const template = await loadPromptTemplate(promptPath, path.resolve('missing-mcp.json'));
+    expect(template.tools.find((tool) => tool.type === 'image_generation')).toEqual({ type: 'image_generation' });
+  });
+
   test('loadPromptTemplate returns parsed JSON when the prompt file is valid', async () => {
     const tmp = makeTempDir('agentx-prompt-');
     try {
