@@ -3,6 +3,7 @@ import { sendMessage } from '../src/agent-session/session-service.mjs';
 import { createStatusLineController } from '../src/agent-session/status-controller.mjs';
 import { createStreamedResponse } from '../src/agent-session/response-stream.mjs';
 import { createLiveResponseHandlers } from '../src/agent-session/response-events.mjs';
+import { normalizeOutputFlags } from '../src/cli.mjs';
 
 describe('agent session modules', () => {
   let originalStdoutWrite;
@@ -189,6 +190,50 @@ describe('agent session modules', () => {
     expect(statusController.resume).toHaveBeenCalled();
     expect(statusController.showExecuting).toHaveBeenCalled();
     expect(statusController.showReasoning).toHaveBeenCalled();
+  });
+  test('sendMessage quiet mode executes MCP responses without rendering MCP output', async () => {
+    const template = { model: 'test-model', input: [], tools: [{ type: 'mcp', server_label: 'test' }] };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onTextDelta('answer');
+          handlers.onEvent({ type: 'response.mcp_call.in_progress' });
+          handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: '{"url":"https://example.com"}' });
+          handlers.onItemAdded({ type: 'mcp_call', name: 'web-browse' });
+          handlers.onItemDone({ type: 'mcp_call' });
+          return { id: 'resp-quiet-mcp', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'browse', '', '/tmp/work', null, null, {
+      liveStreaming: true, ...normalizeOutputFlags({ quiet: true }), suppressStatusOutput: true, suppressUsageOutput: true,
+    });
+
+    expect(stdoutWrites.join('')).toContain('answer');
+    expect(stdoutWrites.join('')).not.toContain('web-browse');
+    expect(stdoutWrites.join('')).not.toContain('mcp');
+  });
+  test('sendMessage noMcp mode preserves assistant output while hiding MCP output', async () => {
+    const template = { model: 'test-model', input: [], tools: [{ type: 'mcp', server_label: 'test' }] };
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          handlers.onTextDelta('answer');
+          handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'hidden' });
+          handlers.onItemAdded({ type: 'mcp_call', name: 'hidden-tool' });
+          return { id: 'resp-no-mcp', output: [] };
+        },
+      },
+    };
+
+    await sendMessage(openai, template, '', 'browse', '', '/tmp/work', null, null, {
+      liveStreaming: true, noMcp: true, suppressStatusOutput: true, suppressUsageOutput: true, noTimers: true,
+    });
+
+    expect(stdoutWrites.join('')).toContain('answer');
+    expect(stdoutWrites.join('')).not.toContain('hidden-tool');
+    expect(stdoutWrites.join('')).not.toContain('hidden');
   });
   test('live handlers stream MCP calls and suppress debug-only output', async () => {
     const template = { model: 'test-model', input: [], tools: [] };
