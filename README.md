@@ -106,7 +106,7 @@ The launchers load `~/.agentx` when present.
 
 ## MCP tools
 
-AgentX automatically loads an optional `.agentx.mcp.json` from your home directory and merges its MCP tool definitions into the request. Start with [`.agentx.mcp.json.example`](./.agentx.mcp.json.example), then copy it to `~/.agentx.mcp.json` and add your server configuration. The example file is ignored by Git when copied or customized locally. MCP calls and streamed arguments are displayed in cyan.
+AgentX automatically loads an optional `.agentx.mcp.json` from your home directory and merges its enabled MCP tool definitions into the request. Set `"enabled": false` on an entry to disable that server without removing its configuration. Start with [`.agentx.mcp.json.example`](./.agentx.mcp.json.example), then copy it to `~/.agentx.mcp.json` and add your server configuration. The example file is ignored by Git when copied or customized locally. See the [MCP smoke tests](./docs/mcp-smoke-tests.md) for live verification commands. MCP calls and streamed arguments are displayed in cyan.
 
 ## Security
 
