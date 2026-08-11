@@ -15,6 +15,7 @@ if (homeDirectory) {
 const { isDirectInvocation, promptPath } = await import('./src/runtime.mjs');
 const { runAgent } = await import('./src/agent.mjs');
 const { formatQuickHelp, getPackageVersion, parseCliArgs } = await import('./src/cli.mjs');
+const { formatMcpConfigValidation, validateMcpConfigFile } = await import('./src/mcp-config.mjs');
 
 function printAndExit(text, code = 0) {
   process.stdout.write(`${text}\n`);
@@ -49,6 +50,10 @@ if (isDirectInvocation(import.meta.url)) {
     printAndExit(formatQuickHelp());
   } else if (parsed.flags.version) {
     printAndExit(getPackageVersion());
+  } else if (parsed.flags.checkMcp) {
+    const mcpPath = path(homeDirectory || process.cwd(), '.agentx.mcp.json');
+    const result = validateMcpConfigFile(mcpPath);
+    printAndExit(formatMcpConfigValidation(result), result.valid ? 0 : 1);
   } else {
     try {
       const messageArgs = parsed.messageArgs;

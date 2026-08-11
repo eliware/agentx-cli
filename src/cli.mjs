@@ -17,10 +17,11 @@ const longFlags = {
   '--no-usage': 'noUsage', '--no-colors': 'noColors', '--no-timers': 'noTimers',
   '--no-reasoning': 'noReasoning', '--no-shell-calls': 'noShellCalls',
   '--no-tool-calls': 'noToolCalls', '--no-mcp': 'noMcp', '--no-websearch': 'noWebsearch',
+  '--check-mcp': 'checkMcp',
 };
 
 export function parseCliArgs(argv = []) {
-  const flags = { debug: false, confirm: false, yolo: false, quiet: false, noUsage: false, noColors: false, noTimers: false, noReasoning: false, noShellCalls: false, noToolCalls: false, noMcp: false, noWebsearch: false, help: false, version: false, cwd: null };
+  const flags = { debug: false, confirm: false, yolo: false, quiet: false, noUsage: false, noColors: false, noTimers: false, noReasoning: false, noShellCalls: false, noToolCalls: false, noMcp: false, noWebsearch: false, help: false, version: false, cwd: null, checkMcp: false };
   const messageArgs = [];
   let passthrough = false;
   for (let index = 0; index < argv.length; index += 1) {
@@ -35,6 +36,7 @@ export function parseCliArgs(argv = []) {
     if (arg.startsWith('--cwd=')) { flags.cwd = arg.slice('--cwd='.length); continue; }
     if (arg === '--help' || arg === '-h' || arg === '-?') { flags.help = true; continue; }
     if (arg === '--version' || arg === '-v') { flags.version = true; continue; }
+    if (arg === '-M') { flags.checkMcp = true; continue; }
     if (Object.hasOwn(longFlags, arg)) { flags[longFlags[arg]] = true; continue; }
     if (/^-[a-z]+$/.test(arg) && arg.length > 1 && arg.slice(1).split('').every((letter) => Object.hasOwn(shortOutputFlags, letter))) {
       for (const letter of arg.slice(1)) flags[shortOutputFlags[letter]] = true;
@@ -93,6 +95,7 @@ export function formatQuickHelp(version = getPackageVersion()) {
     '  --version, -v    print the package version',
     '  --debug          print raw websocket logs and suppress live status lines',
     '  --cwd PATH, -C PATH  use PATH as the working directory',
+    '  --check-mcp, -M  validate MCP config without contacting APIs',
     '  --confirm        enable tool confirmation prompts',
     '  --yolo           legacy alias; bypass tool confirmation prompts',
     '  --quiet, -q      suppress usage, timers, and tool/status output (keeps reasoning)',

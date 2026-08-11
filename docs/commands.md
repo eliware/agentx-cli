@@ -61,6 +61,7 @@ These are command-line flags, not in-app commands:
 
 - `--help`, `-h`, `-?`: show quick help and exit
 - `--version`, `-v`: print the package version and exit
+- `--check-mcp` (`-M`): validate the user-local MCP config shape, HTTPS URLs, labels, and authorization presence without contacting APIs
 - `--debug`: print raw websocket logs and suppress live status lines. MCP and reasoning argument deltas are filtered where appropriate to keep raw diagnostics readable.
 - `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Without it, approval is automatic. `--yolo` remains a legacy alias.
 - `--cwd PATH` (`-C PATH`): use `PATH` as the working directory for the session. Relative paths resolve from the launch directory.

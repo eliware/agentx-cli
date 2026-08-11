@@ -23,6 +23,8 @@ describe('cli helpers', () => {
     expect(parseCliArgs(['-C', '/tmp/project', 'review']).messageArgs).toEqual(['review']);
     expect(parseCliArgs(['-C', '/tmp/project', 'review']).flags.cwd).toBe('/tmp/project');
     expect(parseCliArgs(['--cwd']).flags.cwd).toBe('');
+    expect(parseCliArgs(['--check-mcp']).flags.checkMcp).toBe(true);
+    expect(parseCliArgs(['-M']).flags.checkMcp).toBe(true);
   });
 
   test('supports end-of-options passthrough and unknown message arguments', () => {
@@ -70,5 +72,6 @@ describe('cli helpers', () => {
     expect(help).toContain('--debug');
     expect(help).toContain('--yolo');
     expect(help).toContain('--cwd PATH, -C PATH');
+    expect(help).toContain('--check-mcp, -M');
   });
 });

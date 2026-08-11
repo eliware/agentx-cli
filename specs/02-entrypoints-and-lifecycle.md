@@ -8,6 +8,7 @@ At startup, if a home directory exists, load `$HOME/.agentx` with dotenv (quietl
 Flags are handled before the REPL:
 - `--help`, `-h`, `-?`: print help and exit 0.
 - `--version`, `-v`: print package version and exit 0.
+- `--check-mcp`, `-M`: validate the user-local MCP config shape, HTTPS URLs, labels, and authorization presence without contacting OpenAI or MCP servers; exit 0 when valid or absent, and exit 1 when invalid.
 - `--debug`: retain for runtime diagnostics.
 - `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Approval is the default; `--yolo` remains a legacy alias.
 - `--cwd PATH` (`-C PATH`): run the session with `PATH` as its working directory. Relative paths resolve from the directory where AgentX was launched.
