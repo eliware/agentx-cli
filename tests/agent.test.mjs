@@ -800,6 +800,41 @@ Ask the user what they want to do next.`,
     expect(writes.join(' ')).toContain('Starting new session');
   });
 
+  test('retries closed websocket requests with a fresh client before succeeding', async () => {
+    const sendMessage = jest.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('cannot send on a closed WebSocket'), { code: 'websocket_closed' }))
+      .mockResolvedValueOnce({ id: 'resp-reconnected', output: [{ type: 'message', content: [{ type: 'output_text', text: 'reconnected' }] }] });
+    const recreateOpenAIClient = jest.fn(async () => ({ responses: { close: jest.fn() } }));
+    const waitForWebsocketRetry = jest.fn(async () => true);
+    const noop = jest.fn(async () => { });
+
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
+      clearSession: noop,
+      extractTextFromResponse: () => 'reconnected',
+      extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
+      persistResponseState: noop,
+      readSessionState: async () => null,
+      handleToolCalls: noop,
+      sendMessage,
+    }));
+    await jest.unstable_mockModule('../src/retry-recovery.mjs', () => ({ recreateOpenAIClient, waitForWebsocketRetry }));
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession: noop, persistResponseState: noop, readSessionState: async () => null }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({ extractTextFromResponse: () => 'reconnected', createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }), addUsageTotals: noop, formatUsageReport: () => '', formatTurnUsageReport: () => '', extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }) }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: noop }));
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({ readJson: async () => ({ model: 'test-model', input: [], tools: [] }) }));
+    await jest.unstable_mockModule('../src/shell.mjs', () => makeShellMock());
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({ shellExec: noop }));
+    await jest.unstable_mockModule('../src/text-wrap.mjs', () => ({ getTerminalWidth: () => 80, wrapText: (text) => text }));
+
+    const { runAgent } = await import('../src/agent/runtime.mjs');
+    await runAgent({ promptPath, cwd, initialMessage: 'hello', oneShot: true });
+
+    expect(waitForWebsocketRetry).toHaveBeenCalledWith(expect.any(Number), 0);
+    expect(recreateOpenAIClient).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(writes.join(' ')).toContain('Responses connection expired; reconnecting.');
+  });
+
   test('propagates unexpected readline errors', async () => {
     await jest.unstable_mockModule('node:readline/promises', () => ({
       createInterface: () => ({

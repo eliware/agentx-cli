@@ -22,7 +22,7 @@ import { createReplInterface, printAgentText, printResumeMessage, printUsageRepo
 import { createResumeToolCallRunner } from './recovery.mjs';
 import { inspectImage } from '../image-inspector.mjs';
 import { saveGeneratedImage } from '../image-generation.mjs';
-import { recreateOpenAIClient } from '../retry-recovery.mjs';
+import { recreateOpenAIClient, waitForWebsocketRetry } from '../retry-recovery.mjs';
 import { normalizeOutputFlags, parseCliArgs } from '../cli.mjs';
 
 registerHandlers({ log });
@@ -564,6 +564,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       await saveState();
       let recoveryAttempts = 0;
       let websocketRecoveryAttempts = 0;
+      let websocketRecoveryStartedAt = null;
       while (!response) {
         const workerRoleMessage = oneShot && process.env.AGENTX_WORKER_ID ? WORKER_ROLE_MESSAGE : '';
         const requestTemplate = withGoalTools(template, activeGoal?.status === 'active');
@@ -674,12 +675,16 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         } catch (error) {
           const errorText = `${error?.message || ''} ${error?.cause?.message || ''}`;
           const websocketExpired = error?.code === 'websocket_connection_limit_reached' || errorText.includes('websocket_connection_limit_reached') || errorText.includes('cannot send on a closed WebSocket');
-          if (websocketExpired && websocketRecoveryAttempts < 1) {
-            websocketRecoveryAttempts += 1;
-            openai = await recreateOpenAIClient(openai, createSessionClient);
-            activeOpenAI = openai;
-            writeTerminal(`${formatSystemMessage('Responses connection expired; reconnecting.')}\n`);
-            continue;
+          if (websocketExpired) {
+            websocketRecoveryStartedAt ??= Date.now();
+            if (await waitForWebsocketRetry(websocketRecoveryStartedAt, websocketRecoveryAttempts)) {
+              websocketRecoveryAttempts += 1;
+              openai = await recreateOpenAIClient(openai, createSessionClient);
+              activeOpenAI = openai;
+              writeTerminal(`${formatSystemMessage('Responses connection expired; reconnecting.')}\n`);
+              continue;
+            }
+            recoveryAttempts = 1;
           }
           if (error?.code === 'previous_response_not_found' && previousResponseId && recoveryAttempts < 1) {
             recoveryAttempts += 1;
