@@ -10,7 +10,7 @@ function makeShellMock() {
     formatPromptForCwd: (nextCwd) => `[AgentX test@dev:${nextCwd}] `,
     formatSystemMessage: (message) => message,
     parseInternalCommand: (message) => {
-      if (message === 'clear') return { type: 'clear' };
+      if (message === 'clear') return { type: 'session_clear' };
       if (message === '/clear') return { type: 'session_clear' };
       if (message === '/usage') return { type: 'usage' };
       if (message === 'cd' || message.startsWith('cd ')) return { type: 'cd', target: message.slice(2).trim() };
@@ -97,7 +97,7 @@ describe('agent loop', () => {
   });
 
   test('persists the active response id and pending tool calls while tool execution is in flight', async () => {
-    const questionQueue = ['hello', '/exit'];
+    const questionQueue = ['clear', 'hello', '/exit'];
 
     await jest.unstable_mockModule('node:readline/promises', () => ({
       createInterface: () => ({
@@ -164,6 +164,7 @@ describe('agent loop', () => {
     expect(persistResponseState.mock.calls.some(([, state]) => state.response_id === 'resp-first' && state.pending_tool_calls.length === 1)).toBe(true);
     expect(persistResponseState.mock.calls.some(([, state]) => state.response_id === 'resp-complete' && state.pending_tool_calls.length === 0)).toBe(true);
     expect(sendMessage.mock.calls.every(([, , , , , , , , streamOptions]) => streamOptions?.suppressStatusOutput === true)).toBe(true);
+    expect(clearSession).toHaveBeenCalledTimes(1);
   });
 
   test('resumes interrupted tool execution when the user confirms', async () => {
@@ -499,7 +500,7 @@ Ask the user what they want to do next.`,
 
     expect(readJson).toHaveBeenCalledWith(promptPath);
     expect(readSessionState).toHaveBeenCalled();
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    expect(clearSession).toHaveBeenCalledTimes(2);
     expect(sendMessage).toHaveBeenCalledTimes(2);
     expect(persistResponseState).toHaveBeenCalled();
     expect(process.exit).toHaveBeenCalledWith(0);

@@ -7,7 +7,7 @@ import { clearSession, persistResponseState, readSessionState } from '../session
 import { extractTextFromResponse } from '../response.mjs';
 import { handleToolCalls } from '../agent-session/tool-loop.mjs';
 import { sendMessage } from '../agent-session/session-service.mjs';
-import { buildWorkingDirectoryNote, clearTerminal, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from '../shell.mjs';
+import { buildWorkingDirectoryNote, formatPromptForCwd, formatSystemMessage, parseInternalCommand, readAgentsFromCwdAndParents, resolveCdTarget } from '../shell.mjs';
 import { createUsageTotals, addUsageTotals, formatUsageReport } from '../response.mjs';
 import { appendCliTranscript, buildRequestMessage, buildRequestOverride, loadPromptTemplate, withGoalTools, resolveAgentApiKey, WORKER_ROLE_MESSAGE } from '../agent-flow.mjs';
 import { promptResumeMenu } from '../resume-menu.mjs';
@@ -388,11 +388,6 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
 
       let message = line.trim();
-      // Handle plain `clear` command to clear the terminal display.
-      if (message === 'clear') {
-        clearTerminal();
-        continue;
-      }
       if (!message) continue;
 
       if (message.startsWith('!')) {
