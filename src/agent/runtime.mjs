@@ -1,4 +1,4 @@
-import { writeTerminal } from '../terminal-output.mjs';
+import { setTerminalOutputOptions, writeTerminal } from '../terminal-output.mjs';
 import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
 import { log, registerHandlers, registerSignals, path } from '@eliware/common';
 import { createOpenAI } from '@eliware/openai';
@@ -23,6 +23,7 @@ import { createResumeToolCallRunner } from './recovery.mjs';
 import { inspectImage } from '../image-inspector.mjs';
 import { saveGeneratedImage } from '../image-generation.mjs';
 import { recreateOpenAIClient } from '../retry-recovery.mjs';
+import { normalizeOutputFlags, parseCliArgs } from '../cli.mjs';
 
 registerHandlers({ log });
 let activeOpenAI = null;
@@ -31,8 +32,10 @@ const signalRegistration = registerSignals({ log, shutdownHook: async () => {
   await terminateWorkers();
 } });
 
-export async function runAgent({ promptPath, cwd, input: terminalInput = defaultInput, output: terminalOutput = defaultOutput, initialMessage = null, oneShot = false } = {}) {
+export async function runAgent({ promptPath, cwd, input: terminalInput = defaultInput, output: terminalOutput = defaultOutput, initialMessage = null, oneShot = false, flags = null } = {}) {
   const launchCwd = cwd;
+  const outputFlags = normalizeOutputFlags({ ...parseCliArgs(process.argv.slice(2)).flags, ...flags });
+  setTerminalOutputOptions({ colors: !outputFlags.noColors });
   const sessionStatePath = path(launchCwd, '.agentx_responseid');
   await cleanupStaleOneShotStates(launchCwd);
   const checkpointPath = path(launchCwd, '.agentx_checkpoint');
@@ -46,8 +49,8 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     : await readSessionState(statePath);
   const savedResponseId = savedState?.response_id || '';
   const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY || (process.env.JEST_WORKER_ID ? 'test-key' : resolveAgentApiKey());
-  let debugEnabled = process.argv.includes('--debug');
-  const yoloEnabled = !process.argv.includes('--confirm');
+  let debugEnabled = Boolean(outputFlags.debug);
+  const yoloEnabled = !outputFlags.confirm;
   const attachOpenAIListeners = (client) => {
     if (typeof client?.responses?.on !== 'function') return;
     // Always bind error: the SDK otherwise reports transport errors as unhandled rejections.
@@ -70,9 +73,9 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let openai = createSessionClient();
   activeOpenAI = openai;
 
-  writeTerminal(`${formatStartupSettings(settingsFromEnv())}\n`);
-  if (!agentsText) writeTerminal(`${formatSystemMessage('AGENTS.md not found; ask AgentX to generate one for this project.')}\n`);
-  writeTerminal(`${formatSystemMessage(savedResponseId ? `${oneShot ? 'Branching from checkpoint' : 'Resuming conversation'} ${savedResponseId}` : 'Starting new session')}\n`);
+  if (!outputFlags.quiet) writeTerminal(`${formatStartupSettings(settingsFromEnv())}\n`);
+  if (!outputFlags.quiet && !agentsText) writeTerminal(`${formatSystemMessage('AGENTS.md not found; ask AgentX to generate one for this project.')}\n`);
+  if (!outputFlags.quiet) writeTerminal(`${formatSystemMessage(savedResponseId ? `${oneShot ? 'Branching from checkpoint' : 'Resuming conversation'} ${savedResponseId}` : 'Starting new session')}\n`);
   if (!oneShot) {
     printResumeMessage('Last user message', savedState?.last_user_message || '');
     printResumeMessage('Last assistant message', savedState?.last_assistant_message || '');
@@ -92,6 +95,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   let pendingCliTranscript = savedState?.pending_cli_transcript || '';
   const onWorkerComplete = (worker) => {
     if (!worker?.usage) return;
+    if (outputFlags.noUsage) return;
     const usage = formatUsageReport({ ...worker.usage, model: template?.model });
     writeTerminal(`\u001b[38;5;33m${usage}\u001b[0m\n`);
   };
@@ -213,7 +217,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   }
 
   async function exitWithSummary({ leadingNewline = false } = {}) {
-    printUsageReport(sessionUsage, { leadingNewline, model: template.model });
+    if (!outputFlags.noUsage) printUsageReport(sessionUsage, { leadingNewline, model: template.model });
     rl?.close?.();
     process.exit(0);
   }
@@ -280,7 +284,15 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             onResponseState: persistResponseSnapshot,
             onToolExecutionState: persistToolExecutionState,
             confirmToolCall,
-            suppressStatusOutput: debugEnabled,
+            suppressStatusOutput: debugEnabled || outputFlags.quiet,
+            suppressUsageOutput: outputFlags.noUsage,
+            noTimers: outputFlags.noTimers,
+            colors: !outputFlags.noColors,
+            noReasoning: outputFlags.noReasoning,
+            noShellCalls: outputFlags.noShellCalls,
+            noToolCalls: outputFlags.noToolCalls,
+            noMcp: outputFlags.noMcp,
+            noWebsearch: outputFlags.noWebsearch,
             debug: debugEnabled,
             transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
             runToolCall: runPendingToolCall,
@@ -481,7 +493,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       // `clear` command is handled by shell commands; no action needed here.
 
       if (internal?.type === 'session_clear') {
-        printUsageReport(sessionUsage, { model: template.model });
+        if (!outputFlags.noUsage) printUsageReport(sessionUsage, { model: template.model });
         previousResponseId = '';
         lastUserMessage = '';
         lastAssistantMessage = '';
@@ -525,7 +537,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       }
 
       if (internal?.type === 'usage') {
-        printUsageReport(sessionUsage, { model: template.model });
+        if (!outputFlags.noUsage) printUsageReport(sessionUsage, { model: template.model });
         continue;
       }
 
@@ -629,7 +641,15 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               onRetryState,
               onToolExecutionState: persistToolExecutionState,
               confirmToolCall,
-              suppressStatusOutput: debugEnabled,
+              suppressStatusOutput: debugEnabled || outputFlags.quiet,
+              suppressUsageOutput: outputFlags.noUsage,
+              noTimers: outputFlags.noTimers,
+              colors: !outputFlags.noColors,
+              noReasoning: outputFlags.noReasoning,
+              noShellCalls: outputFlags.noShellCalls,
+              noToolCalls: outputFlags.noToolCalls,
+              noMcp: outputFlags.noMcp,
+              noWebsearch: outputFlags.noWebsearch,
               debug: debugEnabled,
               transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
               runToolCall: runInteractiveToolCall,
@@ -742,5 +762,6 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
     activeOpenAI = null;
     await terminateWorkers();
     signalRegistration.removeHandlers?.();
+    setTerminalOutputOptions({ colors: true });
   }
 }

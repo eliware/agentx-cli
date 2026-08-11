@@ -1,3 +1,5 @@
+import stripAnsi from 'strip-ansi';
+
 const STATUS_UPDATE_INTERVAL_MS = 250;
 const STATUS_WHITE = '\u001b[38;5;255m';
 const STATUS_GREEN = '\u001b[32m';
@@ -46,7 +48,7 @@ export function formatSpinnerFrame() {
   return '';
 }
 
-export function createStatusLineController(sessionStartedAt = Date.now(), { quiet = false, transitionOnly = false } = {}) {
+export function createStatusLineController(sessionStartedAt = Date.now(), { quiet = false, transitionOnly = false, colors = true } = {}) {
   let timer = null;
   let lastRendered = '';
   let state = null;
@@ -64,6 +66,7 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
     // line. Clear that line, then leave the cursor at its beginning so the
     // next status frame or streamed output owns the terminal position.
     if (quiet || transitionOnly || !lastRendered) return;
+    if (!colors) { lastRendered = ''; return; }
     process.stdout.write('\r\x1b[2K\r');
     lastRendered = '';
   }
@@ -126,7 +129,8 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
   function render() {
     if (quiet || paused || !state || state === 'writing') return;
     const stats = snapshot();
-    writeLine(`${STATUS_WHITE}{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}${RESET}`);
+    const status = `{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}`;
+    writeLine(colors ? `${STATUS_WHITE}${status}${RESET}` : stripAnsi(status));
   }
 
   function prepareOutput() {

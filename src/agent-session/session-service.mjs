@@ -7,7 +7,7 @@ import { createStreamedResponse } from './response-stream.mjs';
 export async function sendMessage(openai, template, previousResponseId, userMessage, agentsText, cwd, onResponseUsage, requestOverride = null, streamOptions = {}) {
   const baseRequest = JSON.parse(JSON.stringify(template));
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
-  const statusController = streamOptions?.statusController || createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus) });
+  const statusController = streamOptions?.statusController || createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput || streamOptions?.noTimers), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus), colors: streamOptions?.colors !== false });
   const request = requestOverride ? { ...baseRequest, ...requestOverride } : (previousResponseId
     ? {
       ...baseRequest,

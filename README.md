@@ -14,7 +14,7 @@ It is designed to feel shell-like:
 - supports tab completion for local files and folders, including after changing directories
 - remembers interactive session state in `.agentx_responseid` and successful checkpoints in `.agentx_checkpoint`
 - can prompt to resume interrupted tool execution on startup
-- includes quick CLI flags for help, version, and debug logging
+- includes quick CLI flags for help, version, debug logging, and output control
 - handles temporary WebSocket connectivity failures and shuts down connections gracefully
 - prints active model and runtime settings at startup
 - prints friendly startup errors for missing config or API keys
@@ -44,6 +44,9 @@ Quick flags:
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
 - `agentx --confirm` enables confirmation prompts; approval is the default
+- `agentx --quiet` suppresses usage, timers, and tool/status output while retaining reasoning
+- `agentx --no-usage`, `--no-colors`, `--no-timers`, `--no-reasoning`, `--no-shell-calls`, `--no-tool-calls`, `--no-mcp`, and `--no-websearch` selectively suppress output categories
+- Output flags have stackable short forms: `-u`, `-c`, `-t`, `-r`, `-s`, `-o`, `-m`, `-w`, and `-q` (for example, `-qur`)
 - `agentx "message"` sends one request, performs tool calls, prints the response and usage summary, then exits
 
 ## Behavior

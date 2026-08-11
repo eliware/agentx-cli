@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { clearTerminal, formatCommandMessage, formatCustomToolMessage, formatInfoMessage, formatMcpMessage, formatPromptForCwd, formatSystemMessage, formatUsageMessage, formatFinalUsageMessage } from '../src/shell-display.mjs';
+import { setTerminalOutputOptions } from '../src/terminal-output.mjs';
 
 describe('shell display', () => {
   test('formats prompt and messages and clears the terminal', () => {
@@ -44,6 +45,20 @@ describe('shell display', () => {
       if (originalUsername === undefined) delete process.env.USERNAME; else process.env.USERNAME = originalUsername;
       if (originalHost === undefined) delete process.env.HOSTNAME; else process.env.HOSTNAME = originalHost;
       if (originalComputer === undefined) delete process.env.COMPUTERNAME; else process.env.COMPUTERNAME = originalComputer;
+    }
+  });
+
+  test('shell display omits ANSI controls when colors are disabled', () => {
+    const original = process.stdout.write;
+    const writes = [];
+    process.stdout.write = (chunk) => { writes.push(String(chunk)); return true; };
+    try {
+      setTerminalOutputOptions({ colors: false });
+      clearTerminal();
+      expect(formatPromptForCwd('/tmp')).not.toContain('\u001b[');
+    } finally {
+      setTerminalOutputOptions({ colors: true });
+      process.stdout.write = original;
     }
   });
 });

@@ -66,7 +66,7 @@ describe('entrypoint', () => {
       await import('../agentx.mjs');
 
       expect(runAgent).not.toHaveBeenCalled();
-      expect(writes.join('')).toContain('Usage: agentx [--help|-h|-?] [--version|-v] [--debug] [--yolo]');
+      expect(writes.join('')).toContain('Usage: agentx [flags] [message...]');
       expect(process.exit).toHaveBeenCalledWith(0);
     } finally {
       process.stdout.write = originalWrite;
@@ -124,7 +124,7 @@ describe('entrypoint', () => {
 
       await import('../agentx.mjs');
 
-      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd() });
+      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd(), flags: expect.any(Object) });
       expect(writes.join('')).toContain('missing API key');
       expect(process.exitCode).toBe(1);
     } finally {
@@ -175,7 +175,7 @@ describe('entrypoint', () => {
       const runAgent = jest.fn().mockResolvedValue(undefined);
       await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
       await import('../agentx.mjs');
-      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd() });
+      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd(), flags: expect.any(Object) });
     } finally {
       if (oldEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldEnv;
       Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: oldIn }); Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: oldOut }); process.argv = oldArgv;
@@ -320,7 +320,7 @@ describe('entrypoint', () => {
     await jest.unstable_mockModule('../src/agent.mjs', () => ({ runAgent }));
     process.argv = [process.argv[0], process.argv[1], 'hello', 'world'];
     await import('../agentx.mjs');
-    expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd(), initialMessage: 'hello world', oneShot: true });
+    expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd(), flags: expect.any(Object), initialMessage: 'hello world', oneShot: true });
   });
 
   test('agentx.mjs starts the REPL when invoked directly', async () => {
@@ -336,6 +336,6 @@ describe('entrypoint', () => {
 
     await import('../agentx.mjs');
 
-    expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd() });
+    expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: process.cwd(), flags: expect.any(Object) });
   });
 });

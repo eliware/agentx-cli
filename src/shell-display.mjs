@@ -1,4 +1,5 @@
 import { getPromptIdentity } from './platform.mjs';
+import { isTerminalColorEnabled } from './terminal-output.mjs';
 
 const SYSTEM_RED = '\u001b[38;5;160m';
 const COMMAND_GREEN = '\u001b[32m';
@@ -15,13 +16,14 @@ export function clearTerminal() {
     process.stdout.write('\n');
     return;
   }
-  process.stdout.write('\x1b[2J\x1b[H');
+  process.stdout.write(isTerminalColorEnabled() ? '\x1b[2J\x1b[H' : '\n');
 }
 
 export function formatPromptForCwd(cwd) {
   const { user, host } = getPromptIdentity(process.env);
   const shortHost = host.split('.')[0];
-  return `${INFO_CYAN}${user}@${shortHost}:${cwd}${WHITE}#${RESET}${WHITE} `;
+  const prompt = `${user}@${shortHost}:${cwd}# `;
+  return isTerminalColorEnabled() ? `${INFO_CYAN}${user}@${shortHost}:${cwd}${WHITE}#${RESET}${WHITE} ` : prompt;
 }
 
 export function formatSystemMessage(message) {

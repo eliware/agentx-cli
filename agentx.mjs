@@ -13,7 +13,7 @@ if (homeDirectory) {
 
 const { isDirectInvocation, promptPath } = await import('./src/runtime.mjs');
 const { runAgent } = await import('./src/agent.mjs');
-const { formatQuickHelp, getPackageVersion, hasFlag } = await import('./src/cli.mjs');
+const { formatQuickHelp, getPackageVersion, parseCliArgs } = await import('./src/cli.mjs');
 
 function printAndExit(text, code = 0) {
   process.stdout.write(`${text}\n`);
@@ -43,15 +43,16 @@ function printStartupError(error) {
 
 if (isDirectInvocation(import.meta.url)) {
   const argv = process.argv.slice(2);
-  if (hasFlag(argv, ['--help', '-h', '-?'])) {
+  const parsed = parseCliArgs(argv);
+  if (parsed.flags.help) {
     printAndExit(formatQuickHelp());
-  } else if (hasFlag(argv, ['--version', '-v'])) {
+  } else if (parsed.flags.version) {
     printAndExit(getPackageVersion());
   } else {
     try {
-      const messageArgs = argv.filter((arg) => !['--debug', '--yolo', '--confirm'].includes(arg));
+      const messageArgs = parsed.messageArgs;
       if (!messageArgs.length) await confirmSetup();
-      await runAgent({ promptPath, cwd: process.cwd(), ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
+      await runAgent({ promptPath, cwd: process.cwd(), flags: parsed.flags, ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
     } catch (error) {
       printStartupError(error);
       process.exitCode = 1;

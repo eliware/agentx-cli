@@ -19,7 +19,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   let currentPreviousResponseId = baseRequest?.previous_response_id || '';
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
-  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus) }) : null);
+  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput || streamOptions?.noTimers), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus), colors: streamOptions?.colors !== false }) : null);
   const onResponseState = streamOptions?.onResponseState;
   setActiveStatusController(statusController);
   const skipInitialUsageAccounting = Boolean(streamOptions?.skipInitialUsageAccounting);
@@ -65,7 +65,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       if (goalFinished || !goalMode) {
         const completionSnapshot = goalCompletionSnapshot || statusController?.snapshot?.() || { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' };
         statusController?.clear();
-        writeTerminal(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
+        if (!streamOptions?.suppressStatusOutput && !streamOptions?.noTimers) writeTerminal(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
         return current;
       }
       {
@@ -165,7 +165,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         }
         const completionSnapshot = goalCompletionSnapshot || statusController?.snapshot?.() || { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' };
         statusController?.clear();
-        writeTerminal(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
+        if (!streamOptions?.suppressStatusOutput && !streamOptions?.noTimers) writeTerminal(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
         return current;
       }
     } catch (error) {

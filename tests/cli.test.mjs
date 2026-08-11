@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import { formatQuickHelp, getPackageVersion, hasFlag } from '../src/cli.mjs';
+import { formatQuickHelp, getPackageVersion, hasFlag, normalizeOutputFlags, parseCliArgs } from '../src/cli.mjs';
 
 const packageVersion = getPackageVersion();
 
@@ -9,6 +9,29 @@ describe('cli helpers', () => {
     expect(hasFlag(['--yolo'], ['--yolo'])).toBe(true);
     expect(hasFlag(['-h'], ['--help', '-h', '-?'])).toBe(true);
     expect(hasFlag(['hello'], ['--help', '-h', '-?'])).toBe(false);
+  });
+
+  test('parses long and stacked output flags without sending them as chat text', () => {
+    const parsed = parseCliArgs(['-qur', '--no-colors', 'review', 'this']);
+    expect(parsed.messageArgs).toEqual(['review', 'this']);
+    expect(parsed.flags).toMatchObject({ quiet: true, noUsage: true, noReasoning: true, noColors: true });
+  });
+
+  test('supports end-of-options passthrough and unknown message arguments', () => {
+    expect(parseCliArgs(['--', '--no-usage', 'message'])).toMatchObject({ messageArgs: ['--no-usage', 'message'] });
+    expect(parseCliArgs(['--unknown'])).toMatchObject({ messageArgs: ['--unknown'] });
+  });
+
+  test('uses defaults when CLI arguments are omitted', () => {
+    expect(parseCliArgs().messageArgs).toEqual([]);
+    expect(normalizeOutputFlags().quiet).toBe(false);
+  });
+
+  test('quiet enables all output suppressions except reasoning and colors', () => {
+    expect(normalizeOutputFlags({ quiet: true })).toMatchObject({
+      quiet: true, noUsage: true, noTimers: true, noShellCalls: true, noToolCalls: true, noMcp: true, noWebsearch: true,
+      noReasoning: false, noColors: false,
+    });
   });
 
   test('getPackageVersion reads the package version', () => {

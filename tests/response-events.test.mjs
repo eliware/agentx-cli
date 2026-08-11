@@ -102,6 +102,35 @@ describe('agent session modules', () => {
     expect(lines[0]).toContain('custom-tool');
     expect(lines[1]).toContain('shell-tool');
   });
+  test('suppresses selected streamed output categories without suppressing assistant text', () => {
+    const live = createLiveResponseHandlers({
+      liveStreaming: true,
+      noReasoning: true,
+      noShellCalls: true,
+      noToolCalls: true,
+      noMcp: true,
+      noWebsearch: true,
+      statusController: { beginWriting: jest.fn(), pause: jest.fn(), resume: jest.fn() },
+    });
+    live.handlers.onTextDelta('answer');
+    live.handlers.onEvent({ type: 'response.reasoning_summary_text.delta', delta: 'reasoning' });
+    live.handlers.onEvent({ type: 'response.shell_call_command.delta', delta: 'shell' });
+    live.handlers.onEvent({ type: 'response.function_call_arguments.delta', delta: 'tool' });
+    live.handlers.onEvent({ type: 'response.mcp_call_arguments.delta', delta: 'mcp' });
+    live.handlers.onEvent({ type: 'response.web_search_call.searching' });
+    live.handlers.onItemAdded({ type: 'mcp_call', name: 'lookup' });
+    live.handlers.onItemDone({ type: 'shell_call' });
+    live.handlers.onItemDone({ type: 'function_call', name: 'tool' });
+    live.handlers.onItemDone({ type: 'mcp_call' });
+    live.handlers.onItemDone({ type: 'web_search_call' });
+    live.handlers.onItemDone({ type: 'reasoning', summary: [{ type: 'output_text', text: 'reasoning item' }] });
+    expect(stdoutWrites.join('')).toContain('answer');
+    expect(stdoutWrites.join('')).not.toContain('shell');
+    expect(stdoutWrites.join('')).not.toContain('tool');
+    expect(stdoutWrites.join('')).not.toContain('mcp');
+    expect(stdoutWrites.join('')).not.toContain('lookup');
+    expect(stdoutWrites.join('')).not.toContain('reasoning');
+  });
   test('sendMessage ignores unrelated live events and empty streamed deltas', async () => {
     const template = { model: 'test-model', input: [], tools: [] };
     const openai = {

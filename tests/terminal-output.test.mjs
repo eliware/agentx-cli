@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import { writeTerminal, setActiveStatusController } from '../src/terminal-output.mjs';
+import { isTerminalColorEnabled, setActiveStatusController, setTerminalOutputOptions, writeTerminal } from '../src/terminal-output.mjs';
 
 describe('terminal output', () => {
   test('pauses before writing and resumes after writing', () => {
@@ -38,5 +38,26 @@ describe('terminal output', () => {
       setActiveStatusController(null);
       process.stdout.write = original;
     }
+  });
+
+  test('strips ANSI output when colors are disabled', () => {
+    const original = process.stdout.write;
+    const writes = [];
+    process.stdout.write = (chunk) => { writes.push(String(chunk)); return true; };
+    try {
+      setTerminalOutputOptions({ colors: false });
+      expect(isTerminalColorEnabled()).toBe(false);
+      writeTerminal('\u001b[31mred\u001b[0m');
+      expect(writes).toEqual(['red']);
+    } finally {
+      setTerminalOutputOptions({ colors: true });
+      process.stdout.write = original;
+    }
+  });
+
+  test('restores colors when output options are omitted', () => {
+    setTerminalOutputOptions({ colors: false });
+    setTerminalOutputOptions();
+    expect(isTerminalColorEnabled()).toBe(true);
   });
 });

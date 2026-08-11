@@ -90,6 +90,13 @@ describe('agent session modules', () => {
 
     expect(stdoutWrites.join('')).toBe('');
   });
+  test('status line controller renders and clears without ANSI when colors are disabled', () => {
+    const controller = createStatusLineController(Date.now(), { colors: false });
+    controller.showReasoning();
+    controller.showExecuting();
+    controller.clear();
+    expect(stdoutWrites.join('')).not.toContain('\u001b[');
+  });
   test('formatTransactionCompletionMessage handles missing summary fields and non-string status values', () => {
     // With no input, the output should be an empty JSON object
     expect(formatTransactionCompletionMessage()).toBe('{}');

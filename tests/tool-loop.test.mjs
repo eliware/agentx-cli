@@ -244,6 +244,12 @@ describe('agent session modules', () => {
     expect(openai.responses.create.mock.calls[0][0].input).toHaveLength(3);
     expect(openai.responses.create.mock.calls[0][0].input.every((item) => item.status === 'incomplete')).toBe(true);
   });
+  test('handleToolCalls suppresses ordinary status completion output when timers are disabled', async () => {
+    const openai = { responses: { create: jest.fn() } };
+    const response = { id: 'resp-no-timers', output: [], usage: { input_tokens: 1, output_tokens: 1 } };
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { noTimers: true, suppressUsageOutput: true });
+    expect(stdoutWrites.join('')).toBe('');
+  });
   test('executes destructive calls automatically when confirmation is disabled', async () => {
     const openai = { responses: { create: jest.fn(async (request) => ({ id: 'resp-next', output: [], request })) } };
     const response = { id: 'resp-1', usage: { input_tokens: 1, output_tokens: 1 }, output: [
@@ -468,5 +474,5 @@ test('parses goal input and default arguments safely', async () => {
 test('can suppress goal completion usage output', async () => {
   const openai = { responses: { create: jest.fn().mockResolvedValue({ id: 'quiet-final', output: [], usage: { input_tokens: 1, output_tokens: 1 } }) } };
   const response = { output: [{ type: 'function_call', name: 'goal_update', call_id: 'quiet-1', arguments: JSON.stringify({ method: 'complete' }) }] };
-  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { goalMode: true, suppressUsageOutput: true })).resolves.toMatchObject({ id: 'quiet-final' });
+  await expect(handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, undefined, { goalMode: true, suppressUsageOutput: true, noTimers: true })).resolves.toMatchObject({ id: 'quiet-final' });
 });

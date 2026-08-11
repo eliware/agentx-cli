@@ -42,6 +42,12 @@ describe('agent session modules', () => {
     expect(stdoutWrites.join('')).toBe(`\x1b[38;5;255mhello\n\x1b[0m`);
   });
 
+  test('does not emit a color reset when colors are disabled', async () => {
+    const openai = { responses: { create: async (_request, handlers) => { handlers.onTextDelta('hello'); return { id: 'resp-no-colors' }; } } };
+    await createStreamedResponse(openai, {}, { liveStreaming: true, colors: false });
+    expect(stdoutWrites.join('')).not.toContain('\u001b[0m');
+  });
+
   test('clears status when the response request fails', async () => {
     const statusController = { showReasoning: jest.fn(), clear: jest.fn() };
     const error = new Error('transport failed');
