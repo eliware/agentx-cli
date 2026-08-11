@@ -167,6 +167,63 @@ describe('agent loop', () => {
     expect(clearSession).toHaveBeenCalledTimes(1);
   });
 
+  test('handles goal questions through the runtime readline flow', async () => {
+    const questionQueue = ['/goal investigate the issue', 'Proceed', '/exit'];
+
+    await jest.unstable_mockModule('node:readline/promises', () => ({
+      createInterface: () => ({
+        question: async () => questionQueue.shift() ?? '/exit',
+        close: jest.fn(),
+      }),
+    }));
+
+    const shellMock = makeShellMock();
+    shellMock.parseInternalCommand = (message) => message.startsWith('/goal ')
+      ? { type: 'goal', goal: message.slice(6) }
+      : message === '/exit' ? { type: 'exit' } : null;
+    await jest.unstable_mockModule('../src/shell.mjs', () => shellMock);
+    await jest.unstable_mockModule('../src/tool-shell.mjs', () => ({ shellExec: jest.fn() }));
+
+    const persistResponseState = jest.fn(async () => { });
+    const clearSession = jest.fn(async () => { });
+    const readSessionState = jest.fn(async () => null);
+    const extractTextFromResponse = jest.fn(() => 'goal response');
+    const sendMessage = jest.fn(async (...args) => {
+      const streamOptions = args[8];
+      await expect(streamOptions.onGoalBlocked({ question: 'Need input?', choices: ['Proceed'] })).resolves.toBe('Proceed');
+      return { id: 'goal-response', output: [{ type: 'message', content: [{ type: 'output_text', text: 'goal response' }] }] };
+    });
+
+    await jest.unstable_mockModule('../src/agent-session/session-service.mjs', () => ({
+      clearSession,
+      extractTextFromResponse,
+      extractUsage: (response) => response?.usage || { inputTokens: 0, cachedTokens: 0, outputTokens: 0 },
+      persistResponseState,
+      readSessionState,
+      handleToolCalls: jest.fn(),
+      sendMessage,
+    }));
+    await jest.unstable_mockModule('../src/session-state.mjs', () => ({ clearSession, persistResponseState, readSessionState }));
+    await jest.unstable_mockModule('../src/response.mjs', () => ({
+      extractTextFromResponse,
+      createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }),
+      addUsageTotals: (totals, usage) => { totals.inputTokens += usage.inputTokens || 0; totals.cachedTokens += usage.cachedTokens || 0; totals.outputTokens += usage.outputTokens || 0; return totals; },
+      formatUsageReport: (value) => JSON.stringify({ turns: String(value.turns ?? 0) }),
+      formatTurnUsageReport: () => '',
+      extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
+    }));
+    await jest.unstable_mockModule('../src/agent-session/tool-loop.mjs', () => ({ handleToolCalls: jest.fn() }));
+    await jest.unstable_mockModule('../src/runtime.mjs', () => ({ readJson: async () => ({ model: 'test-model', input: [], tools: [] }) }));
+    await jest.unstable_mockModule('../src/text-wrap.mjs', () => ({ getTerminalWidth: () => 80, wrapText: (text) => text }));
+
+    const { runAgent } = await import('../src/agent/runtime.mjs');
+    await runAgent({ promptPath, cwd });
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(writes.join(' ')).toContain('GOAL QUESTION: Need input?');
+    expect(persistResponseState).toHaveBeenCalled();
+  });
+
   test('resumes interrupted tool execution when the user confirms', async () => {
     const questionQueue = ['/exit'];
 
