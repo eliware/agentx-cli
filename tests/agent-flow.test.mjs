@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from '@jest/globals';
 import path from 'node:path';
 import { writeFileSync } from 'node:fs';
 import { loadPromptTemplate, appendCliTranscript, buildRequestMessage, buildRequestOverride, resolveAgentApiKey, WORKER_ROLE_MESSAGE, withGoalTools } from '../src/agent-flow.mjs';
+import { sendMessage } from '../src/agent-session/session-service.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('agent flow helpers', () => {
@@ -106,6 +107,30 @@ describe('agent flow helpers', () => {
       writeFileSync(promptPath, JSON.stringify({ input: [], tools: [{ type: 'function', name: 'local' }] }));
       writeFileSync(mcpPath, '{not json');
       await expect(loadPromptTemplate(promptPath, mcpPath, process.env, { loadMcp: false })).resolves.toEqual({ input: [], tools: [{ type: 'function', name: 'local' }] });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
+  test('disabled MCP loading omits MCP tools from the outgoing request', async () => {
+    const tmp = makeTempDir('agentx-request-no-mcp-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'mcp.json');
+      const mcpTool = { type: 'mcp', server_label: 'developer', server_url: 'https://developer.example.test/mcp' };
+      writeFileSync(promptPath, JSON.stringify({ model: 'test-model', input: [], tools: [{ type: 'function', name: 'local' }] }));
+      writeFileSync(mcpPath, JSON.stringify([mcpTool]));
+
+      const enabledTemplate = await loadPromptTemplate(promptPath, mcpPath);
+      const disabledTemplate = await loadPromptTemplate(promptPath, mcpPath, process.env, { loadMcp: false });
+      const requests = [];
+      const openai = { responses: { create: async (request) => { requests.push(request); return { id: `resp-${requests.length}`, output: [] }; } } };
+
+      await sendMessage(openai, enabledTemplate, '', 'hello', '', '/tmp/work');
+      await sendMessage(openai, disabledTemplate, '', 'hello', '', '/tmp/work');
+
+      expect(requests[0].tools).toEqual([{ type: 'function', name: 'local' }, mcpTool]);
+      expect(requests[1].tools).toEqual([{ type: 'function', name: 'local' }]);
     } finally {
       cleanupTempDir(tmp);
     }
