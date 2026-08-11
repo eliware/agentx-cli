@@ -600,7 +600,6 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             // questions need cooked mode, and the live status line must stay
             // paused until the answer is complete.
             terminalInput.setRawMode?.(false);
-            statusController?.pause?.();
             writeTerminal(`${formatSystemMessage(`GOAL QUESTION: ${question || 'Input required'}`)}\n`);
             choices.forEach((choice, index) => writeTerminal(`${String.fromCharCode(65 + index)}) ${choice}\n`));
             const answer = rl ? await rl.question(choices.length ? 'Choose A-D or answer: ' : 'Answer: ') : '';
