@@ -117,7 +117,7 @@ describe('agent flow helpers', () => {
     try {
       const promptPath = path.join(tmp, 'prompt.json');
       const mcpPath = path.join(tmp, 'mcp.json');
-      const mcpTool = { type: 'mcp', server_label: 'developer', server_url: 'https://developer.example.test/mcp' };
+      const mcpTool = { type: 'mcp', server_label: 'developer', server_url: 'https://developer.example.test/mcp', enabled: true };
       writeFileSync(promptPath, JSON.stringify({ model: 'test-model', input: [], tools: [{ type: 'function', name: 'local' }] }));
       writeFileSync(mcpPath, JSON.stringify([mcpTool]));
 
@@ -129,7 +129,7 @@ describe('agent flow helpers', () => {
       await sendMessage(openai, enabledTemplate, '', 'hello', '', '/tmp/work');
       await sendMessage(openai, disabledTemplate, '', 'hello', '', '/tmp/work');
 
-      expect(requests[0].tools).toEqual([{ type: 'function', name: 'local' }, mcpTool]);
+      expect(requests[0].tools).toEqual([{ type: 'function', name: 'local' }, { type: 'mcp', server_label: 'developer', server_url: 'https://developer.example.test/mcp' }]);
       expect(requests[1].tools).toEqual([{ type: 'function', name: 'local' }]);
     } finally {
       cleanupTempDir(tmp);

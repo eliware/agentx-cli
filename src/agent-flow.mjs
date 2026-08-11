@@ -18,7 +18,13 @@ export async function loadPromptTemplate(promptPath, mcpPath = path(getHomeDirec
       try {
         const configuredTools = await readJson(mcpPath);
         const configuredEntries = Array.isArray(configuredTools) ? configuredTools : configuredTools?.tools || [];
-        mcpTools = configuredEntries.filter((tool) => tool?.type !== 'mcp' || tool.enabled !== false);
+        mcpTools = configuredEntries
+          .filter((tool) => tool?.type !== 'mcp' || tool.enabled !== false)
+          .map((tool) => {
+            if (tool?.type !== 'mcp' || !Object.hasOwn(tool, 'enabled')) return tool;
+            const { enabled: _enabled, ...requestTool } = tool;
+            return requestTool;
+          });
       } catch (error) {
         if (error?.code !== 'ENOENT') throw error;
       }
