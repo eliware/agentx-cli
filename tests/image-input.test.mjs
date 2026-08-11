@@ -11,7 +11,7 @@ describe('image input encoding', () => {
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
   test('resolves paths relative to cwd and rejects missing paths', () => {
-    expect(resolveImagePath('images/picture.png', '/work')).toBe('/work/images/picture.png');
+    expect(resolveImagePath('images/picture.png', '/work')).toBe(join('/work', 'images', 'picture.png'));
     expect(resolveImagePath('picture.png')).toBe(join(process.cwd(), 'picture.png'));
     expect(() => resolveImagePath(undefined)).toThrow('Image path is required');
   });

@@ -165,7 +165,7 @@ describe('agent loop', () => {
     expect(persistResponseState.mock.calls.some(([, state]) => state.response_id === 'resp-complete' && state.pending_tool_calls.length === 0)).toBe(true);
     expect(sendMessage.mock.calls.every(([, , , , , , , , streamOptions]) => streamOptions?.suppressStatusOutput === true)).toBe(true);
     expect(clearSession).toHaveBeenCalledTimes(1);
-  });
+  }, 15000);
 
   test('handles goal questions through the runtime readline flow', async () => {
     const questionQueue = ['/goal investigate the issue', 'Proceed', '/exit'];

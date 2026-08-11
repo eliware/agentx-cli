@@ -59,6 +59,7 @@ describe('cli helpers', () => {
     jest.resetModules();
     await jest.unstable_mockModule('node:fs', () => ({
       readFileSync: () => JSON.stringify({ name: '@eliware/agentx' }),
+      default: { readFileSync: () => JSON.stringify({ name: '@eliware/agentx' }) },
     }));
 
     const { getPackageVersion: mockedGetPackageVersion } = await import('../src/cli.mjs');

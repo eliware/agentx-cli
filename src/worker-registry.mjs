@@ -35,6 +35,13 @@ export async function appendWorkerLog(cwd, id, chunk) {
 export async function readWorkerLog(cwd, id) { try { return await readFile(workerLogPath(cwd, id), 'utf8'); } catch (error) { if (error?.code === 'ENOENT') return ''; throw error; } }
 export async function listWorkerRecords(cwd) {
   try {
+    const agentxDirectory = await stat(join(cwd, '.agentx'));
+    if (!agentxDirectory.isDirectory()) throw new Error(`Worker registry parent is not a directory: ${join(cwd, '.agentx')}`);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+  try {
     const names = await readdir(workerDirectory(cwd));
     const records = [];
     for (const name of names.filter((item) => item.endsWith('.json'))) {

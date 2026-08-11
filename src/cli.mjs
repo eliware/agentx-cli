@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { path } from '@eliware/common';
 
-const packagePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', 'package.json');
+const packagePath = path(import.meta, '..', 'package.json');
 
 export function hasFlag(argv, flags) {
   return argv.some((arg) => flags.includes(arg));

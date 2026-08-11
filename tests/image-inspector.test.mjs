@@ -153,8 +153,9 @@ describe('image inspection', () => {
   test('allows branch shell calls and submits their output', async () => {
     encodeImageInput.mockResolvedValue({ dataUrl: 'data:image/jpeg;base64,abc', detail: 'low' });
     extractTextFromResponse.mockReturnValue('Shell result.');
+    const branchCommand = process.platform === 'win32' ? `node -e "process.stdout.write('branch')"` : 'printf branch';
     const create = jest.fn()
-      .mockResolvedValueOnce({ id: 'shell-call', output: [{ type: 'shell_call', call_id: 'shell-1', action: { commands: ['printf branch'] } }] })
+      .mockResolvedValueOnce({ id: 'shell-call', output: [{ type: 'shell_call', call_id: 'shell-1', action: { commands: [branchCommand] } }] })
       .mockResolvedValueOnce({ id: 'shell-final', output: [] });
     const openai = { responses: { create } };
 

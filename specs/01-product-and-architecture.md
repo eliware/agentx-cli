@@ -7,7 +7,7 @@ AgentX is an ESM-only Node.js terminal chat agent. It sends user messages to the
 - Do not contact OpenAI until the user submits a normal message.
 - Keep local shell commands, working-directory changes, and agent conversation distinct.
 - Resume stored Responses API conversations after restart.
-- Be cross-platform for path handling and shell launchers.
+- Be cross-platform for path handling and shell launchers. ESM module-relative filesystem paths must be derived through the shared `@eliware/common` `path(import.meta, ...)` helper so Windows file URLs are converted correctly.
 - Make interruptions around side-effecting tools explicit and safe.
 
 ## Components

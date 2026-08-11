@@ -45,6 +45,11 @@ async function tempCwd() { return mkdtemp(join(tmpdir(), 'agentx-worker-registry
     const cwd = await tempCwd();
     try {
       expect(await listWorkerRecords(cwd)).toEqual([]);
+      await mkdir(join(cwd, '.agentx'), { recursive: true });
+      expect(await listWorkerRecords(cwd)).toEqual([]);
+      await writeFile(join(cwd, '.agentx', 'workers'), 'not a directory');
+      await expect(listWorkerRecords(cwd)).rejects.toThrow();
+      await rm(join(cwd, '.agentx', 'workers'));
       await mkdir(workerDirectory(cwd), { recursive: true });
       await writeFile(join(workerDirectory(cwd), 'a.json'), JSON.stringify({ id: 'a' }));
       await writeFile(join(workerDirectory(cwd), 'bad.json'), '{bad');
