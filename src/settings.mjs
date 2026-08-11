@@ -6,13 +6,14 @@ export const DEFAULT_SETTINGS = {
 };
 
 export function settingsFromEnv(env = process.env) {
+  const compactionThreshold = Number(env.AGENTX_COMPACTION_THRESHOLD);
   return {
     model: env.AGENTX_MODEL || DEFAULT_SETTINGS.model,
     reasoningMode: env.AGENTX_REASONING_MODE || DEFAULT_SETTINGS.reasoningMode,
     reasoningEffort: env.AGENTX_REASONING_EFFORT || DEFAULT_SETTINGS.reasoningEffort,
     reasoningSummary: env.AGENTX_REASONING_SUMMARY || DEFAULT_SETTINGS.reasoningSummary,
     outputVerbosity: env.AGENTX_OUTPUT_VERBOSITY || DEFAULT_SETTINGS.outputVerbosity,
-    compactionThreshold: Number(env.AGENTX_COMPACTION_THRESHOLD) || DEFAULT_SETTINGS.compactionThreshold,
+    compactionThreshold: Number.isSafeInteger(compactionThreshold) && compactionThreshold > 0 ? compactionThreshold : DEFAULT_SETTINGS.compactionThreshold,
   };
 }
 export function formatStartupSettings(settings = settingsFromEnv()) {

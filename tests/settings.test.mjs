@@ -20,6 +20,14 @@ test('uses defaults when environment settings are absent', () => {
   expect(settingsFromEnv({})).toEqual(DEFAULT_SETTINGS);
 });
 
+test.each(['0', '-1', '1.5', 'Infinity', 'not-a-number'])('falls back for invalid compaction threshold %s', (value) => {
+  expect(settingsFromEnv({ AGENTX_COMPACTION_THRESHOLD: value }).compactionThreshold).toBe(DEFAULT_SETTINGS.compactionThreshold);
+});
+
+test('accepts a positive safe integer compaction threshold', () => {
+  expect(settingsFromEnv({ AGENTX_COMPACTION_THRESHOLD: '250000' }).compactionThreshold).toBe(250000);
+});
+
 test('formats environment defaults when no settings are supplied', () => {
   expect(JSON.parse(formatStartupSettings())).toEqual({
     model: DEFAULT_SETTINGS.model,
