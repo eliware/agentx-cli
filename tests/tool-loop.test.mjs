@@ -239,10 +239,24 @@ describe('agent session modules', () => {
       { type: 'shell_call', action: { commands: ['poweroff now'] } },
     ] };
     const runToolCallFn = jest.fn();
-    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { confirmToolCall: async () => false });
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { yolo: false, confirmToolCall: async () => false });
     expect(runToolCallFn).not.toHaveBeenCalled();
     expect(openai.responses.create.mock.calls[0][0].input).toHaveLength(3);
     expect(openai.responses.create.mock.calls[0][0].input.every((item) => item.status === 'incomplete')).toBe(true);
+  });
+  test('executes destructive calls automatically when confirmation is disabled', async () => {
+    const openai = { responses: { create: jest.fn(async (request) => ({ id: 'resp-next', output: [], request })) } };
+    const response = { id: 'resp-1', usage: { input_tokens: 1, output_tokens: 1 }, output: [
+      { type: 'shell_call', call_id: 'call-danger', action: { commands: ['shutdown now'] } },
+    ] };
+    const runToolCallFn = jest.fn(async (call) => ({ type: 'shell_call_output', call_id: call.call_id, output: [], status: 'completed' }));
+    const confirmToolCall = jest.fn();
+
+    await handleToolCalls(openai, response, { model: 'test-model', tools: [] }, '/tmp/work', null, runToolCallFn, { yolo: true, confirmToolCall });
+
+    expect(runToolCallFn).toHaveBeenCalledTimes(1);
+    expect(confirmToolCall).not.toHaveBeenCalled();
+    expect(openai.responses.create.mock.calls[0][0].input[0].status).toBe('completed');
   });
   test('handleToolCalls executes duplicate calls only once', async () => {
     const createCalls = [];

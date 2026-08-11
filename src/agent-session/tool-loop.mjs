@@ -87,7 +87,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     try {
       for (const [callIndex, call] of calls.entries()) {
         let approved = true;
-        if ((requiresDestructiveConfirmation(call) || (!yolo && requiresToolConfirmation(call))) && confirmToolCall) {
+        if (!yolo && (requiresDestructiveConfirmation(call) || requiresToolConfirmation(call)) && confirmToolCall) {
           statusController?.pause();
           try { approved = await confirmToolCall(call, cwd); } finally { statusController?.resume({ renderNow: false }); }
         }
