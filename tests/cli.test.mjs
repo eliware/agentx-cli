@@ -24,7 +24,8 @@ describe('cli helpers', () => {
     expect(parseCliArgs(['-C', '/tmp/project', 'review']).flags.cwd).toBe('/tmp/project');
     expect(parseCliArgs(['--cwd']).flags.cwd).toBe('');
     expect(parseCliArgs(['--check-mcp']).flags.checkMcp).toBe(true);
-    expect(parseCliArgs(['-M']).flags.checkMcp).toBe(true);
+    expect(parseCliArgs(['-K']).flags.checkMcp).toBe(true);
+    expect(parseCliArgs(['--no-mcp-output', '-M']).flags.noMcpOutput).toBe(true);
   });
 
   test('supports end-of-options passthrough and unknown message arguments', () => {
@@ -39,7 +40,7 @@ describe('cli helpers', () => {
 
   test('quiet enables all output suppressions except reasoning and colors', () => {
     expect(normalizeOutputFlags({ quiet: true })).toMatchObject({
-      quiet: true, noUsage: true, noTimers: true, noShellCalls: true, noToolCalls: true, noMcp: true, noWebsearch: true,
+      quiet: true, noUsage: true, noTimers: true, noShellCalls: true, noToolCalls: true, noMcp: false, noMcpOutput: true, noWebsearch: true,
       noReasoning: false, noColors: false,
     });
   });
@@ -72,6 +73,7 @@ describe('cli helpers', () => {
     expect(help).toContain('--debug');
     expect(help).toContain('--yolo');
     expect(help).toContain('--cwd PATH, -C PATH');
-    expect(help).toContain('--check-mcp, -M');
+    expect(help).toContain('--check-mcp, -K');
+    expect(help).toContain('--no-mcp-output, -M');
   });
 });

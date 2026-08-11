@@ -65,7 +65,7 @@ function webSearchCompletionLine(item) {
   }, null, 2));
 }
 
-export function createLiveResponseHandlers({ liveStreaming, statusController, debug = false, noReasoning = false, noShellCalls = false, noToolCalls = false, noMcp = false, noWebsearch = false }) {
+export function createLiveResponseHandlers({ liveStreaming, statusController, debug = false, noReasoning = false, noShellCalls = false, noToolCalls = false, noMcpOutput = false, noWebsearch = false }) {
   let sawOutput = false;
   let streamedText = '';
   let streamedReasoningSummary = false;
@@ -194,7 +194,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
           return;
         }
         if (isMcpEvent(event)) {
-          if (noMcp) return;
+          if (noMcpOutput) return;
           if (debug && event.type === 'response.mcp_call_arguments.delta') return;
           if (event.type === 'response.mcp_call_arguments.delta') {
             markOutput();
@@ -231,7 +231,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
         }
       },
       onItemAdded(item) {
-        if (!isMcpToolCall(item) || noMcp) return;
+        if (!isMcpToolCall(item) || noMcpOutput) return;
         markOutput();
         statusController?.pause();
         statusController?.beginWriting();
@@ -251,7 +251,7 @@ export function createLiveResponseHandlers({ liveStreaming, statusController, de
           return;
         }
         const isCustomToolCall = item?.type === 'function_call' || item?.type === 'custom_call';
-        if (isMcpToolCall(item) && noMcp) return;
+        if (isMcpToolCall(item) && noMcpOutput) return;
         if (isShellToolCall(item) && noShellCalls) return;
         if (isCustomToolCall && noToolCalls) return;
         if (isShellToolCall(item) || isMcpToolCall(item) || isCustomToolCall) {

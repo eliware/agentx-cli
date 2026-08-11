@@ -144,7 +144,7 @@ describe('entrypoint', () => {
     const originalArgv = [...process.argv];
     process.stdout.write = (chunk) => { writes.push(String(chunk)); return true; };
     process.exit = jest.fn();
-    process.argv = [process.argv[0], process.argv[1], '-M'];
+    process.argv = [process.argv[0], process.argv[1], '-K'];
     realFs.writeFileSync(path.join(tempHome, '.agentx.mcp.json'), JSON.stringify([{ type: 'mcp', server_label: 'bad', server_url: 'http://bad/mcp' }]));
 
     try {

@@ -40,7 +40,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
   await cleanupStaleOneShotStates(launchCwd);
   const checkpointPath = path(launchCwd, '.agentx_checkpoint');
   const statePath = oneShot ? `${sessionStatePath}.oneshot-${process.pid}-${Date.now()}` : sessionStatePath;
-  let template = applySettings(await loadPromptTemplate(promptPath), settingsFromEnv());
+  let template = applySettings(await loadPromptTemplate(promptPath, undefined, process.env, { loadMcp: !outputFlags.noMcp }), settingsFromEnv());
   const agentsText = await readAgentsFromCwdAndParents(cwd).catch((error) => {
     throw new Error(`Unable to read AGENTS.md files under ${cwd}: ${error?.message || String(error)}`);
   });
@@ -291,7 +291,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
             noReasoning: outputFlags.noReasoning,
             noShellCalls: outputFlags.noShellCalls,
             noToolCalls: outputFlags.noToolCalls,
-            noMcp: outputFlags.noMcp,
+            noMcpOutput: outputFlags.noMcpOutput,
             noWebsearch: outputFlags.noWebsearch,
             debug: debugEnabled,
             transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
@@ -451,7 +451,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
         printAgentText(`Error during setup: ${errMsg}`);
         // Return to REPL without crashing
       }
-        template = applySettings(await loadPromptTemplate(promptPath), await reloadSettings());
+        template = applySettings(await loadPromptTemplate(promptPath, undefined, process.env, { loadMcp: !outputFlags.noMcp }), await reloadSettings());
         writeTerminal(`${formatSystemMessage('Settings reloaded')}\n`);
         rl = createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
         continue;
@@ -648,7 +648,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
               noReasoning: outputFlags.noReasoning,
               noShellCalls: outputFlags.noShellCalls,
               noToolCalls: outputFlags.noToolCalls,
-              noMcp: outputFlags.noMcp,
+              noMcpOutput: outputFlags.noMcpOutput,
               noWebsearch: outputFlags.noWebsearch,
               debug: debugEnabled,
               transitionOnlyStatus: oneShot || !terminalInput?.isTTY,

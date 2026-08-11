@@ -61,12 +61,13 @@ These are command-line flags, not in-app commands:
 
 - `--help`, `-h`, `-?`: show quick help and exit
 - `--version`, `-v`: print the package version and exit
-- `--check-mcp` (`-M`): validate the user-local MCP config shape, HTTPS URLs, labels, and authorization presence without contacting APIs
+- `--check-mcp` (`-K`): validate the user-local MCP config shape, HTTPS URLs, labels, and authorization presence without contacting APIs
 - `--debug`: print raw websocket logs and suppress live status lines. MCP and reasoning argument deltas are filtered where appropriate to keep raw diagnostics readable.
 - `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Without it, approval is automatic. `--yolo` remains a legacy alias.
 - `--cwd PATH` (`-C PATH`): use `PATH` as the working directory for the session. Relative paths resolve from the launch directory.
 - `--quiet` (`-q`): suppress usage, timers, shell-call output, non-shell tool output, MCP output, and web-search output while retaining reasoning and assistant text.
-- `--no-usage` (`-u`), `--no-colors` (`-c`), `--no-timers` (`-t`), `--no-reasoning` (`-r`), `--no-shell-calls` (`-s`), `--no-tool-calls` (`-o`), `--no-mcp` (`-m`), and `--no-websearch` (`-w`): selectively suppress those output categories. These flags affect rendering only; usage accounting, reasoning settings, tool execution, and request payloads are unchanged.
+- `--no-usage` (`-u`), `--no-colors` (`-c`), `--no-timers` (`-t`), `--no-reasoning` (`-r`), `--no-shell-calls` (`-s`), `--no-tool-calls` (`-o`), `--no-mcp-output` (`-M`), and `--no-websearch` (`-w`): selectively suppress those output categories. These flags affect rendering only; usage accounting, reasoning settings, tool execution, and request payloads are unchanged.
+- `--no-mcp` (`-m`): disable loading MCP tools into the request. This changes the request tool list and does not merely suppress rendering.
 
 Flags can be combined, for example `agentx --debug --confirm "run the test suite"`; short output flags can be stacked, such as `agentx -qur "run the tests"`.
 

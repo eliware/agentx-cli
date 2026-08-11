@@ -109,7 +109,7 @@ describe('agent session modules', () => {
       noReasoning: true,
       noShellCalls: true,
       noToolCalls: true,
-      noMcp: true,
+      noMcpOutput: true,
       noWebsearch: true,
       statusController: { beginWriting: jest.fn(), pause: jest.fn(), resume: jest.fn() },
     });
@@ -214,7 +214,7 @@ describe('agent session modules', () => {
     expect(stdoutWrites.join('')).not.toContain('web-browse');
     expect(stdoutWrites.join('')).not.toContain('mcp');
   });
-  test('sendMessage noMcp mode preserves assistant output while hiding MCP output', async () => {
+  test('sendMessage noMcpOutput mode preserves assistant output while hiding MCP output', async () => {
     const template = { model: 'test-model', input: [], tools: [{ type: 'mcp', server_label: 'test' }] };
     const openai = {
       responses: {
@@ -222,13 +222,13 @@ describe('agent session modules', () => {
           handlers.onTextDelta('answer');
           handlers.onEvent({ type: 'response.mcp_call.progress', progress: 'hidden' });
           handlers.onItemAdded({ type: 'mcp_call', name: 'hidden-tool' });
-          return { id: 'resp-no-mcp', output: [] };
+          return { id: 'resp-no-mcp-output', output: [] };
         },
       },
     };
 
     await sendMessage(openai, template, '', 'browse', '', '/tmp/work', null, null, {
-      liveStreaming: true, noMcp: true, suppressStatusOutput: true, suppressUsageOutput: true, noTimers: true,
+      liveStreaming: true, noMcpOutput: true, suppressStatusOutput: true, suppressUsageOutput: true, noTimers: true,
     });
 
     expect(stdoutWrites.join('')).toContain('answer');

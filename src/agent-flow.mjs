@@ -10,15 +10,17 @@ export function resolveAgentApiKey(env = process.env) {
   throw new Error('Set agentx_api_key or AGENTX_API_KEY in your shell environment.');
 }
 
-export async function loadPromptTemplate(promptPath, mcpPath = path(getHomeDirectory() || homedir(), '.agentx.mcp.json'), env = process.env) {
+export async function loadPromptTemplate(promptPath, mcpPath = path(getHomeDirectory() || homedir(), '.agentx.mcp.json'), env = process.env, { loadMcp = true } = {}) {
   try {
     const template = await readJson(promptPath);
     let mcpTools = null;
-    try {
-      const configuredTools = await readJson(mcpPath);
-      mcpTools = Array.isArray(configuredTools) ? configuredTools : configuredTools?.tools || [];
-    } catch (error) {
-      if (error?.code !== 'ENOENT') throw error;
+    if (loadMcp) {
+      try {
+        const configuredTools = await readJson(mcpPath);
+        mcpTools = Array.isArray(configuredTools) ? configuredTools : configuredTools?.tools || [];
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
     }
     const merged = mcpTools === null ? template : { ...template, tools: [...(template.tools || []), ...mcpTools] };
     if (!env?.AGENTX_WORKER_ID) return merged;

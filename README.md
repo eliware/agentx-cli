@@ -47,8 +47,8 @@ Quick flags:
 - `agentx --check-mcp` validates MCP configuration without making an API request
 - `agentx --cwd PATH` (or `-C PATH`) runs from a specific working directory; relative paths resolve from the launch directory
 - `agentx --quiet` suppresses usage, timers, and tool/status output while retaining reasoning
-- `agentx --no-usage`, `--no-colors`, `--no-timers`, `--no-reasoning`, `--no-shell-calls`, `--no-tool-calls`, `--no-mcp`, and `--no-websearch` selectively suppress output categories
-- Output flags have stackable short forms: `-u`, `-c`, `-t`, `-r`, `-s`, `-o`, `-m`, `-w`, and `-q` (for example, `-qur`)
+- `agentx --no-usage`, `--no-colors`, `--no-timers`, `--no-reasoning`, `--no-shell-calls`, `--no-tool-calls`, `--no-mcp-output`, and `--no-websearch` selectively suppress output categories; `--no-mcp` disables MCP tool loading
+- Output flags have stackable short forms: `-u`, `-c`, `-t`, `-r`, `-s`, `-o`, `-M`, `-w`, and `-q`; `-m` disables MCP loading (for example, `-qur`)
 - `agentx "message"` sends one request, performs tool calls, prints the response and usage summary, then exits
 
 ## Behavior

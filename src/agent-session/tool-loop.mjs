@@ -73,7 +73,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
         await streamOptions?.onGoalIteration?.(goalIterations);
         if (goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
         const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nYou MUST call goal_update with method complete, incomplete, or blocked. If user input is required, call goal_blocked with a question and optional choices. Do not reply with prose.` }] }], previous_response_id: current.id, store: true, tool_choice: 'required' };
-        current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug), colors: streamOptions?.colors !== false, noReasoning: Boolean(streamOptions?.noReasoning), noShellCalls: Boolean(streamOptions?.noShellCalls), noToolCalls: Boolean(streamOptions?.noToolCalls), noMcp: Boolean(streamOptions?.noMcp), noWebsearch: Boolean(streamOptions?.noWebsearch) });
+        current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug), colors: streamOptions?.colors !== false, noReasoning: Boolean(streamOptions?.noReasoning), noShellCalls: Boolean(streamOptions?.noShellCalls), noToolCalls: Boolean(streamOptions?.noToolCalls), noMcpOutput: Boolean(streamOptions?.noMcpOutput), noWebsearch: Boolean(streamOptions?.noWebsearch) });
         currentPreviousResponseId = request.previous_response_id || '';
         isFirstResponse = false;
         continue;
@@ -152,7 +152,7 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
       ...(goalFinished ? { tool_choice: 'none' } : (goalMode ? { tool_choice: 'required' } : {})),
     };
     try {
-      current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug), colors: streamOptions?.colors !== false, noReasoning: Boolean(streamOptions?.noReasoning), noShellCalls: Boolean(streamOptions?.noShellCalls), noToolCalls: Boolean(streamOptions?.noToolCalls), noMcp: Boolean(streamOptions?.noMcp), noWebsearch: Boolean(streamOptions?.noWebsearch) });
+      current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug), colors: streamOptions?.colors !== false, noReasoning: Boolean(streamOptions?.noReasoning), noShellCalls: Boolean(streamOptions?.noShellCalls), noToolCalls: Boolean(streamOptions?.noToolCalls), noMcpOutput: Boolean(streamOptions?.noMcpOutput), noWebsearch: Boolean(streamOptions?.noWebsearch) });
       currentPreviousResponseId = request.previous_response_id || '';
       flushWorkerCompletions();
       if (goalFinished) {

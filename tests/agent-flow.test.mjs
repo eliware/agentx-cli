@@ -98,6 +98,19 @@ describe('agent flow helpers', () => {
     }
   });
 
+  test('loadPromptTemplate skips MCP configuration when loading is disabled', async () => {
+    const tmp = makeTempDir('agentx-prompt-no-mcp-');
+    try {
+      const promptPath = path.join(tmp, 'prompt.json');
+      const mcpPath = path.join(tmp, 'mcp.json');
+      writeFileSync(promptPath, JSON.stringify({ input: [], tools: [{ type: 'function', name: 'local' }] }));
+      writeFileSync(mcpPath, '{not json');
+      await expect(loadPromptTemplate(promptPath, mcpPath, process.env, { loadMcp: false })).resolves.toEqual({ input: [], tools: [{ type: 'function', name: 'local' }] });
+    } finally {
+      cleanupTempDir(tmp);
+    }
+  });
+
   test('loadPromptTemplate defaults missing MCP tools to an empty array', async () => {
     const tmp = makeTempDir('agentx-prompt-');
     try {
