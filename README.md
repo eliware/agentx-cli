@@ -15,7 +15,7 @@ It is designed to feel shell-like:
 - remembers interactive session state in `.agentx_responseid` and successful checkpoints in `.agentx_checkpoint`
 - can prompt to resume interrupted tool execution on startup
 - includes quick CLI flags for help, version, debug logging, and output control
-- handles temporary WebSocket connectivity failures and shuts down connections gracefully
+- handles recognized closed/lifetime WebSocket failures with bounded exponential-backoff reconnects for up to 10 seconds, then uses normal recovery
 - prints active model and runtime settings at startup
 - prints friendly startup errors for missing config or API keys
 - supports optional MCP tools configured in `~/.agentx.mcp.json`
@@ -44,9 +44,9 @@ Quick flags:
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
 - `agentx --confirm` enables confirmation prompts; approval is the default
-- `agentx --check-mcp` validates MCP configuration without making an API request
+- `agentx --check-mcp` (or `-K`) validates MCP configuration without making an API request
 - `agentx --cwd PATH` (or `-C PATH`) runs from a specific working directory; relative paths resolve from the launch directory
-- `agentx --quiet` suppresses usage, timers, and tool/status output while retaining reasoning
+- `agentx --quiet` (or `-q`) suppresses usage, timers, and tool/status output while retaining reasoning; use `--no-reasoning` (`-r`) to suppress reasoning too
 - `agentx --no-usage`, `--no-colors`, `--no-timers`, `--no-reasoning`, `--no-shell-calls`, `--no-tool-calls`, `--no-mcp-output`, and `--no-websearch` selectively suppress output categories; `--no-mcp` disables MCP tool loading
 - Output flags have stackable short forms: `-u`, `-c`, `-t`, `-r`, `-s`, `-o`, `-M`, `-w`, and `-q`; `-m` disables MCP loading (for example, `-qur`)
 - `agentx "message"` sends one request, performs tool calls, prints the response and usage summary, then exits
@@ -60,7 +60,7 @@ Quick flags:
   * `!clear`: runs the local shell `clear` command, clearing only the terminal display.
 - Type `/usage` to view token and cost totals.
 - Type `/rollback` to restore a successful response checkpoint.
-- Recoverable API failures keep the REPL alive and offer retry, new-chain, rollback, or clear options.
+- Recognized closed/lifetime WebSocket failures reconnect with exponential backoff for up to 10 seconds; other recoverable API failures keep the REPL alive and offer retry, new-chain, rollback, or clear options.
 - Successful turns update `.agentx_checkpoint`; one-shot invocations branch from that checkpoint and use isolated pending state, so multiple one-shots can run in the same folder without sharing interrupted tool calls.
 - Type `/setup` to edit the API key, model, reasoning, output, and compaction settings, then reload them without ending the session; setup errors return to the REPL.
 - Type `quit`, `exit`, `/quit`, or `/exit` to leave the app.
@@ -76,6 +76,7 @@ User-facing docs live in [`docs/`](./docs):
 - [Troubleshooting](./docs/troubleshooting.md)
 - [Configuration](./docs/configuration.md)
 - [AGENTS.md behavior](./docs/agents.md)
+- [MCP smoke tests](./docs/mcp-smoke-tests.md)
 
 ## Development
 
@@ -102,7 +103,7 @@ export agentx_api_key="your-key-here"
 # or: export AGENTX_API_KEY="your-key-here"
 ```
 
-The launchers load `~/.agentx` when present.
+The launchers load `~/.agentx` when present. Configuration paths and session state use the native path format on Linux, macOS, and Windows.
 
 ## MCP tools
 

@@ -7,7 +7,7 @@ If you want a guided setup, run `agentx-setup` to edit `~/.agentx`.
 
 If you only want to confirm the install, use `agentx --help` or `agentx --version`.
 
-If the WebSocket connection closes or hits a service limit, AgentX will reconnect automatically when it can. Intentional shutdown is graceful and has a bounded timeout.
+If the WebSocket connection closes or hits a service limit, AgentX recreates the client and retries with exponential backoff for up to 10 seconds. If reconnection still fails, interactive mode opens the recovery menu; one-shot mode exits with the error. Intentional shutdown is graceful and has a bounded timeout.
 
 ## Missing API key
 
@@ -38,6 +38,6 @@ One-shot requests inherit the latest successful checkpoint but do not resume `.a
 
 Remove `.agentx_responseid` or use `/clear`.
 
-If the saved response id is no longer valid, AgentX may automatically start a new chain and tell you. Recoverable API or WebSocket failures preserve the session and show recovery choices: retry once, start a new chain, rollback to a successful checkpoint, or clear the session. If pending tool calls are saved, startup may also ask whether to resume, retry, or start a new session.
+If the saved response id is no longer valid, AgentX may automatically start a new chain and tell you. Recoverable API failures preserve the session and show recovery choices: retry, start a new chain, rollback to a successful checkpoint, or clear the session. Recognized closed/lifetime WebSocket failures already receive up to 10 seconds of automatic reconnect attempts before that menu appears. If pending tool calls are saved, startup may also ask whether to resume, retry, or start a new session.
 
 Use `/rollback` when you need to return to an earlier successful response. It changes conversation state only; shell commands and other external side effects are not undone.

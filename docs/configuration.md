@@ -21,6 +21,10 @@ The `/setup` flow edits the supported settings stored in `~/.agentx`:
 
 Values are validated by the setup flow before they are saved. Defaults and accepted values are shown by `/setup`; keep the generated file user-owned and do not paste credentials into issue reports or logs.
 
+## MCP servers
+
+Optional MCP entries are read from `~/.agentx.mcp.json`. Each entry can include `"enabled": false` to keep a server configured without loading it into requests; enabled entries have the local control field removed before being sent to the Responses API. Use `--no-mcp` (`-m`) to disable all MCP loading for one invocation, or `--no-mcp-output` (`-M`) to keep MCP available while suppressing MCP call rendering. `--quiet` also suppresses MCP output but does not disable MCP execution. Run `--check-mcp` (`-K`) to validate the local configuration without contacting servers.
+
 ## Local state
 
 AgentX stores session state in `.agentx_responseid` and successful checkpoints in `.agentx_checkpoint` in the launch directory. One-shot pending state uses temporary `.agentx_responseid.oneshot-*` files. These files may contain conversation metadata and must not be committed.

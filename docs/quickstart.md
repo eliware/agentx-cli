@@ -30,9 +30,12 @@ Use that to save your OpenAI API key and runtime settings in `~/.agentx`.
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
 - `agentx --confirm` enables confirmation prompts; approval is the default
-- `agentx --cwd PATH` (or `-C PATH`) runs the session from a specific working directory
+- `agentx --check-mcp` (or `-K`) validates MCP configuration without contacting APIs
+- `agentx --cwd PATH` (or `-C PATH`) runs the session from a specific working directory; relative paths resolve from the launch directory
 - `agentx --quiet` is useful for one-shot subagents: it keeps reasoning and the final response while suppressing usage, timers, and tool/status output
 - Use `--no-reasoning` with `--quiet` to suppress reasoning too; output flags only affect rendering and do not disable reasoning in the API request
+- `agentx --no-mcp` (or `-m`) omits MCP tools from the request; `--no-mcp-output` (or `-M`) keeps MCP enabled but hides MCP call output
+- Short output flags can be stacked, for example `agentx -qur "run the tests"`
 - `agentx "message"` runs one request, performs tool calls, prints the response and usage summary, then exits
 - MCP calls and streamed arguments are shown in cyan when configured
 
@@ -75,7 +78,7 @@ To enable MCP tools, place an `.agentx.mcp.json` file in your home directory. Co
 - AgentX waits for your first message before contacting OpenAI.
 - Tool calls may stream command arguments and shell summaries live.
 - Interactive `!` commands have no automatic timeout; Ctrl-C stops the local command and returns to AgentX. Ctrl-T interrupts model-requested `shell_call` tools and tells the agent to stop, avoid retries, and report current status.
-- If `.agentx_responseid` exists, the session resumes automatically. If it contains pending tool calls, AgentX asks how you want to continue.
+- If `.agentx_responseid` exists, the session resumes automatically. If it contains pending tool calls, AgentX asks how you want to continue. Recognized closed/lifetime WebSocket failures are retried with exponential backoff for up to 10 seconds before recovery.
 
 ## Install or update
 
@@ -85,7 +88,7 @@ Install or update the latest release at any time with:
 npm -g install @eliware/agentx-cli@latest
 ```
 
-See [AGENTS.md behavior](agents.md) for how project instructions are discovered and loaded.
+See [AGENTS.md behavior](agents.md) for how project instructions are discovered and loaded. Path handling and shell launchers support Linux, macOS, and Windows.
 
 ## Remove AgentX
 

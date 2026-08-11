@@ -1,6 +1,6 @@
 # MCP smoke tests
 
-Run these checks from the AgentX repository so the local entrypoint and current working directory are unambiguous. The commands use the configured `~/.agentx.mcp.json` file and do not include credentials on the command line.
+Run these checks from the AgentX repository so the local entrypoint and current working directory are unambiguous. The commands use the configured `~/.agentx.mcp.json` file and do not include credentials on the command line. On Windows, replace `/opt/agentx-cli/agentx.mjs` with the local checkout path, for example `node agentx.mjs`, and use PowerShell line continuation with a backtick instead of `\`.
 
 ## Confirm MCP is disabled
 
