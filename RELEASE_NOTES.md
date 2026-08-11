@@ -1,5 +1,12 @@
 # AgentX Release Notes
 
+## 1.6.8 - Windows compatibility and documentation refresh
+
+- Fixed Windows path, filesystem, launcher, and worker-registry compatibility using native path handling and shared ESM path helpers.
+- Added Windows-focused regression coverage and stabilized setup-flow timing on Windows.
+- Refreshed README, quickstart, configuration, troubleshooting, MCP smoke-test, and architecture documentation for current flags, MCP behavior, recovery retries, and cross-platform usage.
+- Verified with 100% test coverage, clean lint, zero production dependency vulnerabilities, and passing CLI smoke checks.
+
 ## 1.6.7 - MCP controls, output modes, and transport recovery
 
 - Added stackable output controls for quiet operation, including usage, color, timer, reasoning, shell-call, tool-call, MCP, and web-search suppression flags.
