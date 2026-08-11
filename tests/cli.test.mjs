@@ -24,6 +24,7 @@ describe('cli helpers', () => {
     expect(parseCliArgs(['-C', '/tmp/project', 'review']).flags.cwd).toBe('/tmp/project');
     expect(parseCliArgs(['--cwd']).flags.cwd).toBe('');
     expect(parseCliArgs(['--check-mcp']).flags.checkMcp).toBe(true);
+    expect(parseCliArgs(['--no-mcp']).flags.noMcp).toBe(true);
     expect(parseCliArgs(['-K']).flags.checkMcp).toBe(true);
     expect(parseCliArgs(['--no-mcp-output', '-M']).flags.noMcpOutput).toBe(true);
   });
@@ -43,6 +44,11 @@ describe('cli helpers', () => {
       quiet: true, noUsage: true, noTimers: true, noShellCalls: true, noToolCalls: true, noMcp: false, noMcpOutput: true, noWebsearch: true,
       noReasoning: false, noColors: false,
     });
+  });
+
+  test('MCP loading and MCP output suppression remain independent', () => {
+    expect(normalizeOutputFlags({ noMcp: true })).toMatchObject({ noMcp: true, noMcpOutput: false });
+    expect(normalizeOutputFlags({ noMcpOutput: true })).toMatchObject({ noMcp: false, noMcpOutput: true });
   });
 
   test('getPackageVersion reads the package version', () => {
