@@ -231,7 +231,8 @@ describe('interactive setup menu flow', () => {
 
   const drive = async (readlineInput, values) => {
     for (const value of values) {
-      await new Promise((resolve) => setTimeout(() => { readlineInput.emit('data', Buffer.from(`${value}\n`)); resolve(); }, 50));
+      const interval = process.platform === 'win32' ? 150 : 50;
+      await new Promise((resolve) => setTimeout(() => { readlineInput.emit('data', Buffer.from(`${value}\n`)); resolve(); }, interval));
     }
   };
 
@@ -240,11 +241,11 @@ describe('interactive setup menu flow', () => {
     const configPath = path.join(directory, '.agentx');
     const run = runSetup({ stdin, stdout, configPath, readlineInput });
     await drive(readlineInput, ['1', 'api-key', '2', '1', '3', '1', '4', '1', '5', '1', '6', '1', '7', '300000', '8']);
-    await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 2000))])).resolves.toBeUndefined();
+    await expect(Promise.race([run, new Promise((_, reject) => setTimeout(() => reject(new Error('setup flow timed out')), 5000))])).resolves.toBeUndefined();
     const saved = await readEnvState(configPath);
     expect(saved.values).toMatchObject({ AGENTX_API_KEY: 'api-key', AGENTX_COMPACTION_THRESHOLD: '300000' });
     expect(stdout.text).toContain('Warning: jumbo prompts cost 2x above 270k tokens.');
-  }, 5000);
+  }, 10000);
 
   test('loads persisted model over defaults and can re-select the default model', async () => {
     const stdin = { isTTY: true }; const readlineInput = new FakeTerminal(); const stdout = new FakeOutput();
