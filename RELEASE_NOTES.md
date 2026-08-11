@@ -1,5 +1,15 @@
 # AgentX Release Notes
 
+## 1.6.7 - MCP controls, output modes, and transport recovery
+
+- Added stackable output controls for quiet operation, including usage, color, timer, reasoning, shell-call, tool-call, MCP, and web-search suppression flags.
+- Separated `--no-mcp` tool loading from `--no-mcp-output` MCP rendering suppression, while preserving MCP execution in quiet mode.
+- Added per-server MCP `enabled` toggles, with disabled servers omitted from requests and local toggle metadata removed before sending to the Responses API.
+- Added MCP configuration validation, HTTPS/auth checks, working-directory selection, and live MCP smoke-test documentation.
+- Changed command confirmation to opt-in and added bounded exponential-backoff retries for transient closed/lifetime WebSocket failures before interactive recovery.
+- Added regression and integration coverage while preserving 100% test coverage and clean lint results.
+- Updated runtime and development dependencies to current compatible releases.
+
 ## 1.6.6 - Worker tooling, security, and release validation
 
 - Added safer asynchronous worker lifecycle handling, including persistent workers, bounded status output, cancellation, and corrected usage reporting.
@@ -496,4 +506,3 @@ Initial capabilities present in the 1.1.2 baseline:
 - Working-directory context included in the agent prompt.
 - Response text extraction and usage reporting.
 - Terminal output wrapping and prompt formatting.
-
