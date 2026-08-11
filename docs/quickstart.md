@@ -30,6 +30,7 @@ Use that to save your OpenAI API key and runtime settings in `~/.agentx`.
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
 - `agentx --confirm` enables confirmation prompts; approval is the default
+- `agentx --cwd PATH` (or `-C PATH`) runs the session from a specific working directory
 - `agentx --quiet` is useful for one-shot subagents: it keeps reasoning and the final response while suppressing usage, timers, and tool/status output
 - Use `--no-reasoning` with `--quiet` to suppress reasoning too; output flags only affect rendering and do not disable reasoning in the API request
 - `agentx "message"` runs one request, performs tool calls, prints the response and usage summary, then exits

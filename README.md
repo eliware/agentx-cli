@@ -44,6 +44,7 @@ Quick flags:
 - `agentx --version` or `agentx -v` prints the package version
 - `agentx --debug` prints raw websocket logs and suppresses live status lines
 - `agentx --confirm` enables confirmation prompts; approval is the default
+- `agentx --cwd PATH` (or `-C PATH`) runs from a specific working directory; relative paths resolve from the launch directory
 - `agentx --quiet` suppresses usage, timers, and tool/status output while retaining reasoning
 - `agentx --no-usage`, `--no-colors`, `--no-timers`, `--no-reasoning`, `--no-shell-calls`, `--no-tool-calls`, `--no-mcp`, and `--no-websearch` selectively suppress output categories
 - Output flags have stackable short forms: `-u`, `-c`, `-t`, `-r`, `-s`, `-o`, `-m`, `-w`, and `-q` (for example, `-qur`)

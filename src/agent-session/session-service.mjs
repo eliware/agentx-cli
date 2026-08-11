@@ -21,7 +21,7 @@ export async function sendMessage(openai, template, previousResponseId, userMess
     });
 
   try {
-    const response = await createStreamedResponse(openai, request, { liveStreaming: Boolean(streamOptions?.liveStreaming), statusController, debug: Boolean(streamOptions?.debug) });
+    const response = await createStreamedResponse(openai, request, { liveStreaming: Boolean(streamOptions?.liveStreaming), statusController, debug: Boolean(streamOptions?.debug), colors: streamOptions?.colors !== false, noReasoning: Boolean(streamOptions?.noReasoning), noShellCalls: Boolean(streamOptions?.noShellCalls), noToolCalls: Boolean(streamOptions?.noToolCalls), noMcp: Boolean(streamOptions?.noMcp), noWebsearch: Boolean(streamOptions?.noWebsearch) });
     return await handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCall, { ...streamOptions, statusController });
   } catch (error) {
     statusController?.stop?.();

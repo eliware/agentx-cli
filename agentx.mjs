@@ -2,6 +2,7 @@
 import { config as loadDotenv } from 'dotenv';
 import { path } from '@eliware/common';
 import { existsSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { getHomeDirectory } from './src/platform.mjs';
 
@@ -51,8 +52,10 @@ if (isDirectInvocation(import.meta.url)) {
   } else {
     try {
       const messageArgs = parsed.messageArgs;
+      if (parsed.flags.cwd === '') throw new Error('--cwd requires a path');
+      const cwd = parsed.flags.cwd ? resolvePath(process.cwd(), parsed.flags.cwd) : process.cwd();
       if (!messageArgs.length) await confirmSetup();
-      await runAgent({ promptPath, cwd: process.cwd(), flags: parsed.flags, ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
+      await runAgent({ promptPath, cwd, flags: parsed.flags, ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
     } catch (error) {
       printStartupError(error);
       process.exitCode = 1;

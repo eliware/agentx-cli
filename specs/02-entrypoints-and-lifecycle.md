@@ -10,6 +10,7 @@ Flags are handled before the REPL:
 - `--version`, `-v`: print package version and exit 0.
 - `--debug`: retain for runtime diagnostics.
 - `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Approval is the default; `--yolo` remains a legacy alias.
+- `--cwd PATH` (`-C PATH`): run the session with `PATH` as its working directory. Relative paths resolve from the directory where AgentX was launched.
 - Output flags are valid in interactive and one-shot/noninteractive modes: `--no-usage` (`-u`), `--no-colors` (`-c`), `--no-timers` (`-t`), `--no-reasoning` (`-r`), `--no-shell-calls` (`-s`), `--no-tool-calls` (`-o`), `--no-mcp` (`-m`), and `--no-websearch` (`-w`). Short output flags may be stacked, such as `-qur`.
 - `--quiet` (`-q`) suppresses usage, timers, shell-call deltas, non-shell tool-call deltas, MCP output, and web-search output, while retaining assistant text and reasoning output. `--no-reasoning` additionally suppresses reasoning output. Output flags affect rendering only; they do not change the request payload, reasoning settings, tool execution, or usage accounting.
 - Remaining arguments are joined with spaces as a one-shot chat message. `agentx "message"` sends one request, performs tool calls, prints the normal response/usage summary, then exits without opening the REPL or reading stdin.

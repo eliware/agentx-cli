@@ -17,6 +17,14 @@ describe('cli helpers', () => {
     expect(parsed.flags).toMatchObject({ quiet: true, noUsage: true, noReasoning: true, noColors: true });
   });
 
+  test('parses a working directory option without sending it as chat text', () => {
+    expect(parseCliArgs(['--cwd', '/tmp/project', 'review', 'this']).flags.cwd).toBe('/tmp/project');
+    expect(parseCliArgs(['--cwd=/tmp/project', 'review']).flags.cwd).toBe('/tmp/project');
+    expect(parseCliArgs(['-C', '/tmp/project', 'review']).messageArgs).toEqual(['review']);
+    expect(parseCliArgs(['-C', '/tmp/project', 'review']).flags.cwd).toBe('/tmp/project');
+    expect(parseCliArgs(['--cwd']).flags.cwd).toBe('');
+  });
+
   test('supports end-of-options passthrough and unknown message arguments', () => {
     expect(parseCliArgs(['--', '--no-usage', 'message'])).toMatchObject({ messageArgs: ['--no-usage', 'message'] });
     expect(parseCliArgs(['--unknown'])).toMatchObject({ messageArgs: ['--unknown'] });
@@ -61,5 +69,6 @@ describe('cli helpers', () => {
     expect(help).toContain('--version, -v');
     expect(help).toContain('--debug');
     expect(help).toContain('--yolo');
+    expect(help).toContain('--cwd PATH, -C PATH');
   });
 });

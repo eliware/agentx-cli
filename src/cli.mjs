@@ -20,12 +20,19 @@ const longFlags = {
 };
 
 export function parseCliArgs(argv = []) {
-  const flags = { debug: false, confirm: false, yolo: false, quiet: false, noUsage: false, noColors: false, noTimers: false, noReasoning: false, noShellCalls: false, noToolCalls: false, noMcp: false, noWebsearch: false, help: false, version: false };
+  const flags = { debug: false, confirm: false, yolo: false, quiet: false, noUsage: false, noColors: false, noTimers: false, noReasoning: false, noShellCalls: false, noToolCalls: false, noMcp: false, noWebsearch: false, help: false, version: false, cwd: null };
   const messageArgs = [];
   let passthrough = false;
-  for (const arg of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (passthrough) { messageArgs.push(arg); continue; }
     if (arg === '--') { passthrough = true; continue; }
+    if (arg === '--cwd' || arg === '-C') {
+      flags.cwd = argv[index + 1] ?? '';
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith('--cwd=')) { flags.cwd = arg.slice('--cwd='.length); continue; }
     if (arg === '--help' || arg === '-h' || arg === '-?') { flags.help = true; continue; }
     if (arg === '--version' || arg === '-v') { flags.version = true; continue; }
     if (Object.hasOwn(longFlags, arg)) { flags[longFlags[arg]] = true; continue; }
@@ -85,6 +92,7 @@ export function formatQuickHelp(version = getPackageVersion()) {
     '  --help, -h, -?   show this help',
     '  --version, -v    print the package version',
     '  --debug          print raw websocket logs and suppress live status lines',
+    '  --cwd PATH, -C PATH  use PATH as the working directory',
     '  --confirm        enable tool confirmation prompts',
     '  --yolo           legacy alias; bypass tool confirmation prompts',
     '  --quiet, -q      suppress usage, timers, and tool/status output (keeps reasoning)',

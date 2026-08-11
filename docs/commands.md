@@ -63,6 +63,7 @@ These are command-line flags, not in-app commands:
 - `--version`, `-v`: print the package version and exit
 - `--debug`: print raw websocket logs and suppress live status lines. MCP and reasoning argument deltas are filtered where appropriate to keep raw diagnostics readable.
 - `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Without it, approval is automatic. `--yolo` remains a legacy alias.
+- `--cwd PATH` (`-C PATH`): use `PATH` as the working directory for the session. Relative paths resolve from the launch directory.
 - `--quiet` (`-q`): suppress usage, timers, shell-call output, non-shell tool output, MCP output, and web-search output while retaining reasoning and assistant text.
 - `--no-usage` (`-u`), `--no-colors` (`-c`), `--no-timers` (`-t`), `--no-reasoning` (`-r`), `--no-shell-calls` (`-s`), `--no-tool-calls` (`-o`), `--no-mcp` (`-m`), and `--no-websearch` (`-w`): selectively suppress those output categories. These flags affect rendering only; usage accounting, reasoning settings, tool execution, and request payloads are unchanged.
 
