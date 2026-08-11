@@ -90,10 +90,10 @@ describe('agent flow helpers', () => {
     try {
       const promptPath = path.join(tmp, 'prompt.json');
       const mcpPath = path.join(tmp, 'mcp.json');
-      const tools = [{ type: 'function', name: 'lookup' }];
+      const tools = [{ type: 'function', name: 'lookup' }, { type: 'mcp', server_label: 'disabled', enabled: false }];
       writeFileSync(promptPath, JSON.stringify({ input: [] }));
       writeFileSync(mcpPath, JSON.stringify(tools));
-      await expect(loadPromptTemplate(promptPath, mcpPath)).resolves.toEqual({ input: [], tools });
+      await expect(loadPromptTemplate(promptPath, mcpPath)).resolves.toEqual({ input: [], tools: [tools[0]] });
     } finally {
       cleanupTempDir(tmp);
     }

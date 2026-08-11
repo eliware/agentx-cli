@@ -17,7 +17,8 @@ export async function loadPromptTemplate(promptPath, mcpPath = path(getHomeDirec
     if (loadMcp) {
       try {
         const configuredTools = await readJson(mcpPath);
-        mcpTools = Array.isArray(configuredTools) ? configuredTools : configuredTools?.tools || [];
+        const configuredEntries = Array.isArray(configuredTools) ? configuredTools : configuredTools?.tools || [];
+        mcpTools = configuredEntries.filter((tool) => tool?.type !== 'mcp' || tool.enabled !== false);
       } catch (error) {
         if (error?.code !== 'ENOENT') throw error;
       }

@@ -1,1 +1,15 @@
-[]
+{
+  "tools": [
+    {
+      "type": "mcp",
+      "server_label": "example",
+      "server_description": "Example MCP server",
+      "server_url": "https://example.invalid/mcp",
+      "headers": {
+        "Authorization": "Bearer replace-me"
+      },
+      "require_approval": "never",
+      "enabled": true
+    }
+  ]
+}
