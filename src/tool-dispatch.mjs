@@ -36,7 +36,7 @@ export function requiresDestructiveConfirmation(call) {
 export function requiresToolConfirmation(call) {
   if (call?.type !== 'shell_call') return false;
   const commands = normalizeCommandList(call?.action?.commands).join(' && ').toLowerCase();
-  return /(^|[;&|\s])(rm|mv|cp|mkdir|rmdir|shutdown|reboot|poweroff|systemctl|apt|dnf|yum|npm\s+(install|uninstall|update| ci)|git\s+(commit|push|reset)|terraform|kubectl|xe\s+vm-(create|destroy|shutdown)|snapshot|ssh)(\s|$)/.test(commands);
+  return /(^|[;&|\s])(rm|mv|cp|mkdir|rmdir|shutdown|reboot|poweroff|xe\s+vm-(create|destroy|shutdown)|snapshot)(\s|$)/.test(commands);
 }
 
 export function toolCallIdentity(call, cwd = '') {

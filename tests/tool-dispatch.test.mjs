@@ -28,6 +28,11 @@ describe('tool dispatch', () => {
     expect(permissionAllows('write', { type: 'shell_call', action: { commands: ['node script.js'] } })).toBe(false);
     expect(permissionAllows('read', { type: 'shell_call', action: { commands: ['echo hi > file'] } })).toBe(false);
     expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['xe vm-shutdown uuid=1'] } })).toBe(true);
+    expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['systemctl restart nginx'] } })).toBe(false);
+    expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['apt install nginx'] } })).toBe(false);
+    expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['kubectl apply -f deployment.yaml'] } })).toBe(false);
+    expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['ssh host.example.com systemctl restart app'] } })).toBe(false);
+    expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['git commit -am update'] } })).toBe(false);
     expect(requiresToolConfirmation({ type: 'shell_call', action: { commands: ['printf safe'] } })).toBe(false);
     expect(requiresToolConfirmation({ type: 'function_call', name: 'shutdown' })).toBe(false);
     expect(requiresDestructiveConfirmation({ type: 'shell_call', action: { commands: ['rm -rf /tmp/test'] } })).toBe(true);
