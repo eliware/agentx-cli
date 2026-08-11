@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { assertReadableImage, defaultConvertToJpeg, encodeImageInput, resolveImagePath } from '../src/image-input.mjs';
 
@@ -11,7 +11,7 @@ describe('image input encoding', () => {
   afterEach(async () => { await rm(dir, { recursive: true, force: true }); });
 
   test('resolves paths relative to cwd and rejects missing paths', () => {
-    expect(resolveImagePath('images/picture.png', '/work')).toBe(join('/work', 'images', 'picture.png'));
+    expect(resolveImagePath('images/picture.png', '/work')).toBe(resolve('/work', 'images', 'picture.png'));
     expect(resolveImagePath('picture.png')).toBe(join(process.cwd(), 'picture.png'));
     expect(() => resolveImagePath(undefined)).toThrow('Image path is required');
   });

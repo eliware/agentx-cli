@@ -236,7 +236,7 @@ describe('entrypoint', () => {
 
       await import('../agentx.mjs');
 
-      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: '/tmp', flags: expect.any(Object), initialMessage: 'show cwd', oneShot: true });
+      expect(runAgent).toHaveBeenCalledWith({ promptPath: '/tmp/prompt.json', cwd: path.resolve(process.cwd(), '/tmp'), flags: expect.any(Object), initialMessage: 'show cwd', oneShot: true });
     } finally {
       process.argv = originalArgv;
     }
