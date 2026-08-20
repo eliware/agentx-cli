@@ -48,3 +48,7 @@
 - WebSocket shutdown is graceful with a bounded timeout; connectivity failures/reconnectable closes should be handled without crashing the REPL.
 - AGENTS discovery must skip unresolved symlink-loop entries.
 - Tool calls should print concise status lines in the terminal, not full tool output.
+- Do not over-engineer simple tasks.
+- Do not guess when confused.
+- Do not make random, pointless changes.
+- Check your own work before saying you're done.
