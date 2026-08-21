@@ -443,6 +443,7 @@ test('covers setup path fallback when no home directory exists', async () => {
 
 
 describe('agentx-setup entrypoint', () => {
+  const entrypointPath = path.resolve('agentx-setup.mjs');
   let originalArgv;
   let originalExit;
   let originalStderrWrite;
@@ -481,9 +482,9 @@ describe('agentx-setup entrypoint', () => {
 
   test('invokes setup when run as the entrypoint', async () => {
     const runSetup = jest.fn().mockResolvedValue(undefined);
-    await jest.unstable_mockModule('node:fs', () => ({ default: { realpathSync: () => '/opt/agentx-cli/agentx-setup.mjs' }, realpathSync: () => '/opt/agentx-cli/agentx-setup.mjs' }));
+    await jest.unstable_mockModule('node:fs', () => ({ default: { realpathSync: () => entrypointPath }, realpathSync: () => entrypointPath }));
     await jest.unstable_mockModule('../src/setup.mjs', () => ({ runSetup }));
-    process.argv = [...process.argv.slice(0, 1), '/opt/agentx-cli/agentx-setup.mjs'];
+    process.argv = [...process.argv.slice(0, 1), entrypointPath];
 
     await import('../agentx-setup.mjs');
 
@@ -498,9 +499,9 @@ describe('agentx-setup entrypoint', () => {
       return true;
     };
     process.exit = jest.fn();
-    await jest.unstable_mockModule('node:fs', () => ({ default: { realpathSync: () => '/opt/agentx-cli/agentx-setup.mjs' }, realpathSync: () => '/opt/agentx-cli/agentx-setup.mjs' }));
+    await jest.unstable_mockModule('node:fs', () => ({ default: { realpathSync: () => entrypointPath }, realpathSync: () => entrypointPath }));
     await jest.unstable_mockModule('../src/setup.mjs', () => ({ runSetup }));
-    process.argv = [...process.argv.slice(0, 1), '/opt/agentx-cli/agentx-setup.mjs'];
+    process.argv = [...process.argv.slice(0, 1), entrypointPath];
 
     await import('../agentx-setup.mjs');
 
