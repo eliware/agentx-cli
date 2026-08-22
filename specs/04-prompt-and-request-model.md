@@ -17,6 +17,10 @@ On the first turn, clone the template deeply, replace the first input-text user 
 
 On later turns, send a new user input message `{ role: "user", content: [{ type: "input_text", text }] }`, set `previous_response_id`, and set `store: true`. Preserve the template's other top-level request settings.
 
+## Usage accounting
+
+Responses usage must preserve total input tokens, cached input tokens, cache-write tokens, total output tokens, and reasoning output tokens. Cost calculations must charge uncached input, cached input, and cache writes separately; reasoning output is a breakdown of total output and must not be charged twice. Aggregated session and worker usage must retain these fields.
+
 Before sending a normal user request, prepend optional local context in this order:
 1. `Local shell commands and output since the last assistant message:` plus the accumulated transcript.
 2. A cwd-change note.

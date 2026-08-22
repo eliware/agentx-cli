@@ -25,8 +25,14 @@ describe('usage helpers', () => {
   });
 
   test('uses model-specific pricing', () => {
-    expect(getModelPricing('gpt-5.6-terra')).toEqual({ input: 2_000n, cached: 200n, output: 12_000n });
+    expect(getModelPricing('gpt-5.6-terra')).toEqual({ input: 2_000n, cached: 200n, cacheWrite: 2_500n, output: 12_000n });
     expect(calculateUsageCost({ model: 'gpt-5.6-sol', inputTokens: 1_000_000, cachedTokens: 1_000_000, outputTokens: 1_000_000 })).toBeCloseTo(35.5);
+  });
+
+  test('charges cache writes separately and preserves reasoning breakdown', () => {
+    expect(normalizeUsage({ inputTokens: 100, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12, reasoningTokens: 3 })).toEqual({ inputTokens: 60, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12, reasoningTokens: 3 });
+    expect(calculateUsageCost({ inputTokens: 60, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12 })).toBeCloseTo(0.0000322);
+    expect(formatUsageReport({ inputTokens: 60, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12, reasoningTokens: 3 })).toContain('"write":"20 ($0.000)"');
   });
 
   test('applies jumbo pricing to all token classes and reports a warning', () => {
@@ -47,7 +53,7 @@ describe('usage helpers', () => {
     expect(Reflect.apply(getModelPricing, null, [])).toEqual(getModelPricing());
     expect(getModelPricing(null)).toEqual(getModelPricing());
     expect(getModelPricing('unknown-model')).toEqual(getModelPricing());
-    expect(getModelPricing('GPT-5.6-TERRA')).toEqual({ input: 2_000n, cached: 200n, output: 12_000n });
+    expect(getModelPricing('GPT-5.6-TERRA')).toEqual({ input: 2_000n, cached: 200n, cacheWrite: 2_500n, output: 12_000n });
     expect(isJumboPrompt()).toBe(false);
     expect(isJumboPrompt({ inputTokens: 272_002, cachedTokens: 1 })).toBe(true);
     expect(calculateUsageCost()).toBe(0);
