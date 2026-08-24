@@ -50,7 +50,6 @@ node_modules/
 .env.local
 
 # Jest
-.jest.result
 
 # VSCode test output
 .vscode-test
