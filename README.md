@@ -2,6 +2,8 @@
 
 [![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli) [![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE) [![build status](https://github.com/eliware/agentx-cli/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx-cli)
 
+Documentation: [docs](docs/README.md) · [specifications](specs/README.md) · [examples](examples/README.md)
+
 ## @eliware/agentx-cli
 
 `agentx` is a lightweight terminal chat agent built on the OpenAI Responses API over WebSocket transport.
