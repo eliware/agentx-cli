@@ -12,6 +12,7 @@ describe('response parts', () => {
     expect(isFunctionCall({ type: 'message' })).toBe(false);
     expect(extractUsage()).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
     expect(extractUsage({ usage: { input_tokens: 17, input_tokens_details: { cached_tokens: 5 }, output_tokens: 9 } })).toEqual({ inputTokens: 12, cachedTokens: 5, outputTokens: 9 });
+    expect(extractUsage({ usage: { input_tokens: 20, input_tokens_details: { cached_tokens: 5, cache_write_tokens: 2 }, output_tokens: 9, output_tokens_details: { reasoning_tokens: 3 } } })).toEqual({ inputTokens: 15, cachedTokens: 5, cacheWriteTokens: 2, outputTokens: 9, reasoningTokens: 3 });
   });
 
   test('accumulates usage totals and turns', () => {
@@ -22,6 +23,7 @@ describe('response parts', () => {
     addTurn(totals);
     expect(totals).toEqual({ inputTokens: 5, cachedTokens: 7, outputTokens: 9, turns: 2 });
     expect(addUsageTotals(createUsageTotals(), undefined)).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 });
+    expect(addUsageTotals(createUsageTotals(), { inputTokens: 1, cachedTokens: 2, cacheWriteTokens: 3, outputTokens: 4, reasoningTokens: 5 })).toEqual({ inputTokens: 1, cachedTokens: 2, cacheWriteTokens: 3, outputTokens: 4, reasoningTokens: 5, turns: 0 });
     expect(addTurn(createUsageTotals())).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 1 });
   });
 });

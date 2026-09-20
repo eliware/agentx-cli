@@ -1,17 +1,9 @@
-import { readdir, stat, unlink } from 'node:fs/promises';
-import { path } from '@eliware/common';
 import { persistResponseState, readSessionState } from '../session-state.mjs';
 
-export async function cleanupStaleOneShotStates(directory, now = Date.now()) {
-  let entries;
-  try { entries = await readdir(directory, { withFileTypes: true }); }
-  catch (error) { if (error?.code === 'ENOENT') return; throw error; }
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.startsWith('.agentx_responseid.oneshot-')) continue;
-    const filePath = path(directory, entry.name);
-    /* istanbul ignore next -- unlink races are tolerated defensively. */
-    if (now - (await stat(filePath)).mtimeMs >= 60 * 60 * 1000) await unlink(filePath).catch((error) => { if (error?.code !== 'ENOENT') throw error; });
-  }
+// Kept as a compatibility entry point; the canonical implementation lives in session-state.
+export async function cleanupStaleOneShotStates(...args) {
+  const sessionState = await import('../session-state.mjs');
+  await sessionState.cleanupStaleOneShotStates?.(...args);
 }
 
 export function createPendingResponse(savedState) { return { id: String(savedState?.response_id ?? ''), output: Array.isArray(savedState?.pending_tool_calls) ? savedState.pending_tool_calls : [] }; }

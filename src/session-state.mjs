@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { deleteOptional, readOptionalText, writeText } from './runtime.mjs';
+import { deleteOptional, readOptionalText } from './runtime.mjs';
 import { fs } from '@eliware/common';
 
 const ONESHOT_PREFIX = '.agentx_responseid.oneshot-';
@@ -101,7 +101,9 @@ export async function cleanupStaleOneShotStates(directory, now = Date.now()) {
 }
 
 export async function persistResponseState(statePath, state) {
-  await writeText(statePath, `${JSON.stringify(normalizeSessionState(state), null, 2)}\n`);
+  const tempPath = `${statePath}.${process.pid}.${Date.now()}.tmp`;
+  try { await fs.promises.writeFile(tempPath, `${JSON.stringify(normalizeSessionState(state), null, 2)}\n`); await fs.promises.rename(tempPath, statePath); }
+  catch (error) { try { await fs.promises.unlink(tempPath); } catch { /* cleanup is best effort */ } throw error; }
 }
 
 export async function clearSession(statePath) {

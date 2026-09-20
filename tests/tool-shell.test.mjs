@@ -1,11 +1,17 @@
 import { describe, expect, test } from '@jest/globals';
 import { accessSync } from 'node:fs';
-import { getShellLaunchers, runShellCommandSequence, runShellCommands, shellExec } from '../src/tool-shell.mjs';
+import { getShellLaunchers, normalizeTerminationOutcome, runShellCommandSequence, runShellCommands, shellExec } from '../src/tool-shell.mjs';
 import { cleanupTempDir, makeTempDir } from './test-helpers.mjs';
 
 describe('tool shell', () => {
   test('exposes Windows launcher order', () => {
     expect(getShellLaunchers('win32').map((item) => item.file)).toEqual(['pwsh', 'powershell.exe', 'cmd.exe']);
+  });
+  test('normalizes termination outcomes across platforms', () => {
+    expect(normalizeTerminationOutcome({ timedOut: true, code: 1 })).toEqual({ type: 'timeout' });
+    expect(normalizeTerminationOutcome({ interrupted: true, code: 1 })).toEqual({ type: 'timeout' });
+    expect(normalizeTerminationOutcome({ signal: 'SIGTERM', code: null })).toEqual({ type: 'exit', exit_code: 1 });
+    expect(normalizeTerminationOutcome({ code: 7 })).toEqual({ type: 'exit', exit_code: 7 });
   });
 
   test('runs individual shell commands', async () => {

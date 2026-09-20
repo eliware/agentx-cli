@@ -12,8 +12,8 @@ export function workerLogPath(cwd, id) { return join(workerDirectory(cwd), `${id
 async function ensure(cwd) { await mkdir(workerDirectory(cwd), { recursive: true }); }
 async function atomicWrite(file, value) {
   const temp = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  await writeFile(temp, JSON.stringify(value, null, 2));
-  await rename(temp, file);
+  try { await writeFile(temp, JSON.stringify(value, null, 2)); await rename(temp, file); }
+  catch (error) { try { await unlink(temp); } catch { /* cleanup is best effort */ } throw error; }
 }
 
 export async function saveWorkerRecord(cwd, record) { await ensure(cwd); await atomicWrite(workerRecordPath(cwd, record.id), record); }

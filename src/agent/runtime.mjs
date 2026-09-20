@@ -260,7 +260,7 @@ export async function runAgent({ promptPath, cwd, input: terminalInput = default
       const runPendingToolCall = createResumeToolCallRunner(
         resumeChoice === 'auto-resume' ? 'auto' : resumeChoice === 'interrupt-retry' ? 'retry' : 'request',
         resumeChoice === 'auto-resume' ? new Set() : interruptedCallIds,
-        uncertainCallIdentities,
+        resumeChoice === 'auto-resume' ? new Set() : uncertainCallIdentities,
       );
       writeTerminal(`${formatSystemMessage(resumeChoice === 'auto-resume' ? 'Resuming pending tool execution' : resumeChoice === 'interrupt-retry' ? 'Resuming pending tool execution with retry hint' : 'Resuming pending tool execution with interruption notice')}\n`);
       try {

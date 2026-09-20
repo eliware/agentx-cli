@@ -97,4 +97,15 @@ async function tempCwd() { return mkdtemp(join(tmpdir(), 'agentx-worker-registry
       await expect(saveWorkerRecord(cwd, { id: 'x' })).rejects.toThrow();
     } finally { await rm(cwd, { recursive: true, force: true }); }
   });
+
+  test('cleans temporary record files when the destination rename fails', async () => {
+    const cwd = await tempCwd();
+    try {
+      await mkdir(workerDirectory(cwd), { recursive: true });
+      await mkdir(workerRecordPath(cwd, 'rename-fails'));
+      await expect(saveWorkerRecord(cwd, { id: 'rename-fails' })).rejects.toBeTruthy();
+      const files = await (await import('node:fs/promises')).readdir(workerDirectory(cwd));
+      expect(files.filter((name) => name.endsWith('.tmp'))).toEqual([]);
+    } finally { await rm(cwd, { recursive: true, force: true }); }
+  });
 });

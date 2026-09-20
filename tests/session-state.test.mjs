@@ -102,6 +102,16 @@ describe('session state', () => {
     }
   });
 
+  test('cleans temporary state files when the destination rename fails', async () => {
+    const tmp = makeTempDir('agentx-state-rename-fails-');
+    const statePath = path.join(tmp, '.agentx_responseid');
+    try {
+      mkdirSync(statePath);
+      await expect(persistResponseState(statePath, { response_id: 'rename-fails' })).rejects.toBeTruthy();
+      expect((await (import('node:fs/promises')).then(({ readdir }) => readdir(tmp))).filter((name) => name.includes('.tmp'))).toEqual([]);
+    } finally { cleanupTempDir(tmp); }
+  });
+
   test('falls back from primitive JSON values', async () => {
     const tmp = makeTempDir('agentx-state-');
     const statePath = `${tmp}/.agentx_responseid`;

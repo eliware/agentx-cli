@@ -43,6 +43,11 @@ describe('MCP config validation', () => {
     expect(formatMcpConfigValidation(result)).toContain('2 MCP tools configured');
   });
 
+  test('accepts supported non-header authentication shapes', () => {
+    expect(validateMcpConfig([{ ...validTool('oauth-object'), headers: {}, oauth: { client_id: 'id', client_secret: 'secret' } }]).valid).toBe(true);
+    expect(validateMcpConfig([{ ...validTool('api-key'), headers: {}, api_key: 'secret' }]).valid).toBe(true);
+  });
+
   test('handles invalid root shapes and missing config files', () => {
     expect(validateMcpConfig({})).toMatchObject({ valid: false, errors: ['config must be an array or an object with a tools array'] });
     const tmp = makeTempDir('agentx-mcp-check-');

@@ -68,6 +68,9 @@ describe('usage helpers', () => {
     expect(formatTurnUsage()).toContain('"turns":"1"');
     expect(formatUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}');
     expect(formatTurnUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","total":"$0.000"}');
+    expect(formatTurnUsageReport({ inputTokens: 272_001, cachedTokens: 0, outputTokens: 1 })).toContain('Long-context pricing applied');
+    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, cacheWriteTokens: 3, outputTokens: 4, reasoningTokens: 5 })).toContain('"write":"3');
+    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, cacheWriteTokens: 3, outputTokens: 4, reasoningTokens: 5 })).toContain('"reasoning":"5"');
   });
 
 });

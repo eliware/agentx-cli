@@ -12,9 +12,12 @@ const workers = new Map();
 const workerChildren = new Map();
 const SHUTDOWN_GRACE_MS = 2000;
 const entrypoint = path(import.meta, '../agentx.mjs');
+const workerEnvironmentKeys = ['PATH', 'Path', 'PATHEXT', 'SystemRoot', 'ComSpec', 'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'NODE_PATH', 'NODE_OPTIONS', 'AGENTX_API_KEY', 'agentx_api_key'];
 
 function argsFor(call) { const raw = call?.arguments ?? call?.input ?? '{}'; if (typeof raw === 'object') return raw; try { return JSON.parse(raw); } catch { return {}; } }
 function waitMs(value) { const n = Number(value ?? DEFAULT_WAIT_MS); return Number.isFinite(n) ? Math.min(Math.max(n, MIN_WAIT_MS), MAX_WAIT_MS) : DEFAULT_WAIT_MS; }
+export function redactWorkerLogText(text, environment = process.env) { const values = [environment.AGENTX_API_KEY, environment.agentx_api_key].filter((value) => typeof value === 'string' && value.length > 0); return values.reduce((result, value) => result.replaceAll(value, '[REDACTED]'), String(text)); }
+export function workerLaunchArgs(entrypointPath, task, debug = false) { return [entrypointPath, ...(debug ? ['--debug'] : []), '--', task]; }
 
 export function parseWorkerUsage(text) {
   const reports = String(text).split(/\r?\n/).map((line) => { try { return JSON.parse(stripAnsi(line)); } catch { return null; } }).filter((report) => report && typeof report === 'object' && typeof report.in === 'string' && typeof report.cache === 'string' && typeof report.out === 'string');
@@ -47,13 +50,16 @@ async function persist(worker) {
 function startWorker(task, cwd, permissions, debug, onUsage, onComplete) {
   const worker = { id: `agent-${randomUUID()}`, task, cwd, permissions, debug, status: 'running', startedAt: Date.now(), lines: 0, output: '', usage: null, usageReported: false, exited: false, killTimer: null };
   workers.set(worker.id, worker);
-  const child = spawn(process.execPath, [entrypoint, ...(debug ? ['--debug'] : []), task], { cwd, detached: true, env: { ...process.env, AGENTX_WORKER_ID: worker.id, AGENTX_PERMISSION: permissions }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const env = Object.fromEntries(workerEnvironmentKeys.filter((key) => process.env[key] !== undefined).map((key) => [key, process.env[key]]));
+  const child = spawn(process.execPath, workerLaunchArgs(entrypoint, task, debug), { cwd, detached: true, env: { ...env, AGENTX_WORKER_ID: worker.id, AGENTX_PERMISSION: permissions }, stdio: ['ignore', 'pipe', 'pipe'] });
   worker.pid = child.pid; workerChildren.set(worker.id, child); void persist(worker).catch(() => {});
-  const append = (chunk) => { const text = String(chunk); worker.output = `${worker.output}${text}`.slice(-10 * 1024 * 1024); worker.lines += text.split(/\r?\n/).filter(Boolean).length; worker.usage = parseWorkerUsage(worker.output) || worker.usage; void appendWorkerLog(cwd, worker.id, text).then(() => persist(worker).catch(() => {})); };
+  let writeQueue = Promise.resolve(); let bufferedLog = ''; let flushTimer = null;
+  const flushLog = () => { const text = redactWorkerLogText(bufferedLog); bufferedLog = ''; if (!text) return; writeQueue = writeQueue.then(() => appendWorkerLog(cwd, worker.id, text).then(() => persist(worker))).catch(() => {}); };
+  const append = (chunk) => { const text = String(chunk); worker.output = `${worker.output}${text}`.slice(-10 * 1024 * 1024); worker.lines += text.split(/\r?\n/).filter(Boolean).length; worker.usage = parseWorkerUsage(worker.output) || worker.usage; bufferedLog += text; if (!flushTimer) flushTimer = setTimeout(() => { flushTimer = null; flushLog(); }, 50); };
   worker.timeout = setTimeout(() => { worker.status = 'timed_out'; worker.error = `worker exceeded ${WORKER_TIMEOUT_MS}ms`; void persist(worker).catch(() => {}); child.kill('SIGTERM'); worker.killTimer = setTimeout(() => { if (!worker.exited) child.kill('SIGKILL'); }, SHUTDOWN_GRACE_MS); }, WORKER_TIMEOUT_MS);
   child.stdout.on('data', append); child.stderr.on('data', append);
   child.on('error', (error) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); worker.status = 'failed'; worker.error = error.message; worker.finishedAt = Date.now(); void persist(worker).catch(() => {}); });
-  child.on('close', (code, signal) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (worker.status === 'cancelled' ? 'cancelled' : (code === 0 ? 'completed' : 'failed')); worker.exitCode = code; worker.signal = signal; worker.finishedAt = Date.now(); void persist(worker).catch(() => {}); reportWorkerUsage(worker, onUsage); onComplete?.(worker); });
+  child.on('close', (code, signal) => { worker.exited = true; clearTimeout(worker.timeout); clearTimeout(worker.killTimer); clearTimeout(flushTimer); flushTimer = null; flushLog(); workerChildren.delete(worker.id); worker.status = worker.status === 'timed_out' ? 'timed_out' : (worker.status === 'cancelled' ? 'cancelled' : (code === 0 ? 'completed' : 'failed')); worker.exitCode = code; worker.signal = signal; worker.finishedAt = Date.now(); void writeQueue.then(() => persist(worker)).catch(() => {}); reportWorkerUsage(worker, onUsage); onComplete?.(worker); });
   child.unref();
   return worker;
 }
@@ -68,7 +74,16 @@ async function recover(cwd, onUsage, onComplete) {
   }
 }
 
-export async function terminateWorkers() { /* Workers intentionally survive parent shutdown. */ }
+export async function terminateWorkers() {
+  const active = [...workerChildren.entries()];
+  for (const [id, child] of active) {
+    const worker = workers.get(id);
+    if (worker && !terminal(worker.status)) { worker.status = 'cancelled'; worker.error = 'parent shutdown'; worker.finishedAt = Date.now(); await persist(worker).catch(() => {}); }
+    try { child.kill('SIGTERM'); } catch { /* best effort */ }
+  }
+  await new Promise((resolve) => setTimeout(resolve, SHUTDOWN_GRACE_MS));
+  for (const [, child] of active) { if (!child.killed) { try { child.kill('SIGKILL'); } catch { /* best effort */ } } }
+}
 
 export async function runParallelWorkerFunction(call, cwd, options = {}) {
   if (!call || typeof call !== 'object' || Array.isArray(call)) return { error: 'invalid worker function call' };

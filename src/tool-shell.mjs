@@ -11,6 +11,11 @@ function killChildProcess(child, signal = 'SIGTERM') {
   if (process.platform !== 'win32' && child?.pid) {
     try { process.kill(-child.pid, signal); return; } catch { }
   }
+  if (process.platform === 'win32' && child?.pid) {
+    const force = signal === 'SIGKILL' ? '/F' : '';
+    spawn('taskkill', ['/PID', String(child.pid), '/T', ...(force ? [force] : [])], { windowsHide: true, stdio: 'ignore' });
+    return;
+  }
   child?.kill(signal);
 }
 
@@ -33,6 +38,12 @@ function makeShellCommandOutput({ stdout = '', stderr = '', outcome, maxOutputLe
     stderr: truncateText(stderr, maxOutputLength),
     outcome,
   };
+}
+
+export function normalizeTerminationOutcome({ interrupted = false, timedOut = false, signal = null, code = null } = {}) {
+  if (interrupted || timedOut) return { type: 'timeout' };
+  if (signal) return { type: 'exit', exit_code: 1 };
+  return { type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 };
 }
 
 
@@ -114,13 +125,7 @@ function runLauncherCommand(plan, command, cwd, { timeoutMs, maxOutputLength, wr
     child.on('close', (code, signal) => {
       flushStream('stdout');
       flushStream('stderr');
-      const outcome = interrupted
-        ? { type: 'timeout' }
-        : (timedOut
-        ? { type: 'timeout' }
-        : (signal
-          ? { type: 'exit', exit_code: 1 }
-          : { type: 'exit', exit_code: Number.isFinite(code) ? Number(code) : 1 }));
+      const outcome = normalizeTerminationOutcome({ interrupted, timedOut, signal, code });
       done(makeShellCommandOutput({ stdout, stderr, outcome, maxOutputLength }));
     });
 

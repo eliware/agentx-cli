@@ -22,7 +22,10 @@ export function validateMcpConfig(config) {
     try { parsed = new URL(String(tool?.server_url || '')); } catch { parsed = null; }
     if (!parsed || parsed.protocol !== 'https:') errors.push(`${prefix} (${label || 'unnamed'}): server_url must be a valid HTTPS URL`);
     const authorization = tool?.headers?.Authorization || tool?.headers?.authorization || tool?.authorization;
-    if (typeof authorization !== 'string' || !authorization.trim()) errors.push(`${prefix} (${label || 'unnamed'}): authorization is required`);
+    const oauth = tool?.oauth;
+    const apiKey = tool?.api_key || tool?.apiKey;
+    const validAlternateAuth = (oauth && typeof oauth === 'object' && typeof oauth.client_id === 'string' && typeof oauth.client_secret === 'string') || (typeof apiKey === 'string' && apiKey.trim());
+    if (!((typeof authorization === 'string' && authorization.trim()) || validAlternateAuth)) errors.push(`${prefix} (${label || 'unnamed'}): authorization is required`);
   }
   return { valid: errors.length === 0, tools: mcpTools, errors };
 }

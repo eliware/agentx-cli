@@ -1,6 +1,6 @@
 # [![eliware.org](https://eliware.org/logos/brand.png)](https://discord.gg/M6aTR9eTwN)
 
-[![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli) [![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE) [![build status](https://github.com/eliware/agentx-cli/actions/workflows/nodejs.yml/badge.svg)](https://github.com/eliware/agentx-cli)
+[![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli) [![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE) [![build status](https://github.com/eliware/agentx-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/eliware/agentx-cli)
 
 Documentation: [docs](docs/README.md) · [specifications](specs/README.md) · [examples](examples/README.md)
 
@@ -87,7 +87,7 @@ User-facing docs live in [`docs/`](./docs):
 - Official behavior specifications: [`specs/`](./specs)
 - Implementation modules: [`src/`](./src)
 
-This project uses Spec Driven Development. Update the relevant spec first, then tests, then implementation. Tests are secondary to the specs, and implementation is third. Maintain 100% test coverage across all files and always fix lint warnings.
+This project uses Spec Driven Development. Update the relevant spec first, then tests, then implementation. Tests are secondary to the specs, and implementation is third. Maintain 100% statements, branches, functions, and lines coverage for the configured Jest scope; explicitly excluded files are outside that scope. Always fix lint warnings.
 
 Run lint and tests with:
 

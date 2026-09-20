@@ -5,7 +5,7 @@
 - Fixed Windows path, filesystem, launcher, and worker-registry compatibility using native path handling and shared ESM path helpers.
 - Added Windows-focused regression coverage and stabilized setup-flow timing on Windows.
 - Refreshed README, quickstart, configuration, troubleshooting, MCP smoke-test, and architecture documentation for current flags, MCP behavior, recovery retries, and cross-platform usage.
-- Verified with 100% test coverage, clean lint, zero production dependency vulnerabilities, and passing CLI smoke checks.
+- CI records coverage, lint, dependency-audit, and CLI smoke-check results for each release; consult the corresponding run before making verification claims.
 
 ## 1.6.7 - MCP controls, output modes, and transport recovery
 

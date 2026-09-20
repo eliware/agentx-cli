@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
-import { parseWorkerUsage, reportWorkerUsage, runParallelWorkerFunction, selectWorkerOutput } from '../src/parallel-workers.mjs';
+import { parseWorkerUsage, redactWorkerLogText, reportWorkerUsage, runParallelWorkerFunction, selectWorkerOutput, workerLaunchArgs } from '../src/parallel-workers.mjs';
 
 describe('parallel workers', () => {
   beforeEach(() => { delete process.env.AGENTX_WORKER_ID; });
@@ -32,6 +32,10 @@ describe('parallel workers', () => {
     expect(selectWorkerOutput(log, { output_bytes: 14, output_offset: 16 })).toBe('line 9\nline 10');
     expect(Buffer.byteLength(selectWorkerOutput('x'.repeat(10000)))).toBe(2048);
     expect(selectWorkerOutput(log, { search: '^line (1|2|11|12)$' })).toBe('line 1\nline 2\nline 11\nline 12');
+  });
+  test('preserves flag-like tasks and redacts inherited API keys in logs', () => {
+    expect(workerLaunchArgs('/agentx.mjs', '--quiet', true)).toEqual(['/agentx.mjs', '--debug', '--', '--quiet']);
+    expect(redactWorkerLogText('key=secret and other=second', { AGENTX_API_KEY: 'secret', agentx_api_key: 'second' })).toBe('key=[REDACTED] and other=[REDACTED]');
   });
 
   test('validates worker calls before spawning or waiting', async () => {
