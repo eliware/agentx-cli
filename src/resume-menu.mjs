@@ -1,36 +1,36 @@
-import { emitKeypressEvents } from 'node:readline';
-import { stdin as defaultInput, stdout as defaultOutput } from 'node:process';
+import { emitKeypressEvents } from "node:readline";
+import { stdin as defaultInput, stdout as defaultOutput } from "node:process";
 
 const RESUME_MENU_OPTIONS = [
   {
-    id: 'interrupt-retry',
-    label: 'Resume with interruption notice and let the agent decide whether to retry',
+    id: "interrupt-retry",
+    label: "Resume with interruption notice and let the agent decide whether to retry",
   },
   {
-    id: 'interrupt-request',
-    label: 'Resume with interruption notice and request further instructions',
+    id: "interrupt-request",
+    label: "Resume with interruption notice and request further instructions",
   },
   {
-    id: 'auto-resume',
-    label: 'Fully auto-resume pending tool execution',
+    id: "auto-resume",
+    label: "Fully auto-resume pending tool execution",
   },
   {
-    id: 'new-session',
-    label: 'Start a new session',
+    id: "new-session",
+    label: "Start a new session",
   },
 ];
 
 function getMenuLines(savedState, selectedIndex) {
   const lines = [];
   lines.push(`Session ${savedState.response_id} has pending tool calls.`);
-  lines.push('Choose how to continue:');
+  lines.push("Choose how to continue:");
   RESUME_MENU_OPTIONS.forEach((option, index) => {
-    const marker = index === selectedIndex ? '>' : ' ';
+    const marker = index === selectedIndex ? ">" : " ";
     const shortcut = index + 1;
-    const suffix = index === 0 ? ' (default)' : '';
+    const suffix = index === 0 ? " (default)" : "";
     lines.push(`${marker} ${shortcut}. ${option.label}${suffix}`);
   });
-  lines.push('Use 1-4, ↑/↓, or Enter.');
+  lines.push("Use 1-4, ↑/↓, or Enter.");
   return lines;
 }
 
@@ -39,7 +39,7 @@ export function createFrameRenderer(output) {
 
   return {
     render(lines) {
-      const text = lines.join('\n');
+      const text = lines.join("\n");
       if (lineCount > 0) {
         output.write(`\x1b[${lineCount - 1}A\r\x1b[0J`);
       }
@@ -55,18 +55,24 @@ export function createFrameRenderer(output) {
   };
 }
 
-
 function callIfFunction(fn, ...args) {
-  if (typeof fn === 'function') return fn(...args);
+  if (typeof fn === "function") return fn(...args);
   return undefined;
 }
 
 function attachKeypressListener(input, onKeypress) {
-  callIfFunction(input.on?.bind(input), 'keypress', onKeypress);
+  callIfFunction(input.on?.bind(input), "keypress", onKeypress);
 }
 
-export async function promptResumeMenu(savedState, { input = defaultInput, output = defaultOutput, forceInteractive = false } = {}) {
-  const isInteractive = forceInteractive || (!process.env.JEST_WORKER_ID && !process.env.CI && Boolean(input && output && typeof input.setRawMode === 'function' && input.isTTY !== false));
+export async function promptResumeMenu(
+  savedState,
+  { input = defaultInput, output = defaultOutput, forceInteractive = false } = {},
+) {
+  const isInteractive =
+    forceInteractive ||
+    (!process.env.JEST_WORKER_ID &&
+      !process.env.CI &&
+      Boolean(input && output && typeof input.setRawMode === "function" && input.isTTY !== false));
   let selectedIndex = 0;
 
   if (!isInteractive) {
@@ -76,7 +82,7 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
   emitKeypressEvents(input);
   callIfFunction(input.resume?.bind(input));
   callIfFunction(input.setRawMode?.bind(input), true);
-  callIfFunction(output.write?.bind(output), '\x1b[?25l');
+  callIfFunction(output.write?.bind(output), "\x1b[?25l");
 
   const frame = createFrameRenderer(output);
 
@@ -88,8 +94,8 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
       finished = true;
       frame.clear();
       callIfFunction(input.setRawMode?.bind(input), false);
-      callIfFunction(output.write?.bind(output), '\x1b[?25h');
-      callIfFunction(input.removeListener?.bind(input), 'keypress', onKeypress);
+      callIfFunction(output.write?.bind(output), "\x1b[?25h");
+      callIfFunction(input.removeListener?.bind(input), "keypress", onKeypress);
     };
 
     const finish = (value) => {
@@ -112,31 +118,32 @@ export async function promptResumeMenu(savedState, { input = defaultInput, outpu
     };
 
     const onKeypress = (str, key = {}) => {
-      if (key?.name === 'c' && key?.ctrl) {
-        const error = new Error('Interrupted');
-        error.name = 'AbortError';
+      if (key?.name === "c" && key?.ctrl) {
+        const error = new Error("Interrupted");
+        error.name = "AbortError";
         fail(error);
         return;
       }
 
-      if (key?.name === 'return' || key?.name === 'enter') {
+      if (key?.name === "return" || key?.name === "enter") {
         finish(RESUME_MENU_OPTIONS[selectedIndex].id);
         return;
       }
 
-      if (key?.name === 'up') {
-        selectedIndex = (selectedIndex + RESUME_MENU_OPTIONS.length - 1) % RESUME_MENU_OPTIONS.length;
+      if (key?.name === "up") {
+        selectedIndex =
+          (selectedIndex + RESUME_MENU_OPTIONS.length - 1) % RESUME_MENU_OPTIONS.length;
         render();
         return;
       }
 
-      if (key?.name === 'down') {
+      if (key?.name === "down") {
         selectedIndex = (selectedIndex + 1) % RESUME_MENU_OPTIONS.length;
         render();
         return;
       }
 
-      const digit = String(str ?? '').trim();
+      const digit = String(str ?? "").trim();
       if (/^\d$/.test(digit)) {
         selectIndex(Number(digit) - 1);
       }

@@ -1,4 +1,4 @@
-import { getToolCallId } from './checkpoint.mjs';
+import { getToolCallId } from "./checkpoint.mjs";
 
 const INTERRUPTED_TOOL_OUTPUT_RETRY = `The previous transaction was interrupted while tool calls were in progress.
 
@@ -14,15 +14,29 @@ Do not retry the interrupted command.
 Ask the user what they want to do next.`;
 
 export function buildInterruptedToolOutput(call, mode) {
-  const message = mode === 'retry' ? INTERRUPTED_TOOL_OUTPUT_RETRY : INTERRUPTED_TOOL_OUTPUT_REQUEST;
-  if (call?.type === 'shell_call') return { type: 'shell_call_output', call_id: getToolCallId(call), status: 'completed', output: [{ stdout: message, stderr: '', outcome: { type: 'exit', exit_code: 0 } }] };
+  const message =
+    mode === "retry" ? INTERRUPTED_TOOL_OUTPUT_RETRY : INTERRUPTED_TOOL_OUTPUT_REQUEST;
+  if (call?.type === "shell_call")
+    return {
+      type: "shell_call_output",
+      call_id: getToolCallId(call),
+      status: "completed",
+      output: [{ stdout: message, stderr: "", outcome: { type: "exit", exit_code: 0 } }],
+    };
   return message;
 }
-export function createResumeToolCallRunner(mode, pendingCallIds = new Set(), uncertainCallIdentities = new Set()) {
+export function createResumeToolCallRunner(
+  mode,
+  pendingCallIds = new Set(),
+  uncertainCallIdentities = new Set(),
+) {
   return async (call, cwd) => {
     const identity = `id:${getToolCallId(call)}`;
-    if (pendingCallIds.has(getToolCallId(call)) || uncertainCallIdentities.has(identity)) return buildInterruptedToolOutput(call, mode === 'auto' ? 'request' : mode);
-    const { runToolCall } = await import('../tool-dispatch.mjs');
-    return await runToolCall(call, cwd);
+    if (pendingCallIds.has(getToolCallId(call)) || uncertainCallIdentities.has(identity))
+      return buildInterruptedToolOutput(call, mode === "auto" ? "request" : mode);
+    const { runToolCall } = await import("../tool-dispatch.mjs");
+    return await runToolCall(call, cwd, {
+      permission: process.env.AGENTX_PERMISSION || "execute",
+    });
   };
 }

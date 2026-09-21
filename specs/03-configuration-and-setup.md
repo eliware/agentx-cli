@@ -1,9 +1,11 @@
 # Configuration and setup
 
 ## Configuration file
+
 The default file is `$HOME/.agentx`; it is dotenv-like `KEY=value` text. Preserve unrelated lines and comments when updating known keys. Duplicate known keys collapse to one updated entry. Values containing spaces or shell punctuation are double-quoted with backslash/quote escaping. Ensure the parent directory exists and end written files with one newline. Configuration files must be written atomically with mode `0600`; existing files must be tightened to `0600` when updated.
 
 Known settings:
+
 - `AGENTX_API_KEY` (required unless supplied in process environment)
 - `AGENTX_MODEL`, default `gpt-5.6-luna`
 - `AGENTX_REASONING_MODE`, default `standard`; choices `standard`, `pro`
@@ -15,6 +17,7 @@ Known settings:
 `settingsFromEnv` reads uppercase names only for runtime settings. Invalid/zero compaction values fall back to the default.
 
 ## Setup UX
+
 `agentx-setup` loads saved settings before applying defaults, so the menu displays the persisted model and other values on every run. Selecting any available value, including the default model, must persist that choice.
 
 `agentx-setup` requires an interactive TTY; otherwise print `AgentX setup requires an interactive terminal.` and return. Display version, install path, config path, MCP path, and whether the API key is set. Provide a raw-keyboard menu with number keys, arrows, Enter, and Ctrl-C/quit handling, with readline fallback for individual values.

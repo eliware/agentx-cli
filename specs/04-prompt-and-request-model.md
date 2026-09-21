@@ -3,6 +3,7 @@
 `prompt.json` is JSON containing a Responses request template. Preserve arbitrary top-level fields. The normal template includes `model`, `input`, `text`, `reasoning`, `context_management`, `tools`, `store`, and `include`.
 
 The developer prompt starts from the template developer input text and appends:
+
 - fixed AgentX identity and creator guidance;
 - first instruction to "Be extremely consice. Sacrifice grammar for concision."
 - system administrator/DevOps/developer role guidance;
@@ -22,6 +23,7 @@ On later turns, send a new user input message `{ role: "user", content: [{ type:
 Responses usage must preserve total input tokens, cached input tokens, cache-write tokens, total output tokens, and reasoning output tokens. Cost calculations must charge uncached input, cached input, and cache writes separately; reasoning output is a breakdown of total output and must not be charged twice. Aggregated session and worker usage must retain these fields.
 
 Before sending a normal user request, prepend optional local context in this order:
+
 1. `Local shell commands and output since the last assistant message:` plus the accumulated transcript.
 2. A cwd-change note.
 3. The actual user message.

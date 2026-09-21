@@ -1,9 +1,9 @@
-import stripAnsi from 'strip-ansi';
+import stripAnsi from "strip-ansi";
 
 const STATUS_UPDATE_INTERVAL_MS = 250;
-const STATUS_WHITE = '\u001b[38;5;255m';
-const STATUS_GREEN = '\u001b[32m';
-const RESET = '\u001b[0m';
+const STATUS_WHITE = "\u001b[38;5;255m";
+const STATUS_GREEN = "\u001b[32m";
+const RESET = "\u001b[0m";
 
 export function formatElapsedStatus(elapsedMs) {
   const totalSeconds = Math.max(0, Math.round(Number(elapsedMs ?? 0) / 1000));
@@ -16,9 +16,9 @@ export function formatElapsedStatus(elapsedMs) {
 }
 
 function stripStatusValue(value) {
-  if (value && typeof value === 'object' && 'value' in value) return String(value.value ?? '');
-  if (typeof value !== 'string') return String(value ?? '');
-  return value.replace(/^([a-z]+):\s+/, '').replace(/\[[0-9;]*m/g, '');
+  if (value && typeof value === "object" && "value" in value) return String(value.value ?? "");
+  if (typeof value !== "string") return String(value ?? "");
+  return value.replace(/^([a-z]+):\s+/, "").replace(/\[[0-9;]*m/g, "");
 }
 
 // Produce a compact JSON message describing the transaction completion.
@@ -26,7 +26,7 @@ function stripStatusValue(value) {
 // strings are omitted to avoid clutter in logs.
 export function formatTransactionCompletionMessage(summary) {
   const obj = {};
-  if (summary?.time !== undefined && summary.time !== '') {
+  if (summary?.time !== undefined && summary.time !== "") {
     obj.time = String(summary.time);
   }
   const reasoning = stripStatusValue(summary?.reasoning);
@@ -45,12 +45,15 @@ export function formatTransactionCompletionMessage(summary) {
 }
 
 export function formatSpinnerFrame() {
-  return '';
+  return "";
 }
 
-export function createStatusLineController(sessionStartedAt = Date.now(), { quiet = false, transitionOnly = false, colors = true } = {}) {
+export function createStatusLineController(
+  sessionStartedAt = Date.now(),
+  { quiet = false, transitionOnly = false, colors = true } = {},
+) {
   let timer = null;
-  let lastRendered = '';
+  let lastRendered = "";
   let state = null;
   let stateStartedAt = 0;
   let paused = false;
@@ -66,9 +69,12 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
     // line. Clear that line, then leave the cursor at its beginning so the
     // next status frame or streamed output owns the terminal position.
     if (quiet || transitionOnly || !lastRendered) return;
-    if (!colors) { lastRendered = ''; return; }
-    process.stdout.write('\r\x1b[2K\r');
-    lastRendered = '';
+    if (!colors) {
+      lastRendered = "";
+      return;
+    }
+    process.stdout.write("\r\x1b[2K\r");
+    lastRendered = "";
   }
 
   function stopTimer() {
@@ -108,9 +114,9 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
   function snapshot(now = Date.now()) {
     return {
       time: formatElapsedStatus(now - sessionStartedAt),
-      reasoning: phaseSnapshot('reasoning', now),
-      writing: phaseSnapshot('writing', now),
-      executing: phaseSnapshot('executing', now),
+      reasoning: phaseSnapshot("reasoning", now),
+      writing: phaseSnapshot("writing", now),
+      executing: phaseSnapshot("executing", now),
     };
   }
 
@@ -127,9 +133,9 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
   }
 
   function render() {
-    if (quiet || paused || !state || state === 'writing') return;
+    if (quiet || paused || !state || state === "writing") return;
     const stats = snapshot();
-    const status = `{"time":"${stats.time}",${formatStatusField('reasoning', stats.reasoning)},${formatStatusField('writing', stats.writing)},${formatStatusField('executing', stats.executing)}}`;
+    const status = `{"time":"${stats.time}",${formatStatusField("reasoning", stats.reasoning)},${formatStatusField("writing", stats.writing)},${formatStatusField("executing", stats.executing)}}`;
     writeLine(colors ? `${STATUS_WHITE}${status}${RESET}` : stripAnsi(status));
   }
 
@@ -144,13 +150,13 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
   function transition(nextState, { renderNow = true, allowStatusAfterOutput = false } = {}) {
     const now = Date.now();
     if (state === nextState) {
-      if (!paused && renderNow && (transitionOnly || state !== 'writing')) render();
+      if (!paused && renderNow && (transitionOnly || state !== "writing")) render();
       return;
     }
     finalizeActive(now);
     state = nextState;
     stateStartedAt = now;
-    if (nextState === 'writing') {
+    if (nextState === "writing") {
       stopTimer();
       clearRenderedLine();
       suppressStatusAfterOutput = true;
@@ -169,18 +175,18 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
 
   return {
     showReasoning(options) {
-      transition('reasoning', options);
+      transition("reasoning", options);
     },
     showExecuting(done, total, options) {
-      transition('executing', options);
+      transition("executing", options);
     },
     updateExecuting(_done, _total) {
-      if (state !== 'executing' || paused) return;
+      if (state !== "executing" || paused) return;
       render();
     },
     beginWriting(options) {
       prepareOutput();
-      transition('writing', options);
+      transition("writing", options);
     },
     prepareOutput,
     pause() {
@@ -191,7 +197,7 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
     resume({ renderNow = true } = {}) {
       if (!paused) return;
       paused = false;
-      if (state && state !== 'writing') {
+      if (state && state !== "writing") {
         startTimer();
         if (renderNow) render();
       }
@@ -200,7 +206,7 @@ export function createStatusLineController(sessionStartedAt = Date.now(), { quie
       return snapshot();
     },
     isWriting() {
-      return state === 'writing';
+      return state === "writing";
     },
     refresh() {
       render();

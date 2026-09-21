@@ -1,29 +1,31 @@
-import { getPromptIdentity } from './platform.mjs';
-import { isTerminalColorEnabled } from './terminal-output.mjs';
+import { getPromptIdentity } from "./platform.mjs";
+import { isTerminalColorEnabled } from "./terminal-output.mjs";
 
-const SYSTEM_RED = '\u001b[38;5;160m';
-const COMMAND_GREEN = '\u001b[32m';
-const FINAL_BLUE = '\u001b[38;5;33m';
-const INFO_CYAN = '\u001b[38;5;37m';
-const MCP_CYAN = '\u001b[38;5;45m';
-const CUSTOM_MAGENTA = '\u001b[38;5;163m';
-const USAGE_ORANGE = '\u001b[38;5;208m';
-const WHITE = '\u001b[38;5;255m';
-const RESET = '\u001b[0m';
+const SYSTEM_RED = "\u001b[38;5;160m";
+const COMMAND_GREEN = "\u001b[32m";
+const FINAL_BLUE = "\u001b[38;5;33m";
+const INFO_CYAN = "\u001b[38;5;37m";
+const MCP_CYAN = "\u001b[38;5;45m";
+const CUSTOM_MAGENTA = "\u001b[38;5;163m";
+const USAGE_ORANGE = "\u001b[38;5;208m";
+const WHITE = "\u001b[38;5;255m";
+const RESET = "\u001b[0m";
 
 export function clearTerminal() {
   if (process.stdout?.isTTY === false) {
-    process.stdout.write('\n');
+    process.stdout.write("\n");
     return;
   }
-  process.stdout.write(isTerminalColorEnabled() ? '\x1b[2J\x1b[H' : '\n');
+  process.stdout.write(isTerminalColorEnabled() ? "\x1b[2J\x1b[H" : "\n");
 }
 
 export function formatPromptForCwd(cwd) {
   const { user, host } = getPromptIdentity(process.env);
-  const shortHost = host.split('.')[0];
+  const shortHost = host.split(".")[0];
   const prompt = `${user}@${shortHost}:${cwd}# `;
-  return isTerminalColorEnabled() ? `${INFO_CYAN}${user}@${shortHost}:${cwd}${WHITE}#${RESET}${WHITE} ` : prompt;
+  return isTerminalColorEnabled()
+    ? `${INFO_CYAN}${user}@${shortHost}:${cwd}${WHITE}#${RESET}${WHITE} `
+    : prompt;
 }
 
 export function formatSystemMessage(message) {
@@ -54,4 +56,6 @@ export function formatFinalUsageMessage(message) {
   return `${FINAL_BLUE}${message}${RESET}`;
 }
 
-export function formatWhiteMessage(message) { return `${WHITE}${message}${RESET}`; }
+export function formatWhiteMessage(message) {
+  return `${WHITE}${message}${RESET}`;
+}

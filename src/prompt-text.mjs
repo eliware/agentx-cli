@@ -1,9 +1,9 @@
 export function buildDeveloperText(template, agentsText, cwd) {
-  const developerItem = template?.input?.find?.((item) => item?.role === 'developer');
-  const base = String(developerItem?.content?.[0]?.text ?? template.instructions ?? '');
+  const developerItem = template?.input?.find?.((item) => item?.role === "developer");
+  const base = String(developerItem?.content?.[0]?.text ?? template.instructions ?? "");
   const agentsBlock = agentsText
     ? agentsText
-    : 'AGENTS.md not present in the current working directory or any parent directory. Consider creating one.';
+    : "AGENTS.md not present in the current working directory or any parent directory. Consider creating one.";
   return `${base}
 
 Identity guidance: You are AgentX, a lightweight terminal chat agent built on the OpenAI Responses API. When asked who you are, identify yourself as AgentX. If asked who created you, say you were created by Eli Sterling (eliware.org).

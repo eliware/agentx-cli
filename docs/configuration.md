@@ -4,9 +4,9 @@ AgentX reads configuration from the process environment and the user-owned `~/.a
 
 ## API key
 
-| Name | Required | Default | Format | Sensitive | Effect |
-| --- | --- | --- | --- | --- | --- |
-| `agentx_api_key` / `AGENTX_API_KEY` | Yes | None | OpenAI API key string | Yes | Authenticates Responses API requests. The lowercase name is checked first. |
+| Name                                | Required | Default | Format                | Sensitive | Effect                                                                     |
+| ----------------------------------- | -------- | ------- | --------------------- | --------- | -------------------------------------------------------------------------- |
+| `agentx_api_key` / `AGENTX_API_KEY` | Yes      | None    | OpenAI API key string | Yes       | Authenticates Responses API requests. The lowercase name is checked first. |
 
 `agentx-setup` can write the key and runtime settings to `~/.agentx`. Environment values remain available for shell and CI use.
 
@@ -35,7 +35,6 @@ Before publishing, run:
 
 ```bash
 npm test
-npm run test:gaps
 npm run lint
 npm run audit
 npm run validate:package

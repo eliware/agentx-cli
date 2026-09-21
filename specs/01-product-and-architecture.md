@@ -3,6 +3,7 @@
 AgentX is an ESM-only Node.js terminal chat agent. It sends user messages to the OpenAI Responses API through the official `@eliware/openai` client, streams assistant output, executes model-requested local tools, and preserves conversation state in the launch directory.
 
 ## Goals
+
 - Feel like a shell while remaining a conversational agent.
 - Do not contact OpenAI until the user submits a normal message.
 - Keep local shell commands, working-directory changes, and agent conversation distinct.
@@ -11,6 +12,7 @@ AgentX is an ESM-only Node.js terminal chat agent. It sends user messages to the
 - Make interruptions around side-effecting tools explicit and safe.
 
 ## Components
+
 - `agentx.mjs`: executable bootstrap, dotenv loading, flags, setup prompt, and error boundary.
 - `agentx-setup.mjs`: executable setup wrapper.
 - `src/agent.mjs`: public lifecycle/API re-export; runtime implementation lives under `src/agent/runtime.mjs`.

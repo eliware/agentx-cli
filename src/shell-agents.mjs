@@ -1,13 +1,13 @@
-import path from 'node:path';
-import { fs } from '@eliware/common';
-import { getHomeDirectory } from './platform.mjs';
+import path from "node:path";
+import { fs } from "@eliware/common";
+import { getHomeDirectory } from "./platform.mjs";
 
 async function readAgentsEntry(dir) {
-  const filePath = path.join(dir, 'AGENTS.md');
+  const filePath = path.join(dir, "AGENTS.md");
   try {
     // Resolve the real path safely; a symlink loop will cause an error.
     const [content, stats] = await Promise.all([
-      fs.promises.readFile(filePath, 'utf8'),
+      fs.promises.readFile(filePath, "utf8"),
       fs.promises.lstat(filePath),
     ]);
     let realPath;
@@ -22,7 +22,7 @@ async function readAgentsEntry(dir) {
   } catch (error) {
     // Propagate non‑ENOENT errors so callers can handle them. Only swallow
     // ENOENT to indicate missing file.
-    if (error?.code === 'ENOENT') return null;
+    if (error?.code === "ENOENT") return null;
     throw error;
   }
 }
@@ -33,7 +33,7 @@ export async function readAgentsFromCwdAndParents(cwd, home = getHomeDirectory()
   const seenRealPaths = new Set();
   let current = path.resolve(cwd);
 
-  for (; ;) {
+  for (;;) {
     const entry = await readAgentsEntry(current);
     if (entry && !seenRealPaths.has(entry.realPath)) {
       seenRealPaths.add(entry.realPath);
@@ -47,5 +47,5 @@ export async function readAgentsFromCwdAndParents(cwd, home = getHomeDirectory()
 
   const ordered = entries.reverse();
   if (homeEntry && !seenRealPaths.has(homeEntry.realPath)) ordered.unshift(homeEntry);
-  return ordered.map(({ dir, content }) => `# AGENTS.md (${dir})\n${content.trim()}`).join('\n\n');
+  return ordered.map(({ dir, content }) => `# AGENTS.md (${dir})\n${content.trim()}`).join("\n\n");
 }

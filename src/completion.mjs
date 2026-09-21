@@ -1,1 +1,1 @@
-export * from './path-completion.mjs';
+export * from "./path-completion.mjs";

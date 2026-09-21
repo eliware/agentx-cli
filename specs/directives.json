@@ -1,0 +1,12 @@
+{
+  "version": "8.0",
+  "repositoryId": "eliware/agentx-cli",
+  "description": "Repository-specific directive index; shared rules remain authoritative in eliware/conventions.",
+  "directives": [
+    {
+      "id": "E-1",
+      "source": "eliware/conventions",
+      "profiles": ["general", "application", "cli", "npm-published"]
+    }
+  ]
+}

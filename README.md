@@ -10,6 +10,7 @@ Documentation: [docs](docs/README.md) · [specifications](specs/README.md) · [e
 Install the published package globally, run `agentx-setup` once, and then start `agentx`.
 
 It is designed to feel shell-like:
+
 - waits for your first message before calling OpenAI
 - supports internal `cd`, `clear`, `/clear`, `/usage`, `/rollback`, `/setup`, `quit`, and `exit`
 - supports direct shell commands with a leading `!`
@@ -21,6 +22,22 @@ It is designed to feel shell-like:
 - prints active model and runtime settings at startup
 - prints friendly startup errors for missing config or API keys
 - supports optional MCP tools configured in `~/.agentx.mcp.json`
+
+## Purpose
+
+AgentX CLI provides a cross-platform terminal interface for interactive and one-shot requests through the OpenAI Responses API.
+
+## Requirements
+
+Node.js 26 and an OpenAI API key are required. Native ESM is used throughout the project.
+
+## Setup
+
+Install the public package with `npm -g install @eliware/agentx-cli@latest`, then run `agentx-setup`.
+
+## Configuration
+
+Configuration is user-local or environment-based. Set `AGENTX_API_KEY` or configure the user-owned `~/.agentx` file; never commit credentials.
 
 ## Usage
 
@@ -37,6 +54,7 @@ agentx "summarize this project"
 ```
 
 One-shot mode prints the response and usage summary, then exits. Tool execution is approved by default; use `--confirm` to enable confirmation prompts.
+Successful commands exit with code 0; invalid usage, configuration, or runtime failures exit nonzero and print a redacted diagnostic.
 
 If you are working from the repository itself, run `node agentx.mjs`.
 
@@ -58,8 +76,8 @@ Quick flags:
 - Type a normal message to send it to OpenAI.
 - Type `cd /path/to/dir` to change the local working directory without calling OpenAI.
 - Type `!ls` to run a local shell command directly; its output is buffered for the next AI request. Direct `!` commands have no automatic timeout; press Ctrl-C to terminate one and return to AgentX. Ctrl-T remains for interrupting model-requested shell tools; the interruption result tells the agent to stop, not retry, and report current status.
-  * `clear` or `/clear`: clear saved session state and start a fresh conversation.
-  * `!clear`: runs the local shell `clear` command, clearing only the terminal display.
+  - `clear` or `/clear`: clear saved session state and start a fresh conversation.
+  - `!clear`: runs the local shell `clear` command, clearing only the terminal display.
 - Type `/usage` to view token and cost totals.
 - Type `/rollback` to restore a successful response checkpoint.
 - Recognized closed/lifetime WebSocket failures reconnect with exponential backoff for up to 10 seconds; other recoverable API failures keep the REPL alive and offer retry, new-chain, rollback, or clear options.
@@ -96,6 +114,14 @@ npm run lint
 npm test
 ```
 
+## Validation
+
+Repository validation uses `eliware-test` through the npm scripts. Run `npm ci`, `npm test`, `npm run lint`, `npm run audit`, `npm run format:check`, and `npm run pack`.
+
+## Operations
+
+Release publication is tag-gated by the npm publication workflow and is performed only after Ubuntu validation. Runtime state and credentials remain outside the repository.
+
 ## Environment
 
 Set your OpenAI key in the shell environment, or let `agentx-setup` write it to `~/.agentx`:
@@ -114,7 +140,6 @@ AgentX automatically loads an optional `.agentx.mcp.json` from your home directo
 ## Security
 
 Tool permission classifications are advisory, not a sandbox. Shell wrappers, scripts, aliases, substitutions, and encoded commands may bypass name-based classification. Use `--confirm` when human review is needed; do not run AgentX as a strong isolation boundary for untrusted prompts or workspaces.
-
 
 - Never commit `agentx_api_key`, `AGENTX_API_KEY`, MCP credentials, or other secrets.
 - Store the API key in the environment or in the user-owned `~/.agentx` configuration file.

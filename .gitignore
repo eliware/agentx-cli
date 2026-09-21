@@ -15,10 +15,16 @@ pids
 *.pid
 *.seed
 *.pid.lock
+*.state
+*.session
+.knit/state/
 
 # Coverage output
 coverage
 *.lcov
+dist/
+tmp/
+temp/
 
 # nyc test coverage
 .nyc_output

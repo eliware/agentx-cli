@@ -3,6 +3,10 @@
 This directory contains user-facing documentation for the AgentX terminal chat
 agent and setup helper.
 
+## Purpose
+
+These documents explain how to install, configure, use, validate, and troubleshoot AgentX CLI.
+
 ## Contents
 
 - [Quickstart](quickstart.md)

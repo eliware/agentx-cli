@@ -2,6 +2,7 @@
 
 AgentX is a terminal chat agent built on the OpenAI Responses API over WebSocket transport.
 For most users, the simplest path is: install it globally, run `agentx-setup` once, then start `agentx`.
+
 ## Start the CLI
 
 If you installed the package globally, use:

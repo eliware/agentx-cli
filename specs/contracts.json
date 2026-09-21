@@ -1,0 +1,13 @@
+{
+  "version": "8.0",
+  "repositoryId": "eliware/agentx-cli",
+  "description": "Repository contract index.",
+  "contracts": [
+    {
+      "id": "agentx-cli.runtime",
+      "title": "CLI runtime contract",
+      "source": "./01-product-and-architecture.md",
+      "status": "active"
+    }
+  ]
+}

@@ -1,44 +1,109 @@
-import { readFileSync } from 'node:fs';
-import { path } from '@eliware/common';
+import { readFileSync } from "node:fs";
+import { path } from "@eliware/common";
 
-const packagePath = path(import.meta, '..', 'package.json');
+const packagePath = path(import.meta, "..", "package.json");
 
 export function hasFlag(argv, flags) {
   return argv.some((arg) => flags.includes(arg));
 }
 
 const shortOutputFlags = {
-  u: 'noUsage', c: 'noColors', t: 'noTimers', r: 'noReasoning',
-  s: 'noShellCalls', o: 'noToolCalls', m: 'noMcp', M: 'noMcpOutput', w: 'noWebsearch', q: 'quiet',
+  u: "noUsage",
+  c: "noColors",
+  t: "noTimers",
+  r: "noReasoning",
+  s: "noShellCalls",
+  o: "noToolCalls",
+  m: "noMcp",
+  M: "noMcpOutput",
+  w: "noWebsearch",
+  q: "quiet",
 };
 
 const longFlags = {
-  '--debug': 'debug', '--confirm': 'confirm', '--yolo': 'yolo', '--quiet': 'quiet',
-  '--no-usage': 'noUsage', '--no-colors': 'noColors', '--no-timers': 'noTimers',
-  '--no-reasoning': 'noReasoning', '--no-shell-calls': 'noShellCalls',
-  '--no-tool-calls': 'noToolCalls', '--no-mcp': 'noMcp', '--no-mcp-output': 'noMcpOutput', '--no-websearch': 'noWebsearch',
-  '--check-mcp': 'checkMcp',
+  "--debug": "debug",
+  "--confirm": "confirm",
+  "--yolo": "yolo",
+  "--quiet": "quiet",
+  "--no-usage": "noUsage",
+  "--no-colors": "noColors",
+  "--no-timers": "noTimers",
+  "--no-reasoning": "noReasoning",
+  "--no-shell-calls": "noShellCalls",
+  "--no-tool-calls": "noToolCalls",
+  "--no-mcp": "noMcp",
+  "--no-mcp-output": "noMcpOutput",
+  "--no-websearch": "noWebsearch",
+  "--check-mcp": "checkMcp",
 };
 
 export function parseCliArgs(argv = []) {
-  const flags = { debug: false, confirm: false, yolo: false, quiet: false, noUsage: false, noColors: false, noTimers: false, noReasoning: false, noShellCalls: false, noToolCalls: false, noMcp: false, noMcpOutput: false, noWebsearch: false, help: false, version: false, cwd: null, checkMcp: false };
+  const flags = {
+    debug: false,
+    confirm: false,
+    yolo: false,
+    quiet: false,
+    noUsage: false,
+    noColors: false,
+    noTimers: false,
+    noReasoning: false,
+    noShellCalls: false,
+    noToolCalls: false,
+    noMcp: false,
+    noMcpOutput: false,
+    noWebsearch: false,
+    help: false,
+    version: false,
+    cwd: null,
+    checkMcp: false,
+  };
   const messageArgs = [];
   let passthrough = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (passthrough) { messageArgs.push(arg); continue; }
-    if (arg === '--') { passthrough = true; continue; }
-    if (arg === '--cwd' || arg === '-C') {
-      flags.cwd = argv[index + 1] ?? '';
-      index += 1;
+    if (passthrough) {
+      messageArgs.push(arg);
       continue;
     }
-    if (arg.startsWith('--cwd=')) { flags.cwd = arg.slice('--cwd='.length); continue; }
-    if (arg === '--help' || arg === '-h' || arg === '-?') { flags.help = true; continue; }
-    if (arg === '--version' || arg === '-v') { flags.version = true; continue; }
-    if (arg === '-K') { flags.checkMcp = true; continue; }
-    if (Object.hasOwn(longFlags, arg)) { flags[longFlags[arg]] = true; continue; }
-    if (/^-[a-z]+$/.test(arg) && arg.length > 1 && arg.slice(1).split('').every((letter) => Object.hasOwn(shortOutputFlags, letter))) {
+    if (arg === "--") {
+      passthrough = true;
+      continue;
+    }
+    if (arg === "--cwd" || arg === "-C") {
+      const value = argv[index + 1];
+      flags.cwd = value && value !== "--" && !value.startsWith("-") ? value : "";
+      if (value && value !== "--" && !value.startsWith("-")) index += 1;
+      continue;
+    }
+    if (arg.startsWith("--cwd=")) {
+      const value = arg.slice("--cwd=".length);
+      flags.cwd = value && !value.startsWith("-") ? value : "";
+      continue;
+    }
+    if (arg === "--help" || arg === "-h" || arg === "-?") {
+      flags.help = true;
+      continue;
+    }
+    if (arg === "--version" || arg === "-v") {
+      flags.version = true;
+      continue;
+    }
+    if (arg === "-K") {
+      flags.checkMcp = true;
+      continue;
+    }
+    if (Object.hasOwn(longFlags, arg)) {
+      flags[longFlags[arg]] = true;
+      continue;
+    }
+    if (
+      /^-[a-z]+$/.test(arg) &&
+      arg.length > 1 &&
+      arg
+        .slice(1)
+        .split("")
+        .every((letter) => Object.hasOwn(shortOutputFlags, letter))
+    ) {
       for (const letter of arg.slice(1)) flags[shortOutputFlags[letter]] = true;
       continue;
     }
@@ -65,50 +130,50 @@ export function normalizeOutputFlags(flags = {}) {
 }
 
 export function getPackageVersion() {
-  const raw = readFileSync(packagePath, 'utf8');
-  return JSON.parse(raw).version || 'unknown';
+  const raw = readFileSync(packagePath, "utf8");
+  return JSON.parse(raw).version || "unknown";
 }
 
 export function formatQuickHelp(version = getPackageVersion()) {
   return [
     `AgentX ${version}`,
-    'Usage: agentx [flags] [message...]',
-    '',
-    'Chat:',
-    '  normal text  send a message to OpenAI',
+    "Usage: agentx [flags] [message...]",
+    "",
+    "Chat:",
+    "  normal text  send a message to OpenAI",
     "  agentx 'message'  send once, print summary, then exit",
-    '  cd <path>    change the local working directory',
-    '  !command     run a local shell command',
-    '',
-    'Commands:',
-    '  clear        reset the saved session',
-    '  !clear       clear the terminal',
-    '  /usage       show token and cost totals',
-    '  /goal TEXT   work autonomously toward a goal',
-    '  /goal status show active goal status',
-    '  /goal cancel cancel the active goal',
-    '  /stop        cancel the active goal',
-    '  /setup       edit settings and reload them',
-    '  quit/exit    leave AgentX',
-    '',
-    'Flags:',
-    '  --help, -h, -?   show this help',
-    '  --version, -v    print the package version',
-    '  --debug          print raw websocket logs and suppress live status lines',
-    '  --cwd PATH, -C PATH  use PATH as the working directory',
-    '  --check-mcp, -K  validate MCP config without contacting APIs',
-    '  --confirm        enable tool confirmation prompts',
-    '  --yolo           legacy alias; bypass tool confirmation prompts',
-    '  --quiet, -q      suppress usage, timers, and tool/status output (keeps reasoning)',
-    '  --no-usage, -u   suppress usage output',
-    '  --no-colors, -c  suppress ANSI colors',
-    '  --no-timers, -t  suppress status timer output',
-    '  --no-reasoning, -r  suppress reasoning output',
-    '  --no-shell-calls, -s  suppress shell-call output',
-    '  --no-tool-calls, -o  suppress non-shell tool-call output',
-    '  --no-mcp, -m     disable MCP tool loading',
-    '  --no-mcp-output, -M  suppress MCP output while keeping MCP enabled',
-    '  --no-websearch, -w  suppress web-search output',
-    '  Short output flags may be stacked, for example: -qur',
-  ].join('\n');
+    "  cd <path>    change the local working directory",
+    "  !command     run a local shell command",
+    "",
+    "Commands:",
+    "  clear        reset the saved session",
+    "  !clear       clear the terminal",
+    "  /usage       show token and cost totals",
+    "  /goal TEXT   work autonomously toward a goal",
+    "  /goal status show active goal status",
+    "  /goal cancel cancel the active goal",
+    "  /stop        cancel the active goal",
+    "  /setup       edit settings and reload them",
+    "  quit/exit    leave AgentX",
+    "",
+    "Flags:",
+    "  --help, -h, -?   show this help",
+    "  --version, -v    print the package version",
+    "  --debug          print raw websocket logs and suppress live status lines",
+    "  --cwd PATH, -C PATH  use PATH as the working directory",
+    "  --check-mcp, -K  validate MCP config without contacting APIs",
+    "  --confirm        enable tool confirmation prompts",
+    "  --yolo           legacy alias; bypass tool confirmation prompts",
+    "  --quiet, -q      suppress usage, timers, and tool/status output (keeps reasoning)",
+    "  --no-usage, -u   suppress usage output",
+    "  --no-colors, -c  suppress ANSI colors",
+    "  --no-timers, -t  suppress status timer output",
+    "  --no-reasoning, -r  suppress reasoning output",
+    "  --no-shell-calls, -s  suppress shell-call output",
+    "  --no-tool-calls, -o  suppress non-shell tool-call output",
+    "  --no-mcp, -m     disable MCP tool loading",
+    "  --no-mcp-output, -M  suppress MCP output while keeping MCP enabled",
+    "  --no-websearch, -w  suppress web-search output",
+    "  Short output flags may be stacked, for example: -qur",
+  ].join("\n");
 }

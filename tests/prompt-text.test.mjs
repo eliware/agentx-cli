@@ -1,28 +1,42 @@
-import { describe, expect, test } from '@jest/globals';
-import { buildDeveloperText } from '../src/prompt-text.mjs';
+import { describe, expect, test } from "@jest/globals";
+import { buildDeveloperText } from "../src/prompt-text.mjs";
 
-describe('prompt text', () => {
-  test('includes identity guidance, role guidance, cwd and AGENTS content', () => {
-    const text = buildDeveloperText({ input: [{ role: 'developer', content: [{ type: 'input_text', text: 'base prompt' }] }] }, 'AGENTS body', '/tmp/work');
+describe("prompt text", () => {
+  test("includes identity guidance, role guidance, cwd and AGENTS content", () => {
+    const text = buildDeveloperText(
+      { input: [{ role: "developer", content: [{ type: "input_text", text: "base prompt" }] }] },
+      "AGENTS body",
+      "/tmp/work",
+    );
 
-    expect(text).toContain('base prompt');
-    expect(text).toContain('Identity guidance: You are AgentX');
-    expect(text).toContain('created by Eli Sterling (eliware.org)');
-    expect(text).toContain('Role guidance: You are AgentX in the role of System Administrator, DevOps, and Developer.');
-    expect(text).toContain('For shell commands, issue the tool call directly; never ask for conversational confirmation.');
-    expect(text).toContain('Current working directory: /tmp/work');
-    expect(text).toContain('Be extremely consice. Sacrifice grammar for concision.');
-    expect(text).toMatch(/Be extremely consice\. Sacrifice grammar for concision\.[\s\S]*AGENTS\.md:/);
-    expect(text).toMatch(/Terminal guidance: [\s\S]*Be extremely consice\. Sacrifice grammar for concision\.$/);
-    expect(text).toContain('AGENTS body');
-    expect(text).toContain('Terminal guidance: You are in a terminal.');
-    expect(text).toContain('inline ANSI SGR styling');
+    expect(text).toContain("base prompt");
+    expect(text).toContain("Identity guidance: You are AgentX");
+    expect(text).toContain("created by Eli Sterling (eliware.org)");
+    expect(text).toContain(
+      "Role guidance: You are AgentX in the role of System Administrator, DevOps, and Developer.",
+    );
+    expect(text).toContain(
+      "For shell commands, issue the tool call directly; never ask for conversational confirmation.",
+    );
+    expect(text).toContain("Current working directory: /tmp/work");
+    expect(text).toContain("Be extremely consice. Sacrifice grammar for concision.");
+    expect(text).toMatch(
+      /Be extremely consice\. Sacrifice grammar for concision\.[\s\S]*AGENTS\.md:/,
+    );
+    expect(text).toMatch(
+      /Terminal guidance: [\s\S]*Be extremely consice\. Sacrifice grammar for concision\.$/,
+    );
+    expect(text).toContain("AGENTS body");
+    expect(text).toContain("Terminal guidance: You are in a terminal.");
+    expect(text).toContain("inline ANSI SGR styling");
   });
 
-  test('falls back to template instructions and a missing AGENTS notice', () => {
-    const text = buildDeveloperText({ instructions: 'instructions only' }, '', '/tmp/work');
+  test("falls back to template instructions and a missing AGENTS notice", () => {
+    const text = buildDeveloperText({ instructions: "instructions only" }, "", "/tmp/work");
 
-    expect(text).toContain('instructions only');
-    expect(text).toContain('AGENTS.md not present in the current working directory or any parent directory. Consider creating one.');
+    expect(text).toContain("instructions only");
+    expect(text).toContain(
+      "AGENTS.md not present in the current working directory or any parent directory. Consider creating one.",
+    );
   });
 });

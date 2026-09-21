@@ -1,18 +1,18 @@
-import { normalizeUsage } from './usage.mjs';
+import { normalizeUsage } from "./usage.mjs";
 
 export function extractTextFromResponse(response) {
   const parts = [];
   for (const item of response?.output ?? []) {
-    if (item?.type !== 'message') continue;
+    if (item?.type !== "message") continue;
     for (const content of item.content ?? []) {
-      if (content?.type === 'output_text' && content.text) parts.push(content.text);
+      if (content?.type === "output_text" && content.text) parts.push(content.text);
     }
   }
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 export function isFunctionCall(item) {
-  return item?.type === 'function_call';
+  return item?.type === "function_call";
 }
 
 export function extractUsage(response) {
@@ -33,9 +33,11 @@ export function createUsageTotals() {
 export function addUsageTotals(totals, usage) {
   totals.inputTokens += Number(usage?.inputTokens ?? 0);
   totals.cachedTokens += Number(usage?.cachedTokens ?? 0);
-  if (usage?.cacheWriteTokens !== undefined) totals.cacheWriteTokens = (totals.cacheWriteTokens ?? 0) + Number(usage.cacheWriteTokens);
+  if (usage?.cacheWriteTokens !== undefined)
+    totals.cacheWriteTokens = (totals.cacheWriteTokens ?? 0) + Number(usage.cacheWriteTokens);
   totals.outputTokens += Number(usage?.outputTokens ?? 0);
-  if (usage?.reasoningTokens !== undefined) totals.reasoningTokens = (totals.reasoningTokens ?? 0) + Number(usage.reasoningTokens);
+  if (usage?.reasoningTokens !== undefined)
+    totals.reasoningTokens = (totals.reasoningTokens ?? 0) + Number(usage.reasoningTokens);
   return totals;
 }
 

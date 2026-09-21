@@ -1,0 +1,19 @@
+{
+  "version": "8.0",
+  "repositoryId": "eliware/agentx-cli",
+  "description": "Repository-local authority record for AgentX CLI.",
+  "subjects": [
+    {
+      "id": "agentx-cli.implementation",
+      "kind": "repository-implementation",
+      "authority": { "path": "../" },
+      "directives": [{ "path": "./directives.json", "ids": ["E-1"] }],
+      "implementation": [{ "path": "../src", "role": "implementation" }],
+      "consumers": ["AgentX CLI users"],
+      "reviewers": ["Eliware maintainers"],
+      "evidence": [],
+      "notAuthoritativeFor": ["Eliware documentation", "operations", "deployment"],
+      "status": "active"
+    }
+  ]
+}

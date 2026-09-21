@@ -1,8 +1,4 @@
-
-
-
 Worker processes must be terminated when the parent AgentX process exits. Shutdown sends SIGTERM first, waits a bounded grace period, then sends SIGKILL if the child is still alive. The same escalation applies to worker timeouts and cancellations. Completed workers remain queryable; active workers are terminated during shutdown. Preserve `timed_out` or `cancelled` as the terminal reason when already set.
-
 
 Worker permission levels are enforced by the harness: `read` permits recognized read-only commands, `write` permits recognized read/write commands but not arbitrary execution, and `execute` permits normal shell execution. Unknown commands and shell redirection require `execute` or `write` as appropriate; permission checks happen before shell execution. These classifications are advisory controls, not a security sandbox: shell wrappers, aliases, scripts, command substitutions, and encoded commands may bypass name-based classification. Use `--confirm` for human review and do not treat AgentX as a strong isolation boundary. Tool confirmation is opt-in for high-confidence destructive commands only: without `--confirm`, approval is automatic, including in one-shot and noninteractive mode. With `--confirm`, destructive commands are prompted interactively or declined when no confirmer is available; routine administrative and DevOps commands must not be blocked solely by this confirmation policy.
 

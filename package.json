@@ -1,80 +1,121 @@
 {
-    "name": "@eliware/agentx-cli",
-    "type": "module",
-    "version": "1.6.8",
-    "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
-    "main": "agentx.mjs",
-    "scripts": {
-        "start": "node agentx.mjs",
-        "lint": "npx oxlint .",
-        "audit": "npm audit --omit=dev --audit-level=moderate",
-        "test": "npx --node-options=\"--experimental-vm-modules --no-warnings\" jest --detectOpenHandles --silent --coverage --setupFilesAfterEnv=./tests/jest-setup.mjs",
-        "setup": "node agentx-setup.mjs",
-        "test:gaps": "npm test 2>&1 | grep '|' | grep -vF '|     100 |      100 |     100 |     100 |'",
-        "pack": "npm pack --dry-run",
-        "validate:package": "npm pack --dry-run --json | node scripts/validate-package.mjs"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/eliware/agentx-cli.git"
-    },
-    "keywords": [
-        "agentx",
-        "openai",
-        "responses-api",
-        "cli",
-        "terminal",
-        "websocket"
+  "name": "@eliware/agentx-cli",
+  "type": "module",
+  "version": "8.0.0",
+  "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
+  "main": "agentx.mjs",
+  "scripts": {
+    "start": "node agentx.mjs",
+    "lint": "eliware-test --lint",
+    "audit": "eliware-test --audit",
+    "test": "eliware-test",
+    "setup": "node agentx-setup.mjs",
+    "pack": "eliware-test --pack",
+    "format": "eliware-test --format",
+    "format:check": "eliware-test --format-check",
+    "validate:package": "npm run pack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eliware/agentx-cli.git"
+  },
+  "keywords": [
+    "agentx",
+    "openai",
+    "responses-api",
+    "cli",
+    "terminal",
+    "websocket"
+  ],
+  "author": "Eli Sterling, eliware.org <eli@eliware.org>",
+  "license": "MIT",
+  "prettier": {
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": true,
+    "singleQuote": false,
+    "trailingComma": "all"
+  },
+  "bugs": {
+    "url": "https://github.com/eliware/agentx-cli/issues"
+  },
+  "homepage": "https://github.com/eliware/agentx-cli#readme",
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.mjs"
     ],
-    "author": "Eli Sterling, eliware.org <eli@eliware.org>",
-    "license": "MIT",
-    "bugs": {
-        "url": "https://github.com/eliware/agentx-cli/issues"
-    },
-    "homepage": "https://github.com/eliware/agentx-cli#readme",
-    "devDependencies": {
-        "jest": "^30.0.4",
-        "oxlint": "^1.78.0"
-    },
-    "jest": {
-        "testEnvironment": "node",
-        "coveragePathIgnorePatterns": [
-            "/src/agent/runtime\\.mjs$",
-            "/src/completion\\.mjs$",
-            "/src/shell\\.mjs$",
-            "/src/tool-shell\\.mjs$",
-            "/src/parallel-workers\\.mjs$"
-        ],
-        "testMatch": [
-            "**/?(*.)+(spec|test).mjs"
-        ]
-    },
-    "dependencies": {
-        "@eliware/common": "^1.1.8",
-        "@eliware/openai": "^1.1.11",
-        "dotenv": "^17.4.2",
-        "sharp": "^0.35.4",
-        "string-width": "^8.2.2",
-        "strip-ansi": "^7.2.0"
-    },
-    "allowScripts": {
-        "unrs-resolver@1.12.2": true
-    },
-    "bin": {
-        "agentx": "./agentx.mjs",
-        "agentx-setup": "./agentx-setup.mjs"
-    },
-    "files": [
-        "agentx.mjs",
-        "agentx-setup.mjs",
-        "prompt.json",
-        "src/",
-        "docs/",
-        "README.md",
-        "LICENSE",
-        "RELEASE_NOTES.md"
+    "coverageReporters": [
+      "text",
+      "json-summary"
+    ]
+  },
+  "dependencies": {
+    "@eliware/common": "^2.0.0",
+    "@eliware/openai": "^1.1.11",
+    "@eliware/redact": "^6.0.0",
+    "dotenv": "^18.0.1",
+    "sharp": "^0.35.4",
+    "string-width": "^8.2.2",
+    "strip-ansi": "^7.2.0"
+  },
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true
+  },
+  "bin": {
+    "agentx": "./bin/agentx.mjs",
+    "agentx-setup": "./bin/agentx-setup.mjs"
+  },
+  "files": [
+    "agentx.mjs",
+    "agentx-setup.mjs",
+    "prompt.json",
+    "src/",
+    "docs/",
+    "README.md",
+    "LICENSE",
+    "LICENSE.md",
+    "RELEASE_NOTES.md",
+    "specs/"
+  ],
+  "engines": {
+    "node": ">=26 <27"
+  },
+  "eliware": {
+    "apply": [
+      "general",
+      "application",
+      "cli",
+      "npm-published"
     ],
-    "engines": {
-        "node": ">=26"
-    }
+    "authority": {
+      "authoritativeFor": [
+        "AgentX CLI repository implementation and npm publication metadata"
+      ],
+      "notAuthoritativeFor": [
+        "Eliware documentation, operations, deployment, and external platform state"
+      ]
+    },
+    "crosslinks": [
+      {
+        "path": "../docs/authority-map.json",
+        "relation": "relatedAuthority",
+        "authoritativeFor": "Cross-repository documentation authority"
+      },
+      {
+        "path": "../operations/authority-map.json",
+        "relation": "relatedAuthority",
+        "authoritativeFor": "Cross-cutting operational authority"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@eliware/test": "^6.0.1",
+    "prettier": "^3.9.8"
+  }
 }

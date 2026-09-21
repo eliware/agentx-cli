@@ -1,11 +1,13 @@
 # Entrypoints and lifecycle
 
 ## Invocation
+
 The package exposes `agentx` and `agentx-setup`. Direct invocation must be detected by comparing the real path of `process.argv[1]` with the module URL; importing the launcher must not start a REPL.
 
 At startup, if a home directory exists, load `$HOME/.agentx` with dotenv (quietly). Environment variables already present remain usable; the runtime must support both `agentx_api_key` and `AGENTX_API_KEY`, preferring the lowercase name.
 
 Flags are handled before the REPL:
+
 - `--help`, `-h`, `-?`: print help and exit 0.
 - `--version`, `-v`: print package version and exit 0.
 - `--check-mcp`, `-K`: validate the user-local MCP config shape, HTTPS URLs, labels, and authorization presence without contacting OpenAI or MCP servers; exit 0 when valid or absent, and exit 1 when invalid.
@@ -19,7 +21,9 @@ Flags are handled before the REPL:
 On interactive TTY startup, if configuration is absent, ask `AgentX is not configured. Run agentx-setup now? [Y/n] `. Declining continues to normal startup; accepting runs setup and reloads the resulting config. Noninteractive startup does not ask.
 
 ## Agent startup
+
 `runAgent({ promptPath, cwd, input, output, initialMessage, oneShot })` (when `oneShot` is true, process `initialMessage` once and exit after the normal usage summary):
+
 1. Load prompt template and optional MCP tools.
 2. Apply settings from environment.
 3. Discover AGENTS.md instructions.

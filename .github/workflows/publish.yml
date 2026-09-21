@@ -3,15 +3,28 @@ name: Publish
 on:
   push:
     tags:
-      - 'v*'
-
-permissions:
-  contents: read
-  id-token: write
+      - "v*.*.*"
 
 jobs:
-  publish:
+  validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
@@ -19,11 +32,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 26.x
+      - name: Validate release tag
+        run: '[[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
       - run: npm ci
-      - run: npm run validate:package
-      - name: Configure npm auth token
-        run: npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
+      - name: Validate package version
+        run: test "$(node -p \"require('./package.json').version\")" = "${GITHUB_REF_NAME#v}"
+      - run: npm run pack
       - name: Publish to npm
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify package publication
+        run: test "$(npm view "$(node -p \"require('./package.json').name\")" version)" = "${GITHUB_REF_NAME#v}"

@@ -1,5 +1,5 @@
-import stripAnsi from 'strip-ansi';
-import stringWidth from 'string-width';
+import stripAnsi from "strip-ansi";
+import stringWidth from "string-width";
 
 export function getTerminalWidth(fallback = 80) {
   const width = process.stdout?.columns;
@@ -7,22 +7,22 @@ export function getTerminalWidth(fallback = 80) {
 }
 
 export function wrapText(text, width = getTerminalWidth()) {
-  if (!text) return '';
+  if (!text) return "";
   if (!Number.isFinite(width) || width <= 0) return text;
 
   return text
-    .split('\n')
+    .split("\n")
     .map((line) => wrapLine(line, width))
-    .join('\n');
+    .join("\n");
 }
 
 function wrapLine(line, width) {
-  if (!line) return '';
+  if (!line) return "";
   if (stringWidth(stripAnsi(line)) <= width) return line;
 
   const chunks = line.split(/(\s+)/);
   const lines = [];
-  let current = '';
+  let current = "";
   let currentWidth = 0;
 
   for (const chunk of chunks) {
@@ -40,7 +40,7 @@ function wrapLine(line, width) {
 
     if (current) lines.push(current.trimEnd());
     if (isWhitespace) {
-      current = '';
+      current = "";
       currentWidth = 0;
       continue;
     }
@@ -56,7 +56,7 @@ function wrapLine(line, width) {
   }
 
   if (current) lines.push(current.trimEnd());
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 function sliceToWidth(text, width) {

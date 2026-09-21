@@ -1,5 +1,9 @@
 # AgentX Release Notes
 
+## 8.0.0 - Eliware convention alignment
+
+- Updated repository metadata, documentation, validation scaffolding, and publication configuration for the v8 convention baseline.
+
 ## 1.6.8 - Windows compatibility and documentation refresh
 
 - Fixed Windows path, filesystem, launcher, and worker-registry compatibility using native path handling and shared ESM path helpers.
@@ -83,7 +87,6 @@
 - Added goal interruption, startup reset, prompt/status handling, and `cd -`/`cd ~` support.
 - Verified with 100% test coverage and clean lint results.
 
-
 ## 1.5.10 - Autonomous goal mode
 
 - Added autonomous `/goal` workflows with status, cancellation, blocking, and resumable session state.
@@ -92,7 +95,6 @@
 - Clarified goal commands and workflows in the user documentation.
 - Verified with 100% test coverage and clean lint results.
 
-
 ## 1.5.9 - Delegated worker role clarity
 
 - Added a concise developer instruction for one-shot delegated workers.
@@ -100,13 +102,11 @@
 - Added specification and regression coverage for the worker role instruction.
 - Verified with 100% test coverage and clean lint results.
 
-
 ## 1.5.8 - One-shot worker context output
 
 - Preserved inherited checkpoint context for spawned one-shot workers while suppressing human-oriented session recap output.
 - Added specification and regression coverage for worker session context behavior.
 - Verified with 100% test coverage and clean lint results.
-
 
 ## 1.5.7 - Recovery and validation hardening
 
@@ -115,7 +115,6 @@
 - Added lifecycle, entrypoint, recovery, and validation regression coverage.
 - Improved configuration, output-status, and release-validation documentation.
 - Verified with 100% test coverage, clean lint, and successful package smoke checks.
-
 
 ## 1.5.6 - Convention alignment
 
@@ -513,3 +512,7 @@ Initial capabilities present in the 1.1.2 baseline:
 - Working-directory context included in the agent prompt.
 - Response text extraction and usage reporting.
 - Terminal output wrapping and prompt formatting.
+
+# v8.0.0
+
+- Align repository metadata and validation with the Eliware v8 convention baseline.

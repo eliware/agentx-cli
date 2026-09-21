@@ -1,5 +1,7 @@
 # Specifications
 
+Repository authority: [authority.json](authority.json). Shared directive index: [directives.json](directives.json). Contract index: [contracts.json](contracts.json).
+
 # AgentX Reconstruction Specifications
 
 These documents are the normative behavioral specification for AgentX CLI.

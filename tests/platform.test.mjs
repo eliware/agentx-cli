@@ -1,5 +1,5 @@
-﻿import { describe, expect, test } from '@jest/globals';
-import path from 'node:path';
+﻿import { describe, expect, test } from "@jest/globals";
+import path from "node:path";
 import {
   getHomeDirectory,
   getPathModule,
@@ -9,29 +9,33 @@ import {
   isWindowsPlatform,
   normalizeDisplayPath,
   resolveUserPath,
-} from '../src/platform.mjs';
+} from "../src/platform.mjs";
 
-describe('platform helpers', () => {
-  test('detects windows and selects the matching path module', () => {
-    expect(isWindowsPlatform('win32')).toBe(true);
-    expect(isWindowsPlatform('linux')).toBe(false);
-    expect(getPathModule('win32')).toBe(path.win32);
-    expect(getPathModule('linux')).toBe(path.posix);
+describe("platform helpers", () => {
+  test("detects windows and selects the matching path module", () => {
+    expect(isWindowsPlatform("win32")).toBe(true);
+    expect(isWindowsPlatform("linux")).toBe(false);
+    expect(getPathModule("win32")).toBe(path.win32);
+    expect(getPathModule("linux")).toBe(path.posix);
   });
 
-  test('resolves home directories across platforms', () => {
-    expect(getHomeDirectory()).toBe(String(process.env.HOME || process.env.USERPROFILE || ''));
-    expect(getHomeDirectory({ USERPROFILE: 'C:\\Users\\alice' }, 'win32')).toBe('C:\\Users\\alice');
-    expect(getHomeDirectory({ HOME: '/home/alice', USERPROFILE: 'C:\\Users\\alice' }, 'win32')).toBe('/home/alice');
-    expect(getHomeDirectory({ HOMEDRIVE: 'C:', HOMEPATH: '\\Users\\alice' }, 'win32')).toBe('C:\\Users\\alice');
-    expect(getHomeDirectory({ HOMEDRIVE: 'C:' }, 'win32')).toBe('C:');
-    expect(getHomeDirectory({ HOMEPATH: '\\Users\\alice' }, 'win32')).toBe('\\Users\\alice');
-    expect(getHomeDirectory({ HOME: '/home/alice' }, 'linux')).toBe('/home/alice');
-    expect(getHomeDirectory({ USERPROFILE: 'C:\\Users\\alice' }, 'linux')).toBe('C:\\Users\\alice');
+  test("resolves home directories across platforms", () => {
+    expect(getHomeDirectory()).toBe(String(process.env.HOME || process.env.USERPROFILE || ""));
+    expect(getHomeDirectory({ USERPROFILE: "C:\\Users\\alice" }, "win32")).toBe("C:\\Users\\alice");
+    expect(
+      getHomeDirectory({ HOME: "/home/alice", USERPROFILE: "C:\\Users\\alice" }, "win32"),
+    ).toBe("/home/alice");
+    expect(getHomeDirectory({ HOMEDRIVE: "C:", HOMEPATH: "\\Users\\alice" }, "win32")).toBe(
+      "C:\\Users\\alice",
+    );
+    expect(getHomeDirectory({ HOMEDRIVE: "C:" }, "win32")).toBe("C:");
+    expect(getHomeDirectory({ HOMEPATH: "\\Users\\alice" }, "win32")).toBe("\\Users\\alice");
+    expect(getHomeDirectory({ HOME: "/home/alice" }, "linux")).toBe("/home/alice");
+    expect(getHomeDirectory({ USERPROFILE: "C:\\Users\\alice" }, "linux")).toBe("C:\\Users\\alice");
   });
 
-  test('uses default platform and identity fallbacks when omitted', () => {
-    const expectedWindows = process.platform === 'win32';
+  test("uses default platform and identity fallbacks when omitted", () => {
+    const expectedWindows = process.platform === "win32";
     const defaultPath = expectedWindows ? path.win32 : path.posix;
     const originalUser = process.env.USER;
     const originalUsername = process.env.USERNAME;
@@ -44,66 +48,104 @@ describe('platform helpers', () => {
     try {
       expect(isWindowsPlatform()).toBe(expectedWindows);
       expect(getPathModule()).toBe(defaultPath);
-      expect(getPromptIdentity()).toEqual({ user: 'root', host: 'dev' });
-      expect(normalizeDisplayPath()).toBe('.');
+      expect(getPromptIdentity()).toEqual({ user: "root", host: "dev" });
+      expect(normalizeDisplayPath()).toBe(".");
     } finally {
-      if (originalUser === undefined) delete process.env.USER; else process.env.USER = originalUser;
-      if (originalUsername === undefined) delete process.env.USERNAME; else process.env.USERNAME = originalUsername;
-      if (originalHostname === undefined) delete process.env.HOSTNAME; else process.env.HOSTNAME = originalHostname;
-      if (originalComputerName === undefined) delete process.env.COMPUTERNAME; else process.env.COMPUTERNAME = originalComputerName;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalHostname === undefined) delete process.env.HOSTNAME;
+      else process.env.HOSTNAME = originalHostname;
+      if (originalComputerName === undefined) delete process.env.COMPUTERNAME;
+      else process.env.COMPUTERNAME = originalComputerName;
     }
   });
 
-  test('builds prompt identity with fallbacks', () => {
-    expect(getPromptIdentity({ USER: 'alice', HOSTNAME: 'box' })).toEqual({ user: 'alice', host: 'box' });
-    expect(getPromptIdentity({ USERNAME: 'bob', COMPUTERNAME: 'laptop' })).toEqual({ user: 'bob', host: 'laptop' });
-    expect(getPromptIdentity({})).toEqual({ user: 'root', host: 'dev' });
+  test("builds prompt identity with fallbacks", () => {
+    expect(getPromptIdentity({ USER: "alice", HOSTNAME: "box" })).toEqual({
+      user: "alice",
+      host: "box",
+    });
+    expect(getPromptIdentity({ USERNAME: "bob", COMPUTERNAME: "laptop" })).toEqual({
+      user: "bob",
+      host: "laptop",
+    });
+    expect(getPromptIdentity({})).toEqual({ user: "root", host: "dev" });
   });
 
-  test('returns the expected shell launchers', () => {
-    const expectedLaunchers = process.platform === 'win32'
-      ? [
-          { file: 'pwsh', args: ['-NoLogo', '-NoProfile', '-Command'] },
-          { file: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-Command'] },
-          { file: 'cmd.exe', args: ['/d', '/s', '/c'] },
-        ]
-      : [{ file: '/bin/sh', args: ['-lc'] }];
+  test("returns the expected shell launchers", () => {
+    const expectedLaunchers =
+      process.platform === "win32"
+        ? [
+            { file: "pwsh", args: ["-NoLogo", "-NoProfile", "-Command"] },
+            { file: "powershell.exe", args: ["-NoLogo", "-NoProfile", "-Command"] },
+            { file: "cmd.exe", args: ["/d", "/s", "/c"] },
+          ]
+        : [{ file: "/bin/sh", args: ["-lc"] }];
 
     expect(getShellLaunchers()).toEqual(expectedLaunchers);
-    expect(getShellLaunchers('linux')).toEqual([{ file: '/bin/sh', args: ['-lc'] }]);
-    expect(getShellLaunchers('win32')).toEqual([
-      { file: 'pwsh', args: ['-NoLogo', '-NoProfile', '-Command'] },
-      { file: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-Command'] },
-      { file: 'cmd.exe', args: ['/d', '/s', '/c'] },
+    expect(getShellLaunchers("linux")).toEqual([{ file: "/bin/sh", args: ["-lc"] }]);
+    expect(getShellLaunchers("win32")).toEqual([
+      { file: "pwsh", args: ["-NoLogo", "-NoProfile", "-Command"] },
+      { file: "powershell.exe", args: ["-NoLogo", "-NoProfile", "-Command"] },
+      { file: "cmd.exe", args: ["/d", "/s", "/c"] },
     ]);
   });
 
-  test('identifies missing launcher errors', () => {
-    expect(isMissingLauncherError({ code: 'ENOENT' })).toBe(true);
-    expect(isMissingLauncherError({ code: 'EACCES' })).toBe(false);
+  test("identifies missing launcher errors", () => {
+    expect(isMissingLauncherError({ code: "ENOENT" })).toBe(true);
+    expect(isMissingLauncherError({ code: "EACCES" })).toBe(false);
     expect(isMissingLauncherError(null)).toBe(false);
   });
 
-  test('resolves user paths with home, cwd and tilde expansion', () => {
-    expect(resolveUserPath('', '/work')).toBe(String(process.env.HOME || process.env.USERPROFILE || '/work'));
-    expect(resolveUserPath('', '/work', { env: {}, platform: 'linux' })).toBe('/work');
-    expect(resolveUserPath('', '', { env: {}, platform: 'linux' })).toBe(path.posix.resolve(''));
-    expect(resolveUserPath('~', '', { env: {}, platform: 'linux' })).toBe(path.posix.resolve(''));
-    expect(resolveUserPath('~', '/work', { env: {}, platform: 'linux' })).toBe('/work');
-    expect(resolveUserPath('notes', '/work')).toBe(path.resolve('/work', 'notes'));
-    expect(resolveUserPath('', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/home/alice');
-    expect(resolveUserPath('~/notes', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/home/alice/notes');
-    expect(resolveUserPath('/abs/path', '/work', { env: { HOME: '/home/alice' }, platform: 'linux' })).toBe('/abs/path');
-    expect(resolveUserPath('', 'C:\\work', { env: { USERPROFILE: 'C:\\Users\\alice' }, platform: 'win32' })).toBe('C:\\Users\\alice');
-    expect(resolveUserPath('docs', 'C:\\work', { env: { USERPROFILE: 'C:\\Users\\alice' }, platform: 'win32' })).toBe(path.win32.resolve('C:\\work', 'docs'));
-    expect(resolveUserPath('~\\docs', 'C:\\work', { env: { USERPROFILE: 'C:\\Users\\alice' }, platform: 'win32' })).toBe('C:\\Users\\alice\\docs');
-    expect(resolveUserPath('C:\\Temp', 'C:\\work', { env: {}, platform: 'win32' })).toBe('C:\\Temp');
-    expect(resolveUserPath('~', 'C:\\work', { env: {}, platform: 'win32' })).toBe(path.win32.resolve('C:\\work'));
+  test("resolves user paths with home, cwd and tilde expansion", () => {
+    expect(resolveUserPath("", "/work")).toBe(
+      String(process.env.HOME || process.env.USERPROFILE || "/work"),
+    );
+    expect(resolveUserPath("", "/work", { env: {}, platform: "linux" })).toBe("/work");
+    expect(resolveUserPath("", "", { env: {}, platform: "linux" })).toBe(path.posix.resolve(""));
+    expect(resolveUserPath("~", "", { env: {}, platform: "linux" })).toBe(path.posix.resolve(""));
+    expect(resolveUserPath("~", "/work", { env: {}, platform: "linux" })).toBe("/work");
+    expect(resolveUserPath("notes", "/work")).toBe(path.resolve("/work", "notes"));
+    expect(resolveUserPath("", "/work", { env: { HOME: "/home/alice" }, platform: "linux" })).toBe(
+      "/home/alice",
+    );
+    expect(
+      resolveUserPath("~/notes", "/work", { env: { HOME: "/home/alice" }, platform: "linux" }),
+    ).toBe("/home/alice/notes");
+    expect(
+      resolveUserPath("/abs/path", "/work", { env: { HOME: "/home/alice" }, platform: "linux" }),
+    ).toBe("/abs/path");
+    expect(
+      resolveUserPath("", "C:\\work", {
+        env: { USERPROFILE: "C:\\Users\\alice" },
+        platform: "win32",
+      }),
+    ).toBe("C:\\Users\\alice");
+    expect(
+      resolveUserPath("docs", "C:\\work", {
+        env: { USERPROFILE: "C:\\Users\\alice" },
+        platform: "win32",
+      }),
+    ).toBe(path.win32.resolve("C:\\work", "docs"));
+    expect(
+      resolveUserPath("~\\docs", "C:\\work", {
+        env: { USERPROFILE: "C:\\Users\\alice" },
+        platform: "win32",
+      }),
+    ).toBe("C:\\Users\\alice\\docs");
+    expect(resolveUserPath("C:\\Temp", "C:\\work", { env: {}, platform: "win32" })).toBe(
+      "C:\\Temp",
+    );
+    expect(resolveUserPath("~", "C:\\work", { env: {}, platform: "win32" })).toBe(
+      path.win32.resolve("C:\\work"),
+    );
   });
 
-  test('normalizes display paths on both platforms', () => {
-    expect(normalizeDisplayPath('/tmp//work/./a', 'linux')).toBe('/tmp/work/a');
-    expect(normalizeDisplayPath('C:\\temp\\..\\work\\.', 'win32')).toBe('C:\\work');
-    expect(normalizeDisplayPath(undefined, 'linux')).toBe('.');
+  test("normalizes display paths on both platforms", () => {
+    expect(normalizeDisplayPath("/tmp//work/./a", "linux")).toBe("/tmp/work/a");
+    expect(normalizeDisplayPath("C:\\temp\\..\\work\\.", "win32")).toBe("C:\\work");
+    expect(normalizeDisplayPath(undefined, "linux")).toBe(".");
   });
 });

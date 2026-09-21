@@ -1,15 +1,17 @@
-﻿import { describe, expect, test } from '@jest/globals';
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+﻿import { describe, expect, test } from "@jest/globals";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function makeLoader(tmp, openaiStub, readlineStub) {
-  const loaderPath = path.join(tmp, 'loader.mjs');
-  writeFileSync(loaderPath, `
+  const loaderPath = path.join(tmp, "loader.mjs");
+  writeFileSync(
+    loaderPath,
+    `
     import { pathToFileURL } from 'node:url';
     export async function resolve(specifier, context, nextResolve) {
       if (specifier === '@eliware/openai') {
@@ -20,18 +22,21 @@ function makeLoader(tmp, openaiStub, readlineStub) {
       }
       return nextResolve(specifier, context);
     }
-  `);
+  `,
+  );
   return loaderPath;
 }
 
-describe('CLI smoke test', () => {
-  test('starts, completes one turn, and persists session state', () => {
-    const tmp = mkdtempSync(path.join(os.tmpdir(), 'agentx-smoke-'));
-    const openaiStub = path.join(tmp, 'openai-stub.mjs');
-    const readlineStub = path.join(tmp, 'readline-stub.mjs');
+describe("CLI smoke test", () => {
+  test("starts, completes one turn, and persists session state", () => {
+    const tmp = mkdtempSync(path.join(os.tmpdir(), "agentx-smoke-"));
+    const openaiStub = path.join(tmp, "openai-stub.mjs");
+    const readlineStub = path.join(tmp, "readline-stub.mjs");
 
     try {
-      writeFileSync(openaiStub, `
+      writeFileSync(
+        openaiStub,
+        `
         export function createOpenAI() {
           return {
             responses: {
@@ -47,8 +52,11 @@ describe('CLI smoke test', () => {
             close() {},
           };
         }
-      `);
-      writeFileSync(readlineStub, `
+      `,
+      );
+      writeFileSync(
+        readlineStub,
+        `
         const queue = (process.env.AGENTX_SMOKE_INPUTS || '').split('\\n');
         export function createInterface() {
           return {
@@ -56,26 +64,33 @@ describe('CLI smoke test', () => {
             close() {},
           };
         }
-      `);
+      `,
+      );
 
-      const result = spawnSync(process.execPath, [
-        '--no-warnings',
-        '--experimental-loader',
-        pathToFileURL(makeLoader(tmp, openaiStub, readlineStub)).href,
-        path.join(repoRoot, 'agentx.mjs'),
-      ], {
-        cwd: tmp,
-        env: { ...process.env, AGENTX_SMOKE_INPUTS: 'hello\n/exit', agentx_api_key: 'test-key' },
-        encoding: 'utf8',
-      });
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--no-warnings",
+          "--experimental-loader",
+          pathToFileURL(makeLoader(tmp, openaiStub, readlineStub)).href,
+          path.join(repoRoot, "agentx.mjs"),
+        ],
+        {
+          cwd: tmp,
+          env: { ...process.env, AGENTX_SMOKE_INPUTS: "hello\n/exit", agentx_api_key: "test-key" },
+          encoding: "utf8",
+        },
+      );
 
       expect(result.status).toBe(0);
-      expect(result.stderr).toBe('');
-      expect(result.stdout).toContain('Starting new session');
-      expect(result.stdout).toContain('smoke ok');
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("Starting new session");
+      expect(result.stdout).toContain("smoke ok");
       expect(result.stdout).toContain('"turns":"1"');
-      expect(existsSync(path.join(tmp, '.agentx_responseid'))).toBe(true);
-      expect(JSON.parse(readFileSync(path.join(tmp, '.agentx_responseid'), 'utf8'))).toMatchObject({ response_id: 'resp-smoke' });
+      expect(existsSync(path.join(tmp, ".agentx_responseid"))).toBe(true);
+      expect(JSON.parse(readFileSync(path.join(tmp, ".agentx_responseid"), "utf8"))).toMatchObject({
+        response_id: "resp-smoke",
+      });
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

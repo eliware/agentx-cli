@@ -1,12 +1,18 @@
-import { describe, expect, test } from '@jest/globals';
-import * as shell from '../src/shell.mjs';
-import { parseInternalCommand } from '../src/shell-commands.mjs';
-import { clearTerminal, formatCommandMessage, formatInfoMessage, formatPromptForCwd, formatSystemMessage } from '../src/shell-display.mjs';
-import { buildWorkingDirectoryNote, resolveCdTarget } from '../src/shell-paths.mjs';
-import { readAgentsFromCwdAndParents } from '../src/shell-agents.mjs';
+import { describe, expect, test } from "@jest/globals";
+import * as shell from "../src/shell.mjs";
+import { parseInternalCommand } from "../src/shell-commands.mjs";
+import {
+  clearTerminal,
+  formatCommandMessage,
+  formatInfoMessage,
+  formatPromptForCwd,
+  formatSystemMessage,
+} from "../src/shell-display.mjs";
+import { buildWorkingDirectoryNote, resolveCdTarget } from "../src/shell-paths.mjs";
+import { readAgentsFromCwdAndParents } from "../src/shell-agents.mjs";
 
-describe('shell wrapper', () => {
-  test('re-exports the shell helpers', () => {
+describe("shell wrapper", () => {
+  test("re-exports the shell helpers", () => {
     expect(shell.parseInternalCommand).toBe(parseInternalCommand);
     expect(shell.formatPromptForCwd).toBe(formatPromptForCwd);
     expect(shell.formatSystemMessage).toBe(formatSystemMessage);
@@ -18,8 +24,8 @@ describe('shell wrapper', () => {
     expect(shell.readAgentsFromCwdAndParents).toBe(readAgentsFromCwdAndParents);
   });
 
-  test('exposes parseInternalCommand behavior through the wrapper', () => {
-    expect(shell.parseInternalCommand('cd subdir')).toEqual({ type: 'cd', target: 'subdir' });
-    expect(shell.parseInternalCommand('exit')).toEqual({ type: 'exit' });
+  test("exposes parseInternalCommand behavior through the wrapper", () => {
+    expect(shell.parseInternalCommand("cd subdir")).toEqual({ type: "cd", target: "subdir" });
+    expect(shell.parseInternalCommand("exit")).toEqual({ type: "exit" });
   });
 });

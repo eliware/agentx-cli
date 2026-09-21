@@ -1,82 +1,223 @@
-import { describe, expect, test } from '@jest/globals';
-import { stripAnsi, calculateUsageCost, calculateUsageCostNanoDollars, formatMoney, formatTurnUsage, formatTurnUsageReport, formatUsageReport, getModelPricing, isJumboPrompt, normalizeUsage } from '../src/usage.mjs';
+import { describe, expect, test } from "@jest/globals";
+import {
+  stripAnsi,
+  calculateUsageCost,
+  calculateUsageCostNanoDollars,
+  formatMoney,
+  formatTurnUsage,
+  formatTurnUsageReport,
+  formatUsageReport,
+  getModelPricing,
+  isJumboPrompt,
+  normalizeUsage,
+} from "../src/usage.mjs";
 
-describe('usage helpers', () => {
-  test('strips ANSI color from usage values before calculation', () => {
-    expect(stripAnsi('\u001b[33m1,234\u001b[0m')).toBe('1,234');
+describe("usage helpers", () => {
+  test("strips ANSI color from usage values before calculation", () => {
+    expect(stripAnsi("\u001b[33m1,234\u001b[0m")).toBe("1,234");
   });
-  test('normalize and format token counts', () => {
+  test("normalize and format token counts", () => {
     expect(normalizeUsage(undefined)).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
     expect(normalizeUsage({})).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
-    expect(normalizeUsage({ inputTokens: null, cachedTokens: null, outputTokens: null })).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
-    expect(normalizeUsage({ inputTokens: undefined, cachedTokens: undefined, outputTokens: undefined })).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
-    expect(normalizeUsage({ inputTokens: 12, cachedTokens: 5, outputTokens: 7 })).toEqual({ inputTokens: 7, cachedTokens: 5, outputTokens: 7 });
-    expect(normalizeUsage({ inputTokens: 2, cachedTokens: 9, outputTokens: 1 })).toEqual({ inputTokens: 0, cachedTokens: 9, outputTokens: 1 });
-    expect(calculateUsageCostNanoDollars({ inputTokens: 1_000_000, cachedTokens: 1_000_000, outputTokens: 1_000_000 })).toBe(1_420_000_000n);
-    expect(formatMoney(1_500_000n)).toBe('$0.002');
-    expect(formatMoney(1.2345)).toBe('$1.235');
-    expect(formatMoney(undefined)).toBe('$0.000');
-    expect(formatMoney(-1_500_000n)).toBe('$-0.002');
-    expect(calculateUsageCost({ inputTokens: 1_000_000, cachedTokens: 1_000_000, outputTokens: 1_000_000 })).toBeCloseTo(1.42);
-    expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"4","avg":"$0.000","total":"$0.000"}');
-    expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 0 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}');
-    expect(formatTurnUsage({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}');
-    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe('{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","total":"$0.000"}');
+    expect(normalizeUsage({ inputTokens: null, cachedTokens: null, outputTokens: null })).toEqual({
+      inputTokens: 0,
+      cachedTokens: 0,
+      outputTokens: 0,
+    });
+    expect(
+      normalizeUsage({ inputTokens: undefined, cachedTokens: undefined, outputTokens: undefined }),
+    ).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
+    expect(normalizeUsage({ inputTokens: 12, cachedTokens: 5, outputTokens: 7 })).toEqual({
+      inputTokens: 7,
+      cachedTokens: 5,
+      outputTokens: 7,
+    });
+    expect(normalizeUsage({ inputTokens: 2, cachedTokens: 9, outputTokens: 1 })).toEqual({
+      inputTokens: 0,
+      cachedTokens: 9,
+      outputTokens: 1,
+    });
+    expect(
+      calculateUsageCostNanoDollars({
+        inputTokens: 1_000_000,
+        cachedTokens: 1_000_000,
+        outputTokens: 1_000_000,
+      }),
+    ).toBe(1_420_000_000n);
+    expect(formatMoney(1_500_000n)).toBe("$0.002");
+    expect(formatMoney(1.2345)).toBe("$1.235");
+    expect(formatMoney(undefined)).toBe("$0.000");
+    expect(formatMoney(-1_500_000n)).toBe("$-0.002");
+    expect(
+      calculateUsageCost({
+        inputTokens: 1_000_000,
+        cachedTokens: 1_000_000,
+        outputTokens: 1_000_000,
+      }),
+    ).toBeCloseTo(1.42);
+    expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 })).toBe(
+      '{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"4","avg":"$0.000","total":"$0.000"}',
+    );
+    expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 0 })).toBe(
+      '{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}',
+    );
+    expect(formatTurnUsage({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe(
+      '{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}',
+    );
+    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toBe(
+      '{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","total":"$0.000"}',
+    );
   });
 
-  test('uses model-specific pricing', () => {
-    expect(getModelPricing('gpt-5.6-terra')).toEqual({ input: 2_000n, cached: 200n, cacheWrite: 2_500n, output: 12_000n });
-    expect(calculateUsageCost({ model: 'gpt-5.6-sol', inputTokens: 1_000_000, cachedTokens: 1_000_000, outputTokens: 1_000_000 })).toBeCloseTo(35.5);
+  test("uses model-specific pricing", () => {
+    expect(getModelPricing("gpt-5.6-terra")).toEqual({
+      input: 2_000n,
+      cached: 200n,
+      cacheWrite: 2_500n,
+      output: 12_000n,
+    });
+    expect(
+      calculateUsageCost({
+        model: "gpt-5.6-sol",
+        inputTokens: 1_000_000,
+        cachedTokens: 1_000_000,
+        outputTokens: 1_000_000,
+      }),
+    ).toBeCloseTo(35.5);
   });
 
-  test('charges cache writes separately and preserves reasoning breakdown', () => {
-    expect(normalizeUsage({ inputTokens: 100, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12, reasoningTokens: 3 })).toEqual({ inputTokens: 60, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12, reasoningTokens: 3 });
-    expect(calculateUsageCost({ inputTokens: 60, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12 })).toBeCloseTo(0.0000322);
-    expect(formatUsageReport({ inputTokens: 60, cachedTokens: 40, cacheWriteTokens: 20, outputTokens: 12, reasoningTokens: 3 })).toContain('"write":"20 ($0.000)"');
+  test("charges cache writes separately and preserves reasoning breakdown", () => {
+    expect(
+      normalizeUsage({
+        inputTokens: 100,
+        cachedTokens: 40,
+        cacheWriteTokens: 20,
+        outputTokens: 12,
+        reasoningTokens: 3,
+      }),
+    ).toEqual({
+      inputTokens: 60,
+      cachedTokens: 40,
+      cacheWriteTokens: 20,
+      outputTokens: 12,
+      reasoningTokens: 3,
+    });
+    expect(
+      calculateUsageCost({
+        inputTokens: 60,
+        cachedTokens: 40,
+        cacheWriteTokens: 20,
+        outputTokens: 12,
+      }),
+    ).toBeCloseTo(0.0000322);
+    expect(
+      formatUsageReport({
+        inputTokens: 60,
+        cachedTokens: 40,
+        cacheWriteTokens: 20,
+        outputTokens: 12,
+        reasoningTokens: 3,
+      }),
+    ).toContain('"write":"20 ($0.000)"');
   });
 
-  test('applies jumbo pricing to all token classes and reports a warning', () => {
+  test("applies jumbo pricing to all token classes and reports a warning", () => {
     expect(isJumboPrompt({ inputTokens: 272_001 })).toBe(true);
-    expect(calculateUsageCost({ inputTokens: 272_001, cachedTokens: 0, outputTokens: 1, model: 'gpt-5.6-luna' })).toBeCloseTo(0.1088022);
-    const report = formatUsageReport({ inputTokens: 272_002, cachedTokens: 1, outputTokens: 1, turns: 1, model: 'gpt-5.6-terra' });
-    expect(report).toContain('Long-context pricing applied');
-    expect(report).toContain('\u001b[91m');
+    expect(
+      calculateUsageCost({
+        inputTokens: 272_001,
+        cachedTokens: 0,
+        outputTokens: 1,
+        model: "gpt-5.6-luna",
+      }),
+    ).toBeCloseTo(0.1088022);
+    const report = formatUsageReport({
+      inputTokens: 272_002,
+      cachedTokens: 1,
+      outputTokens: 1,
+      turns: 1,
+      model: "gpt-5.6-terra",
+    });
+    expect(report).toContain("Long-context pricing applied");
+    expect(report).toContain("\u001b[91m");
   });
 
-  test('formats totals from token counts without per-turn rounding drift', () => {
-    expect(formatUsageReport({ inputTokens: 0, cachedTokens: 0, outputTokens: 2_000, turns: 2 })).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"2,000 ($0.002)","turns":"2","avg":"$0.001","total":"$0.002"}');
+  test("formats totals from token counts without per-turn rounding drift", () => {
+    expect(
+      formatUsageReport({ inputTokens: 0, cachedTokens: 0, outputTokens: 2_000, turns: 2 }),
+    ).toBe(
+      '{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"2,000 ($0.002)","turns":"2","avg":"$0.001","total":"$0.002"}',
+    );
   });
-  test('covers normalization defaults and pricing edge branches', () => {
-    expect(normalizeUsage({ inputTokens: 'not-a-number', cachedTokens: 'NaN', outputTokens: 'Infinity' })).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
-    expect(getModelPricing()).toEqual(getModelPricing('gpt-5.6-luna'));
+  test("covers normalization defaults and pricing edge branches", () => {
+    expect(
+      normalizeUsage({
+        inputTokens: "not-a-number",
+        cachedTokens: "NaN",
+        outputTokens: "Infinity",
+      }),
+    ).toEqual({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
+    expect(getModelPricing()).toEqual(getModelPricing("gpt-5.6-luna"));
     expect(getModelPricing(undefined)).toEqual(getModelPricing());
     expect(Reflect.apply(getModelPricing, null, [])).toEqual(getModelPricing());
     expect(getModelPricing(null)).toEqual(getModelPricing());
-    expect(getModelPricing('unknown-model')).toEqual(getModelPricing());
-    expect(getModelPricing('GPT-5.6-TERRA')).toEqual({ input: 2_000n, cached: 200n, cacheWrite: 2_500n, output: 12_000n });
+    expect(getModelPricing("unknown-model")).toEqual(getModelPricing());
+    expect(getModelPricing("GPT-5.6-TERRA")).toEqual({
+      input: 2_000n,
+      cached: 200n,
+      cacheWrite: 2_500n,
+      output: 12_000n,
+    });
     expect(isJumboPrompt()).toBe(false);
     expect(isJumboPrompt({ inputTokens: 272_002, cachedTokens: 1 })).toBe(true);
     expect(calculateUsageCost()).toBe(0);
     expect(calculateUsageCostNanoDollars()).toBe(0n);
     expect(Reflect.apply(calculateUsageCostNanoDollars, null, [])).toBe(0n);
-    expect(calculateUsageCostNanoDollars({ inputTokens: 1.9, cachedTokens: -2, outputTokens: null })).toBe(200n);
+    expect(
+      calculateUsageCostNanoDollars({ inputTokens: 1.9, cachedTokens: -2, outputTokens: null }),
+    ).toBe(200n);
   });
 
-  test('covers empty and negative formatting branches', () => {
-    expect(formatMoney(-1.2345)).toBe('$-1.235');
-    expect(formatMoney(-0.0004)).toBe('$0.000');
+  test("covers empty and negative formatting branches", () => {
+    expect(formatMoney(-1.2345)).toBe("$-1.235");
+    expect(formatMoney(-0.0004)).toBe("$0.000");
     expect(formatTurnUsage()).toContain('"turns":"1"');
-    expect(formatUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}');
-    expect(formatTurnUsageReport()).toBe('{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","total":"$0.000"}');
-    expect(formatTurnUsageReport({ inputTokens: 272_001, cachedTokens: 0, outputTokens: 1 })).toContain('Long-context pricing applied');
-    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, cacheWriteTokens: 3, outputTokens: 4, reasoningTokens: 5 })).toContain('"write":"3');
-    expect(formatTurnUsageReport({ inputTokens: 1, cachedTokens: 2, cacheWriteTokens: 3, outputTokens: 4, reasoningTokens: 5 })).toContain('"reasoning":"5"');
+    expect(formatUsageReport()).toBe(
+      '{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}',
+    );
+    expect(formatTurnUsageReport()).toBe(
+      '{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","total":"$0.000"}',
+    );
+    expect(
+      formatTurnUsageReport({ inputTokens: 272_001, cachedTokens: 0, outputTokens: 1 }),
+    ).toContain("Long-context pricing applied");
+    expect(
+      formatTurnUsageReport({
+        inputTokens: 1,
+        cachedTokens: 2,
+        cacheWriteTokens: 3,
+        outputTokens: 4,
+        reasoningTokens: 5,
+      }),
+    ).toContain('"write":"3');
+    expect(
+      formatTurnUsageReport({
+        inputTokens: 1,
+        cachedTokens: 2,
+        cacheWriteTokens: 3,
+        outputTokens: 4,
+        reasoningTokens: 5,
+      }),
+    ).toContain('"reasoning":"5"');
   });
-
 });
 
-test('covers nullish jumbo and token-cost branches', () => {
+test("covers nullish jumbo and token-cost branches", () => {
   expect(isJumboPrompt({ inputTokens: null, cachedTokens: null })).toBe(false);
-  expect(formatUsageReport({ inputTokens: null, cachedTokens: null, outputTokens: null })).toContain('"in":"0');
-  expect(formatTurnUsageReport({ inputTokens: 272_001, cachedTokens: 0, outputTokens: 1 })).toContain('Long-context pricing applied');
+  expect(
+    formatUsageReport({ inputTokens: null, cachedTokens: null, outputTokens: null }),
+  ).toContain('"in":"0');
+  expect(
+    formatTurnUsageReport({ inputTokens: 272_001, cachedTokens: 0, outputTokens: 1 }),
+  ).toContain("Long-context pricing applied");
 });

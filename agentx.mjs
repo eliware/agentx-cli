@@ -1,21 +1,20 @@
 #!/usr/bin/env node
-import { config as loadDotenv } from 'dotenv';
-import { path } from '@eliware/common';
-import { existsSync } from 'node:fs';
-import { resolve as resolvePath } from 'node:path';
-import { createInterface } from 'node:readline/promises';
-import { getHomeDirectory } from './src/platform.mjs';
+import { config as loadDotenv } from "dotenv";
+import { path } from "@eliware/common";
+import { existsSync } from "node:fs";
+import { resolve as resolvePath } from "node:path";
+import { createInterface } from "node:readline/promises";
+import { getHomeDirectory } from "./src/platform.mjs";
 
 const homeDirectory = getHomeDirectory();
 if (homeDirectory) {
-  loadDotenv({ path: path(homeDirectory, '.agentx'), quiet: true });
+  loadDotenv({ path: path(homeDirectory, ".agentx"), quiet: true });
 }
 
-
-const { isDirectInvocation, promptPath } = await import('./src/runtime.mjs');
-const { runAgent } = await import('./src/agent.mjs');
-const { formatQuickHelp, getPackageVersion, parseCliArgs } = await import('./src/cli.mjs');
-const { formatMcpConfigValidation, validateMcpConfigFile } = await import('./src/mcp-config.mjs');
+const { isDirectInvocation, promptPath } = await import("./src/runtime.mjs");
+const { runAgent } = await import("./src/agent.mjs");
+const { formatQuickHelp, getPackageVersion, parseCliArgs } = await import("./src/cli.mjs");
+const { formatMcpConfigValidation, validateMcpConfigFile } = await import("./src/mcp-config.mjs");
 
 function printAndExit(text, code = 0) {
   process.stdout.write(`${text}\n`);
@@ -23,20 +22,31 @@ function printAndExit(text, code = 0) {
 }
 
 async function confirmSetup() {
-  if (process.env.NODE_ENV === 'test') return false;
+  if (process.env.NODE_ENV === "test") return false;
   if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
-  const configFile = homeDirectory ? path(homeDirectory, '.agentx') : '';
-  if (configFile && existsSync(configFile) && (process.env.agentx_api_key || process.env.AGENTX_API_KEY)) return false;
+  const configFile = homeDirectory ? path(homeDirectory, ".agentx") : "";
+  if (
+    configFile &&
+    existsSync(configFile) &&
+    (process.env.agentx_api_key || process.env.AGENTX_API_KEY)
+  )
+    return false;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = (await rl.question('AgentX is not configured. Run agentx-setup now? [Y/n] ')).trim().toLowerCase();
-    if (answer && answer !== 'y' && answer !== 'yes') return false;
+    const answer = (await rl.question("AgentX is not configured. Run agentx-setup now? [Y/n] "))
+      .trim()
+      .toLowerCase();
+    if (answer && answer !== "y" && answer !== "yes") return false;
     rl.close();
-    const { runSetup, setupPaths } = await import('./src/setup.mjs');
+    const { runSetup, setupPaths } = await import("./src/setup.mjs");
     await runSetup({ stdin: process.stdin, stdout: process.stdout });
     loadDotenv({ path: setupPaths.envPath, quiet: true, override: true });
-    return Boolean(existsSync(setupPaths.envPath) && (process.env.agentx_api_key || process.env.AGENTX_API_KEY));
-  } finally { rl.close(); }
+    return Boolean(
+      existsSync(setupPaths.envPath) && (process.env.agentx_api_key || process.env.AGENTX_API_KEY),
+    );
+  } finally {
+    rl.close();
+  }
 }
 
 function printStartupError(error) {
@@ -51,16 +61,21 @@ if (isDirectInvocation(import.meta.url)) {
   } else if (parsed.flags.version) {
     printAndExit(getPackageVersion());
   } else if (parsed.flags.checkMcp) {
-    const mcpPath = path(homeDirectory || process.cwd(), '.agentx.mcp.json');
+    const mcpPath = path(homeDirectory || process.cwd(), ".agentx.mcp.json");
     const result = validateMcpConfigFile(mcpPath);
     printAndExit(formatMcpConfigValidation(result), result.valid ? 0 : 1);
   } else {
     try {
       const messageArgs = parsed.messageArgs;
-      if (parsed.flags.cwd === '') throw new Error('--cwd requires a path');
+      if (parsed.flags.cwd === "") throw new Error("--cwd requires a path");
       const cwd = parsed.flags.cwd ? resolvePath(process.cwd(), parsed.flags.cwd) : process.cwd();
       if (!messageArgs.length) await confirmSetup();
-      await runAgent({ promptPath, cwd, flags: parsed.flags, ...(messageArgs.length ? { initialMessage: messageArgs.join(' '), oneShot: true } : {}) });
+      await runAgent({
+        promptPath,
+        cwd,
+        flags: parsed.flags,
+        ...(messageArgs.length ? { initialMessage: messageArgs.join(" "), oneShot: true } : {}),
+      });
     } catch (error) {
       printStartupError(error);
       process.exitCode = 1;

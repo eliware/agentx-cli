@@ -1,25 +1,59 @@
-import { writeTerminal, setActiveStatusController } from '../terminal-output.mjs';
-import { extractUsage } from '../response.mjs';
-import { dedupeToolCalls, dedupeToolOutputs, requiresDestructiveConfirmation, requiresToolConfirmation, runToolCall, toolCallIdentity, toolOutputForCall } from '../tool-dispatch.mjs';
-import { createUsageTotals } from '../response.mjs';
-import { formatTurnUsageReport, formatUsageReport } from '../usage.mjs';
-import { formatInfoMessage, formatUsageMessage } from '../shell-display.mjs';
-import { createStatusLineController, formatElapsedStatus, formatTransactionCompletionMessage } from './status-controller.mjs';
-import { createStreamedResponse } from './response-stream.mjs';
-import { isShellToolCall } from './response-format.mjs';
+import { writeTerminal, setActiveStatusController } from "../terminal-output.mjs";
+import { extractUsage } from "../response.mjs";
+import {
+  dedupeToolCalls,
+  dedupeToolOutputs,
+  requiresDestructiveConfirmation,
+  requiresToolConfirmation,
+  runToolCall,
+  toolCallIdentity,
+  toolOutputForCall,
+} from "../tool-dispatch.mjs";
+import { createUsageTotals } from "../response.mjs";
+import { formatTurnUsageReport, formatUsageReport } from "../usage.mjs";
+import { formatInfoMessage, formatUsageMessage } from "../shell-display.mjs";
+import {
+  createStatusLineController,
+  formatElapsedStatus,
+  formatTransactionCompletionMessage,
+} from "./status-controller.mjs";
+import { createStreamedResponse } from "./response-stream.mjs";
+import { isShellToolCall } from "./response-format.mjs";
 
-const GOAL_TOOLS = new Set(['goal_update', 'goal_blocked']);
-const GOAL_METHODS = new Set(['complete', 'incomplete', 'blocked', 'question']);
-const IMAGE_TOOL = 'view_image';
-const IMAGE_GENERATION_OUTPUT = 'image_generation_call';
-function parseFunctionInput(call) { try { return JSON.parse(call?.arguments ?? call?.input ?? '{}'); } catch { return {}; } }
+const GOAL_TOOLS = new Set(["goal_update", "goal_blocked"]);
+const GOAL_METHODS = new Set(["complete", "incomplete", "blocked", "question"]);
+const IMAGE_TOOL = "view_image";
+const IMAGE_GENERATION_OUTPUT = "image_generation_call";
+function parseFunctionInput(call) {
+  try {
+    return JSON.parse(call?.arguments ?? call?.input ?? "{}");
+  } catch {
+    return {};
+  }
+}
 
-export async function handleToolCalls(openai, response, baseRequest, cwd, onResponseUsage, runToolCallFn = runToolCall, streamOptions = {}) {
+export async function handleToolCalls(
+  openai,
+  response,
+  baseRequest,
+  cwd,
+  onResponseUsage,
+  runToolCallFn = runToolCall,
+  streamOptions = {},
+) {
   let current = response;
-  let currentPreviousResponseId = baseRequest?.previous_response_id || '';
+  let currentPreviousResponseId = baseRequest?.previous_response_id || "";
   const liveStreaming = Boolean(streamOptions?.liveStreaming);
   const sessionStartedAt = streamOptions?.sessionStartedAt ?? Date.now();
-  const statusController = streamOptions?.statusController || (liveStreaming ? createStatusLineController(sessionStartedAt, { quiet: Boolean(streamOptions?.suppressStatusOutput || streamOptions?.noTimers), transitionOnly: Boolean(streamOptions?.transitionOnlyStatus), colors: streamOptions?.colors !== false }) : null);
+  const statusController =
+    streamOptions?.statusController ||
+    (liveStreaming
+      ? createStatusLineController(sessionStartedAt, {
+          quiet: Boolean(streamOptions?.suppressStatusOutput || streamOptions?.noTimers),
+          transitionOnly: Boolean(streamOptions?.transitionOnlyStatus),
+          colors: streamOptions?.colors !== false,
+        })
+      : null);
   const onResponseState = streamOptions?.onResponseState;
   setActiveStatusController(statusController);
   const skipInitialUsageAccounting = Boolean(streamOptions?.skipInitialUsageAccounting);
@@ -35,46 +69,117 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
   let isFirstResponse = true;
   const executeToolCall = streamOptions?.runToolCall || runToolCallFn;
   const pendingWorkerCompletions = [];
-  const queueWorkerCompletion = (worker) => { if (worker) { pendingWorkerCompletions.push(worker); if (!statusController?.isWriting?.()) flushWorkerCompletions(); } };
+  const queueWorkerCompletion = (worker) => {
+    if (worker) {
+      pendingWorkerCompletions.push(worker);
+      if (!statusController?.isWriting?.()) flushWorkerCompletions();
+    }
+  };
   const flushWorkerCompletions = () => {
     if (!pendingWorkerCompletions.length) return;
     statusController?.pause?.();
-    while (pendingWorkerCompletions.length) streamOptions?.onWorkerComplete?.(pendingWorkerCompletions.shift());
+    while (pendingWorkerCompletions.length)
+      streamOptions?.onWorkerComplete?.(pendingWorkerCompletions.shift());
     statusController?.resume?.({ renderNow: false });
   };
 
-  for (; ;) {
-    if (goalMode && !goalFinished && goalCancelled()) { statusController?.clear(); return current; }
+  for (;;) {
+    if (goalMode && !goalFinished && goalCancelled()) {
+      statusController?.clear();
+      return current;
+    }
     const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
     const usage = shouldReportUsage ? extractUsage(current) : createUsageTotals();
     for (const item of current?.output ?? []) {
-      if (item?.type === IMAGE_GENERATION_OUTPUT && item?.result) await streamOptions?.onImageGeneration?.({ item, response: current, cwd });
+      if (item?.type === IMAGE_GENERATION_OUTPUT && item?.result)
+        await streamOptions?.onImageGeneration?.({ item, response: current, cwd });
     }
-    const calls = dedupeToolCalls((current?.output ?? []).filter((item) => isShellToolCall(item) || (item?.type === 'function_call' && (['spawn_agent', 'agent_status', 'cancel_agent'].includes(item?.name) || (goalMode && GOAL_TOOLS.has(item?.name)) || item?.name === IMAGE_TOOL))), cwd);
-    const cumulativeUsage = shouldReportUsage && onResponseUsage ? onResponseUsage(usage, { skipIncrement: false }) : null;
+    const calls = dedupeToolCalls(
+      (current?.output ?? []).filter(
+        (item) =>
+          isShellToolCall(item) ||
+          (item?.type === "function_call" &&
+            (["spawn_agent", "agent_status", "cancel_agent"].includes(item?.name) ||
+              (goalMode && GOAL_TOOLS.has(item?.name)) ||
+              item?.name === IMAGE_TOOL)),
+      ),
+      cwd,
+    );
+    const cumulativeUsage =
+      shouldReportUsage && onResponseUsage
+        ? onResponseUsage(usage, { skipIncrement: false })
+        : null;
     if (onResponseState) {
-      await onResponseState({ response: current, pendingToolCalls: calls, isInitialResponse: isFirstResponse, cumulativeUsage });
+      await onResponseState({
+        response: current,
+        pendingToolCalls: calls,
+        isInitialResponse: isFirstResponse,
+        cumulativeUsage,
+      });
     }
     if (shouldReportUsage && !streamOptions?.suppressUsageOutput) {
-      writeTerminal(`${formatUsageMessage(formatTurnUsageReport({ ...usage, model: baseRequest?.model }))}\n`);
+      writeTerminal(
+        `${formatUsageMessage(formatTurnUsageReport({ ...usage, model: baseRequest?.model }))}\n`,
+      );
       if (cumulativeUsage) {
-        writeTerminal(`${formatUsageMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`);
+        writeTerminal(
+          `${formatUsageMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`,
+        );
       }
     }
     if (calls.length === 0) {
       if (goalFinished || !goalMode) {
-        const completionSnapshot = goalCompletionSnapshot || statusController?.snapshot?.() || { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' };
+        const completionSnapshot = goalCompletionSnapshot ||
+          statusController?.snapshot?.() || {
+            time: formatElapsedStatus(Date.now() - sessionStartedAt),
+            reasoning: "0s/0s",
+            writing: "0s/0s",
+            executing: "0s/0s",
+          };
         statusController?.clear();
-        if (!streamOptions?.suppressStatusOutput && !streamOptions?.noTimers) writeTerminal(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
+        if (!streamOptions?.suppressStatusOutput && !streamOptions?.noTimers)
+          writeTerminal(
+            `${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`,
+          );
         return current;
       }
       {
         goalIterations += 1;
         await streamOptions?.onGoalIteration?.(goalIterations);
-        if (goalIterations > goalMaxIterations) { await streamOptions?.onGoalLimit?.(goalIterations); statusController?.clear(); return current; }
-        const request = { ...baseRequest, input: [{ role: 'user', content: [{ type: 'input_text', text: `You are still working on this goal: ${String(streamOptions?.goalText || '(goal text unavailable)')}\n\nYou MUST call goal_update with method complete, incomplete, or blocked. If user input is required, call goal_blocked with a question and optional choices. Do not reply with prose.` }] }], previous_response_id: current.id, store: true, tool_choice: 'required' };
-        current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug), colors: streamOptions?.colors !== false, noReasoning: Boolean(streamOptions?.noReasoning), noShellCalls: Boolean(streamOptions?.noShellCalls), noToolCalls: Boolean(streamOptions?.noToolCalls), noMcpOutput: Boolean(streamOptions?.noMcpOutput), noWebsearch: Boolean(streamOptions?.noWebsearch) });
-        currentPreviousResponseId = request.previous_response_id || '';
+        if (goalIterations > goalMaxIterations) {
+          await streamOptions?.onGoalLimit?.(goalIterations);
+          statusController?.clear();
+          return current;
+        }
+        const request = {
+          ...baseRequest,
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: `You are still working on this goal: ${String(streamOptions?.goalText || "(goal text unavailable)")}\n\nYou MUST call goal_update with method complete, incomplete, or blocked. If user input is required, call goal_blocked with a question and optional choices. Do not reply with prose.`,
+                },
+              ],
+            },
+          ],
+          previous_response_id: current.id,
+          store: true,
+          tool_choice: "required",
+        };
+        current = await createStreamedResponse(openai, request, {
+          liveStreaming,
+          statusController,
+          debug: Boolean(streamOptions?.debug),
+          colors: streamOptions?.colors !== false,
+          noReasoning: Boolean(streamOptions?.noReasoning),
+          noShellCalls: Boolean(streamOptions?.noShellCalls),
+          noToolCalls: Boolean(streamOptions?.noToolCalls),
+          noMcpOutput: Boolean(streamOptions?.noMcpOutput),
+          noWebsearch: Boolean(streamOptions?.noWebsearch),
+        });
+        currentPreviousResponseId = request.previous_response_id || "";
         isFirstResponse = false;
         continue;
       }
@@ -87,51 +192,114 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     try {
       for (const [callIndex, call] of calls.entries()) {
         let approved = true;
-        if (!yolo && (requiresDestructiveConfirmation(call) || requiresToolConfirmation(call)) && confirmToolCall) {
+        if (
+          !yolo &&
+          (requiresDestructiveConfirmation(call) || requiresToolConfirmation(call)) &&
+          confirmToolCall
+        ) {
           statusController?.pause();
-          try { approved = await confirmToolCall(call, cwd); } finally { statusController?.resume({ renderNow: false }); }
+          try {
+            approved = await confirmToolCall(call, cwd);
+          } finally {
+            statusController?.resume({ renderNow: false });
+          }
         }
         if (!approved) {
-          outputs.push(toolOutputForCall(call, { type: 'shell_call_output', call_id: call.call_id || call.id || '', status: 'incomplete', output: [{ stdout: '', stderr: 'Tool execution declined by user.', outcome: { type: 'exit', exit_code: 1 } }] }));
+          outputs.push(
+            toolOutputForCall(call, {
+              type: "shell_call_output",
+              call_id: call.call_id || call.id || "",
+              status: "incomplete",
+              output: [
+                {
+                  stdout: "",
+                  stderr: "Tool execution declined by user.",
+                  outcome: { type: "exit", exit_code: 1 },
+                },
+              ],
+            }),
+          );
           continue;
         }
-        await onToolExecutionState?.({ call, response: current, status: 'started', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
-        if (goalMode && !goalFinished && goalCancelled()) { statusController?.clear(); return current; }
+        await onToolExecutionState?.({
+          call,
+          response: current,
+          status: "started",
+          identity: toolCallIdentity(call, cwd),
+          callIndex,
+          callCount: calls.length,
+        });
+        if (goalMode && !goalFinished && goalCancelled()) {
+          statusController?.clear();
+          return current;
+        }
         if (goalMode && GOAL_TOOLS.has(call?.name)) {
           const args = parseFunctionInput(call);
-          const method = String(args?.method || '').toLowerCase();
-          if (call?.name === 'goal_blocked') {
+          const method = String(args?.method || "").toLowerCase();
+          if (call?.name === "goal_blocked") {
             statusController?.pause();
             let answer;
-            try { answer = await streamOptions?.onGoalBlocked?.(args); } finally { statusController?.resume({ renderNow: false }); }
-            outputs.push(toolOutputForCall(call, answer || 'Continue without user input.'));
+            try {
+              answer = await streamOptions?.onGoalBlocked?.(args);
+            } finally {
+              statusController?.resume({ renderNow: false });
+            }
+            outputs.push(toolOutputForCall(call, answer || "Continue without user input."));
             continue;
           }
           if (!GOAL_METHODS.has(method)) {
-            outputs.push(toolOutputForCall(call, `Invalid goal_update method "${method || '(missing)'}". Use complete, incomplete, or blocked.`));
+            outputs.push(
+              toolOutputForCall(
+                call,
+                `Invalid goal_update method "${method || "(missing)"}". Use complete, incomplete, or blocked.`,
+              ),
+            );
             continue;
           }
-          if (method === 'complete') {
+          if (method === "complete") {
             goalFinished = true;
             statusController?.pause?.();
             goalCompletionSnapshot = statusController?.snapshot?.() || null;
             await streamOptions?.onGoalComplete?.(args);
-            outputs.push(toolOutputForCall(call, 'Goal complete acknowledged.'));
+            outputs.push(toolOutputForCall(call, "Goal complete acknowledged."));
             continue;
           }
-          if (method === 'blocked') {
+          if (method === "blocked") {
             await streamOptions?.onGoalLimit?.(goalIterations);
             goalFinished = true;
-            outputs.push(toolOutputForCall(call, 'Goal marked blocked.'));
+            outputs.push(toolOutputForCall(call, "Goal marked blocked."));
             continue;
           }
-          outputs.push(toolOutputForCall(call, 'Continue working on the goal.'));
+          outputs.push(toolOutputForCall(call, "Continue working on the goal."));
           continue;
         }
-        const output = call?.type === 'function_call' && call?.name === IMAGE_TOOL
-          ? (await streamOptions?.onViewImage?.({ args: parseFunctionInput(call), response: current, previousResponseId: currentPreviousResponseId, baseRequest, cwd }) || 'ERROR: image inspection is unavailable')
-          : await executeToolCall(call, cwd, { isFirstResponse, currentResponse: current, callIndex, callCount: calls.length, statusController, onWorkerUsage: streamOptions?.onWorkerUsage, onWorkerComplete: queueWorkerCompletion, debug: Boolean(streamOptions?.debug) });
-        await onToolExecutionState?.({ call, response: current, status: 'completed', identity: toolCallIdentity(call, cwd), callIndex, callCount: calls.length });
+        const output =
+          call?.type === "function_call" && call?.name === IMAGE_TOOL
+            ? (await streamOptions?.onViewImage?.({
+                args: parseFunctionInput(call),
+                response: current,
+                previousResponseId: currentPreviousResponseId,
+                baseRequest,
+                cwd,
+              })) || "ERROR: image inspection is unavailable"
+            : await executeToolCall(call, cwd, {
+                isFirstResponse,
+                currentResponse: current,
+                callIndex,
+                callCount: calls.length,
+                statusController,
+                onWorkerUsage: streamOptions?.onWorkerUsage,
+                onWorkerComplete: queueWorkerCompletion,
+                debug: Boolean(streamOptions?.debug),
+              });
+        await onToolExecutionState?.({
+          call,
+          response: current,
+          status: "completed",
+          identity: toolCallIdentity(call, cwd),
+          callIndex,
+          callCount: calls.length,
+        });
         outputs.push(toolOutputForCall(call, output));
         flushWorkerCompletions();
         completed += 1;
@@ -143,29 +311,67 @@ export async function handleToolCalls(openai, response, baseRequest, cwd, onResp
     flushWorkerCompletions();
 
     const requestInput = dedupeToolOutputs(outputs);
-    if (goalMode && !goalFinished) requestInput.push({ role: 'user', content: [{ type: 'input_text', text: 'Review the tool results above. Do not repeat a command that completed successfully. If the goal is satisfied, call goal_update with method complete now and include a brief summary/evidence. Use another work tool only if it is genuinely required to finish the goal.' }] });
+    if (goalMode && !goalFinished)
+      requestInput.push({
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: "Review the tool results above. Do not repeat a command that completed successfully. If the goal is satisfied, call goal_update with method complete now and include a brief summary/evidence. Use another work tool only if it is genuinely required to finish the goal.",
+          },
+        ],
+      });
     const request = {
       ...baseRequest,
       input: requestInput,
       previous_response_id: current.id,
       store: true,
-      ...(goalFinished ? { tool_choice: 'none' } : (goalMode ? { tool_choice: 'required' } : {})),
+      ...(goalFinished ? { tool_choice: "none" } : goalMode ? { tool_choice: "required" } : {}),
     };
     try {
-      current = await createStreamedResponse(openai, request, { liveStreaming, statusController, debug: Boolean(streamOptions?.debug), colors: streamOptions?.colors !== false, noReasoning: Boolean(streamOptions?.noReasoning), noShellCalls: Boolean(streamOptions?.noShellCalls), noToolCalls: Boolean(streamOptions?.noToolCalls), noMcpOutput: Boolean(streamOptions?.noMcpOutput), noWebsearch: Boolean(streamOptions?.noWebsearch) });
-      currentPreviousResponseId = request.previous_response_id || '';
+      current = await createStreamedResponse(openai, request, {
+        liveStreaming,
+        statusController,
+        debug: Boolean(streamOptions?.debug),
+        colors: streamOptions?.colors !== false,
+        noReasoning: Boolean(streamOptions?.noReasoning),
+        noShellCalls: Boolean(streamOptions?.noShellCalls),
+        noToolCalls: Boolean(streamOptions?.noToolCalls),
+        noMcpOutput: Boolean(streamOptions?.noMcpOutput),
+        noWebsearch: Boolean(streamOptions?.noWebsearch),
+      });
+      currentPreviousResponseId = request.previous_response_id || "";
       flushWorkerCompletions();
       if (goalFinished) {
         const completionUsage = extractUsage(current);
         const cumulativeUsage = onResponseUsage ? onResponseUsage(completionUsage) : null;
-        await onResponseState?.({ response: current, pendingToolCalls: [], isInitialResponse: false, cumulativeUsage });
+        await onResponseState?.({
+          response: current,
+          pendingToolCalls: [],
+          isInitialResponse: false,
+          cumulativeUsage,
+        });
         if (!streamOptions?.suppressUsageOutput) {
-          writeTerminal(`${formatUsageMessage(formatTurnUsageReport({ ...completionUsage, model: baseRequest?.model }))}\n`);
-          if (cumulativeUsage) writeTerminal(`${formatUsageMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`);
+          writeTerminal(
+            `${formatUsageMessage(formatTurnUsageReport({ ...completionUsage, model: baseRequest?.model }))}\n`,
+          );
+          if (cumulativeUsage)
+            writeTerminal(
+              `${formatUsageMessage(formatUsageReport({ ...cumulativeUsage, model: baseRequest?.model }))}\n`,
+            );
         }
-        const completionSnapshot = goalCompletionSnapshot || statusController?.snapshot?.() || { time: formatElapsedStatus(Date.now() - sessionStartedAt), reasoning: '0s/0s', writing: '0s/0s', executing: '0s/0s' };
+        const completionSnapshot = goalCompletionSnapshot ||
+          statusController?.snapshot?.() || {
+            time: formatElapsedStatus(Date.now() - sessionStartedAt),
+            reasoning: "0s/0s",
+            writing: "0s/0s",
+            executing: "0s/0s",
+          };
         statusController?.clear();
-        if (!streamOptions?.suppressStatusOutput && !streamOptions?.noTimers) writeTerminal(`${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`);
+        if (!streamOptions?.suppressStatusOutput && !streamOptions?.noTimers)
+          writeTerminal(
+            `${formatInfoMessage(formatTransactionCompletionMessage(completionSnapshot))}\n`,
+          );
         return current;
       }
     } catch (error) {
