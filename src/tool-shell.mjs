@@ -7,7 +7,7 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const OUTPUT_TRUNCATION_NOTE = "\n[output truncated]";
 const TERMINATION_GRACE_MS = 250;
 
-function killChildProcess(child, signal = "SIGTERM", platform = process.platform) {
+function killChildProcess(child, signal, platform) {
   if (platform !== "win32" && child?.pid) {
     try {
       process.kill(-child.pid, signal);
@@ -35,14 +35,14 @@ function normalizeLimit(value, fallback = MAX_TOOL_OUTPUT) {
 }
 
 function truncateText(text, limit) {
-  const string = String(text ?? "");
+  const string = String(text);
   const max = normalizeLimit(limit);
   if (string.length <= max) return string;
   if (max <= OUTPUT_TRUNCATION_NOTE.length) return string.slice(0, max);
   return `${string.slice(0, max - OUTPUT_TRUNCATION_NOTE.length)}${OUTPUT_TRUNCATION_NOTE}`;
 }
 
-function makeShellCommandOutput({ stdout = "", stderr = "", outcome, maxOutputLength }) {
+function makeShellCommandOutput({ stdout = "", stderr, outcome, maxOutputLength }) {
   return {
     stdout: truncateText(stdout, maxOutputLength),
     stderr: truncateText(stderr, maxOutputLength),
@@ -61,8 +61,8 @@ export function normalizeTerminationOutcome({
   return { type: "exit", exit_code: Number.isFinite(code) ? Number(code) : 1 };
 }
 
-function getLaunchPlan(command, platform = process.platform) {
-  return getShellLaunchers(platform).map((launcher) => ({
+function getLaunchPlan(command, platform, getLaunchers) {
+  return getLaunchers(platform).map((launcher) => ({
     file: launcher.file,
     args: [...launcher.args, command],
   }));
@@ -72,14 +72,7 @@ function runLauncherCommand(
   plan,
   command,
   cwd,
-  {
-    timeoutMs,
-    maxOutputLength,
-    writeStdout,
-    writeStderr,
-    signal,
-    platform = process.platform,
-  } = {},
+  { timeoutMs, maxOutputLength, writeStdout, writeStderr, signal, platform },
 ) {
   if (!String(command ?? "").trim())
     return Promise.resolve(
@@ -181,7 +174,7 @@ function runLauncherCommand(
       terminationRequested = true;
       killChildProcess(child, "SIGTERM", platform);
       terminationTimer = setTimeout(() => {
-        if (!finished) killChildProcess(child, "SIGKILL", platform);
+        killChildProcess(child, "SIGKILL", platform);
       }, TERMINATION_GRACE_MS);
     };
     const timeout =
@@ -213,13 +206,14 @@ export async function executeShellCommand(
     timeoutMs,
     maxOutputLength,
     platform = process.platform,
+    getLaunchers = getShellLaunchers,
     writeStdout,
     writeStderr,
     signal,
   } = {},
 ) {
   let lastError = null;
-  for (const plan of getLaunchPlan(command, platform)) {
+  for (const plan of getLaunchPlan(command, platform, getLaunchers)) {
     try {
       return await runLauncherCommand(plan, command, cwd, {
         timeoutMs,

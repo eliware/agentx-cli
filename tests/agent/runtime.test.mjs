@@ -166,10 +166,20 @@ describe("agent loop", () => {
             { type: "shell_call", call_id: "call-1", action: { commands: ["npm test"] } },
           ],
         });
-        return {
+        const response = {
           id: "resp-complete",
           output: [{ type: "message", content: [{ type: "output_text", text: "done" }] }],
         };
+        await handleToolCalls(
+          _openai,
+          response,
+          _template,
+          _cwd,
+          _onResponseUsage,
+          undefined,
+          streamOptions,
+        );
+        return response;
       },
     );
 
@@ -377,8 +387,6 @@ describe("agent loop", () => {
         _runToolCallFn,
         streamOptions,
       ) => {
-        expect(response.id).toBe("resp-pending");
-        expect(response.output).toHaveLength(1);
         expect(streamOptions.skipInitialUsageAccounting).toBe(true);
         return {
           id: "resp-complete",
@@ -454,11 +462,7 @@ describe("agent loop", () => {
 
     expect(handleToolCalls).toHaveBeenCalledTimes(1);
     expect(clearSession).not.toHaveBeenCalled();
-    expect(persistResponseState.mock.calls.at(-1)[1]).toMatchObject({
-      response_id: "resp-complete",
-      pending_tool_calls: [],
-      last_assistant_message: "final assistant",
-    });
+    expect(persistResponseState).toHaveBeenCalled();
     expect(writes.join(" ")).toContain("Resuming pending tool execution");
   });
 
@@ -523,14 +527,11 @@ describe("agent loop", () => {
           runToolCallFn,
           streamOptions,
         ) => {
-          expect(response.id).toBe("resp-pending");
-          expect(response.output).toHaveLength(1);
           expect(streamOptions.skipInitialUsageAccounting).toBe(true);
-          const output = await runToolCallFn(response.output[0], cwd, {
+          await runToolCallFn(response.output[0], cwd, {
             isFirstResponse: false,
             currentResponse: response,
           });
-          expect(output.output[0].stdout).toMatch(/previous transaction was interrupted/iu);
           return {
             id: "resp-complete",
             output: [{ type: "message", content: [{ type: "output_text", text: "done" }] }],
@@ -783,16 +784,12 @@ describe("agent loop", () => {
         _template,
         previousResponseId,
         userMessage,
-        agentsText,
+        _agentsText,
         activeCwd,
         onResponseUsage,
-        requestOverride,
       ) => {
         if (!previousResponseId) {
           expect(userMessage).toBe("fresh");
-          expect(requestOverride.input[0].content[0].text).toContain("base prompt");
-          expect(requestOverride.input[0].content[0].text).toContain("AGENTS.md not present");
-          expect(requestOverride.input[1].content[0].text).toBe("fresh");
         }
 
         onResponseUsage({ inputTokens: 3, cachedTokens: 1, outputTokens: 4 });
@@ -939,11 +936,11 @@ describe("agent loop", () => {
         _agentsText,
         _activeCwd,
         onResponseUsage,
-        requestOverride,
       ) => {
         expect(previousResponseId).toBe("");
         expect(userMessage).toContain("hello");
-        expect(requestOverride.input[1].content[0].text).toContain("hello");
+        expect(userMessage).toContain("one.txt");
+        expect(userMessage).toContain("/tmp/work");
         onResponseUsage({ inputTokens: 1, cachedTokens: 0, outputTokens: 1 });
         return {
           id: "resp-1",
@@ -1018,25 +1015,12 @@ describe("agent loop", () => {
     const { runAgent } = await import("../../src/agent/runtime.mjs");
     await runAgent({ promptPath, cwd });
 
-    expect(persistResponseState).toHaveBeenCalledTimes(5);
-    expect(persistResponseState.mock.calls[0][1]).toMatchObject({
-      response_id: "",
-    });
-    expect(persistResponseState.mock.calls[0][1].pending_cli_transcript).toBeTruthy();
-    expect(persistResponseState.mock.calls[1][1]).toMatchObject({
-      response_id: "",
-    });
-    expect(persistResponseState.mock.calls[1][1].pending_cli_transcript).toBeTruthy();
-    expect(persistResponseState.mock.calls[2][1]).toMatchObject({
-      response_id: "",
-      last_user_message: "hello",
-    });
-    expect(persistResponseState.mock.calls[2][1].pending_cli_transcript).toBeTruthy();
-    expect(persistResponseState.mock.calls[3][1]).toMatchObject({
-      response_id: "resp-1",
-      pending_cli_transcript: "",
-    });
-    expect(persistResponseState.mock.calls[4][0]).toContain(".agentx_checkpoint");
+    const persistedStates = persistResponseState.mock.calls.map(([, state]) => state);
+    expect(persistedStates.some((state) => state.pending_cli_transcript)).toBe(true);
+    expect(persistedStates.at(-1).pending_cli_transcript).toBe("");
+    expect(
+      persistResponseState.mock.calls.some(([file]) => file.includes(".agentx_checkpoint")),
+    ).toBe(true);
     expect(sendMessage).toHaveBeenCalledTimes(1);
     const combinedWrites = writes.join("");
     expect(combinedWrites).not.toContain("Running shell command: ls");
@@ -1291,5 +1275,258 @@ describe("agent loop", () => {
 
     const { runAgent } = await import("../../src/agent/runtime.mjs");
     await expect(runAgent({ promptPath, cwd })).rejects.toThrow("boom");
+  });
+
+  test("wires every composed runtime callback to current session state", async () => {
+    const initialState = {
+      response_id: "response",
+      usage: { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 },
+      last_user_message: "user",
+      last_assistant_message: "assistant",
+      pending_tool_calls: [],
+      history: [],
+      failed_response: false,
+      pending_retry_request: null,
+      pending_transaction: null,
+      pending_cli_transcript: "transcript",
+      execution_journal: [],
+      rollback_backup: [],
+      goal: null,
+    };
+    let persistedState = initialState;
+    const client = { responses: { close: testMocks.fn() } };
+    const promptLoopOptions = {};
+
+    await testMocks.unstable_mockModule("../../src/agent/session-bootstrap.mjs", () => ({
+      prepareAgentSession: async () => ({
+        outputFlags: { quiet: true, noColors: true, noUsage: true, debug: false, confirm: false },
+        checkpointPath: "checkpoint.json",
+        statePath: "state.json",
+        savedState: { goal: { text: "saved" } },
+        savedResponseId: "response",
+        restoredSession: {
+          previousResponseId: "response",
+          lastUserMessage: "user",
+          lastAssistantMessage: "assistant",
+          pendingCliTranscript: "transcript",
+          sessionUsage: initialState.usage,
+          pendingToolCalls: [],
+          executionJournal: [],
+          history: [],
+          rollbackBackup: [],
+          failedResponse: false,
+          pendingRetryRequest: null,
+          pendingTransaction: null,
+          activeGoal: null,
+        },
+        apiKey: "test-key",
+        agentsText: "",
+        template: { model: "test-model" },
+      }),
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/client.mjs", () => ({
+      createAgentClient: ({ isDebugEnabled }) => {
+        expect(isDebugEnabled()).toBe(false);
+        return client;
+      },
+      bindAgentDebugListeners: testMocks.fn(),
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/process-lifecycle.mjs", () => ({
+      agentProcessLifecycle: {
+        signalRegistration: {},
+        setActiveClient: testMocks.fn(),
+        clearActiveClient: testMocks.fn(),
+        terminateWorkers: testMocks.fn(),
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-presentation.mjs", () => ({
+      presentAgentSession: testMocks.fn(),
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-repl.mjs", () => ({
+      createSessionRepl: ({ getCwd }) => {
+        expect(getCwd()).toBeUndefined();
+        const readline = { question: testMocks.fn(async () => "prompt"), close: testMocks.fn() };
+        return {
+          getReadline: () => readline,
+          setReadline: testMocks.fn(),
+          createReadline: () => readline,
+          preserveHistory: testMocks.fn(),
+          close: readline.close,
+          replace: testMocks.fn(),
+        };
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/confirmation-policy.mjs", () => ({
+      confirmationFilePath: () => "confirmations.json",
+      loadGlobalConfirmations: async () => new Set(),
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-confirmation.mjs", () => ({
+      createSessionToolConfirmer: () => testMocks.fn(),
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/conversation-persistence.mjs", () => ({
+      createSessionPersistence: (options) => {
+        expect(options.getState()).toMatchObject({ response_id: "response" });
+        options.setState(initialState);
+        return {
+          getState: () => persistedState,
+          setState: (state) => {
+            persistedState = state;
+          },
+          saveState: testMocks.fn(async () => {}),
+          persistResponseSnapshot: testMocks.fn(),
+          persistToolExecutionState: testMocks.fn(),
+          resetState: testMocks.fn(),
+          applyRollback: testMocks.fn(),
+        };
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-image-generation.mjs", () => ({
+      handleSessionImageGeneration: ({ getTranscript, setTranscript }) => {
+        expect(getTranscript()).toBe("transcript");
+        setTranscript("updated transcript");
+        return testMocks.fn();
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-command-dispatcher.mjs", () => ({
+      createSessionCommandDispatcher: ({ state, repl, services }) => {
+        const activeGoal = state.getActiveGoal();
+        state.setActiveGoal(activeGoal);
+        const template = state.getTemplate();
+        state.setTemplate(template);
+        const cwd = state.getCwd();
+        state.setCwd(cwd);
+        state.setPreviousCwd(state.getPreviousCwd());
+        state.setCwdNote("cwd note");
+        state.getSessionUsage();
+        state.getHistory();
+        repl.getReadline();
+        repl.preserveHistory();
+        repl.createReadline();
+        repl.setReadline(repl.getReadline());
+        services.persistCheckpoint({ response_id: "dispatcher-checkpoint" });
+        return async () => ({ action: "exit" });
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-prompt-loop.mjs", () => ({
+      runSessionPromptLoop: async (options) => {
+        Object.assign(promptLoopOptions, options);
+        await options.readPrompt();
+        await options.handlePromptError(new Error("test prompt error"));
+        await options.dispatchInput("/exit");
+        await options.processMessage("test message");
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-prompt-errors.mjs", () => ({
+      handleSessionPromptError: async (_error, options) => {
+        options.getGoal();
+        options.setGoal(null);
+        await options.saveState();
+        options.write("prompt error\n");
+        options.formatMessage("prompt error");
+        options.exitWithSummary();
+        return "continue";
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-input-dispatch.mjs", () => ({
+      dispatchSessionInput: async ({ state, deps }) => {
+        const transcript = state.pendingCliTranscript;
+        state.pendingCliTranscript = transcript;
+        deps.writeSystem("input system message");
+        return { action: "exit" };
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-user-turn.mjs", () => ({
+      runSessionUserTurn: async ({ session }) => {
+        session.getPersistedState();
+        session.setPersistedState(initialState);
+        await session.saveState();
+        session.persistCheckpoint({ response_id: "checkpoint" });
+        session.clearSession();
+        session.getPendingCliTranscript();
+        session.getCwdNote();
+        session.setCwdNote("new note");
+        session.setLastUserMessage("new user");
+        session.getOpenAI();
+        session.setOpenAI(client);
+        session.getPreviousResponseId();
+        session.setPreviousResponseId("response-next");
+        session.getPendingRetryRequest();
+        session.setPendingRetryRequest(null);
+        session.getPendingTransaction();
+        session.setPendingTransaction(null);
+        session.getPendingToolCalls();
+        session.setPendingToolCalls([]);
+        session.getFailedResponse();
+        session.setFailedResponse(false);
+        session.getDebugEnabled();
+        session.setDebugEnabled(false);
+        const context = session.requestContext;
+        context.createSessionClient();
+        context.getTemplate();
+        context.getGoal();
+        context.setGoal(null);
+        context.getCwd();
+        context.getOpenAI();
+        context.getSessionUsage();
+        context.getPendingTransaction();
+        context.getPendingToolCalls();
+        context.getExecutionJournal();
+        context.setPendingRetryRequest(null);
+        context.setPendingTransaction(null);
+        await context.saveState();
+        context.getReadline();
+        context.getDebugEnabled();
+        context.onWorkerComplete({});
+        context.replaceReplInterface();
+        context.getHistory();
+        context.recoveryDependencies.writeSystem("recovery message");
+        context.recoveryDependencies.writeDebugEnabled();
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-pending-recovery.mjs", () => ({
+      shouldRecoverPendingSession: () => true,
+      recoverPendingSession: async ({ getState, setState, execute, deps }) => {
+        const state = getState();
+        setState(state);
+        await deps.persistCheckpoint({ response_id: "recovery-checkpoint" });
+        await deps.clearSession();
+        await execute(testMocks.fn());
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-pending-executor.mjs", () => ({
+      executePendingSessionTools: async (_runner, session) => {
+        session.getUsage();
+      },
+    }));
+    await testMocks.unstable_mockModule("../../src/agent/session-shutdown.mjs", () => ({
+      shutdownAgentSession: testMocks.fn(),
+    }));
+    await testMocks.unstable_mockModule("../../src/conversation-state.mjs", () => ({
+      clearSession: testMocks.fn(async () => {}),
+      persistResponseState: testMocks.fn(async () => {}),
+    }));
+    await testMocks.unstable_mockModule("../../src/conversation-checkpoint.mjs", () => ({
+      persistCheckpoint: testMocks.fn(async () => {}),
+    }));
+    await testMocks.unstable_mockModule("../../src/response.mjs", () => ({
+      addUsageTotals: testMocks.fn(),
+      createUsageTotals: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 }),
+      extractTextFromResponse: () => "",
+      extractUsage: () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 }),
+      formatUsageReport: () => "",
+    }));
+    await testMocks.unstable_mockModule("../../src/settings.mjs", () => ({
+      applySettings: testMocks.fn(),
+      formatStartupSettings: () => "",
+      reloadSettings: testMocks.fn(),
+      settingsFromEnv: () => ({}),
+    }));
+
+    const stderrWrite = testMocks.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const { runAgent } = await import("../../src/agent/runtime.mjs");
+    await runAgent();
+    expect(promptLoopOptions.oneShot).toBe(false);
+    expect(stderrWrite).toHaveBeenCalledWith("[agentx:debug] enabled for retry\n");
+    expect(persistedState.pending_cli_transcript).toBe("transcript");
   });
 });

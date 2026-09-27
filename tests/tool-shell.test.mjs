@@ -25,6 +25,7 @@ describe("shell process execution", () => {
     });
     expect(normalizeTerminationOutcome({ code: 7 })).toEqual({ type: "exit", exit_code: 7 });
     expect(normalizeTerminationOutcome({ code: null })).toEqual({ type: "exit", exit_code: 1 });
+    expect(normalizeTerminationOutcome()).toEqual({ type: "exit", exit_code: 1 });
   });
 
   test("rejects empty commands and missing working directories before spawning", async () => {
@@ -32,9 +33,22 @@ describe("shell process execution", () => {
       stderr: "Unable to execute an empty shell command",
       outcome: { exit_code: 2 },
     });
+    await expect(executeShellCommand(undefined, process.cwd())).resolves.toMatchObject({
+      stderr: "Unable to execute an empty shell command",
+      outcome: { exit_code: 2 },
+    });
     await expect(executeShellCommand("echo nope", null)).resolves.toMatchObject({
       stderr: "Unable to execute shell command without a working directory",
       outcome: { exit_code: 2 },
+    });
+  });
+
+  test("reports when no supported shell launcher is available", async () => {
+    await expect(
+      executeShellCommand("echo test", process.cwd(), { getLaunchers: () => [] }),
+    ).resolves.toMatchObject({
+      stderr: "Unable to locate a supported shell launcher",
+      outcome: { type: "exit", exit_code: 1 },
     });
   });
 

@@ -1,8 +1,5 @@
-import {
-  applyResponseSnapshot,
-  applyRollbackSelection,
-  resetSessionState,
-} from "./conversation-transitions.mjs";
+import { applyResponseSnapshot, resetSessionState } from "./conversation-transitions.mjs";
+import { applyRollbackSelection } from "./rollback-transition.mjs";
 
 export function createSessionPersistence({
   statePath,
@@ -63,6 +60,8 @@ export function createSessionPersistence({
   };
 
   return {
+    getState,
+    setState,
     saveState,
     persistResponseSnapshot,
     persistToolExecutionState,

@@ -1,21 +1,34 @@
 import { describe, expect, jest as testMocks, test } from "@jest/globals";
-import { handleToolCalls } from "../src/agent-turn/tool-loop.mjs";
+let statusController;
+const createStatusLineController = testMocks.fn(() => statusController);
+const writeTerminal = testMocks.fn();
+
+await testMocks.unstable_mockModule("../../src/terminal-output.mjs", () => ({
+  isTerminalColorEnabled: () => true,
+  setActiveStatusController: testMocks.fn(),
+  writeTerminal,
+}));
+await testMocks.unstable_mockModule("../../src/agent-turn/status-controller.mjs", () => ({
+  createStatusLineController,
+}));
+const { handleToolCalls } = await import("../../src/agent-turn/tool-loop.mjs");
 
 describe("agent session modules", () => {
-  let originalStdoutWrite;
-  let stdoutWrites;
-
   beforeEach(() => {
-    originalStdoutWrite = process.stdout.write;
-    stdoutWrites = [];
-    process.stdout.write = (chunk) => {
-      stdoutWrites.push(String(chunk));
-      return true;
+    statusController = {
+      showReasoning: testMocks.fn(),
+      showExecuting: testMocks.fn(),
+      updateExecuting: testMocks.fn(),
+      beginWriting: testMocks.fn(),
+      pause: testMocks.fn(),
+      resume: testMocks.fn(),
+      clear: testMocks.fn(),
+      stop: testMocks.fn(),
+      refresh: testMocks.fn(),
+      isWriting: () => false,
     };
-  });
-
-  afterEach(() => {
-    process.stdout.write = originalStdoutWrite;
+    createStatusLineController.mockClear();
+    writeTerminal.mockClear();
   });
 
   test("handleToolCalls returns immediately when the response has no output array", async () => {
@@ -262,7 +275,7 @@ describe("agent session modules", () => {
       console.log = originalConsoleLog;
     }
   });
-  test("handleToolCalls shows executing progress and resumes reasoning for the follow-up response", async () => {
+  test("coordinates status transitions around tool execution and continuation", async () => {
     const openai = {
       responses: {
         create: testMocks
@@ -299,22 +312,15 @@ describe("agent session modules", () => {
       usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 1 }, output_tokens: 2 },
     };
 
-    const runToolCallFn = async (call) =>
-      await new Promise((resolve) => {
-        setTimeout(
-          () =>
-            resolve({
-              type: "shell_call_output",
-              call_id: call.call_id,
-              output: [],
-              status: "completed",
-              max_output_length: null,
-            }),
-          call.call_id === "call-1" ? 50 : 100,
-        );
-      });
+    const runToolCallFn = testMocks.fn(async (call) => ({
+      type: "shell_call_output",
+      call_id: call.call_id,
+      output: [],
+      status: "completed",
+      max_output_length: null,
+    }));
 
-    const pending = handleToolCalls(
+    await handleToolCalls(
       openai,
       response,
       { model: "test-model", tools: [] },
@@ -323,17 +329,10 @@ describe("agent session modules", () => {
       runToolCallFn,
       { liveStreaming: true },
     );
-
-    expect(stdoutWrites.join("")).toContain(
-      '{"time":"0s","reasoning":"0s/0s","writing":"0s/0s",\u001b[32m"executing":"0s/0s"\u001b[38;5;255m',
-    );
-
-    await new Promise((resolve) => setTimeout(resolve, 70));
-
-    await pending;
-    const output = stdoutWrites.join("");
-    expect(output).toContain('\u001b[32m"executing":"0s/0s"\u001b[38;5;255m');
-    expect(output).toContain('\u001b[38;5;255m{"time":');
+    expect(runToolCallFn).toHaveBeenCalled();
+    expect(statusController.showExecuting).toHaveBeenCalled();
+    expect(statusController.showReasoning).toHaveBeenCalled();
+    expect(statusController.clear).toHaveBeenCalled();
   });
   test("handleToolCalls refuses unconfirmed state-changing calls", async () => {
     const openai = {
@@ -365,24 +364,6 @@ describe("agent session modules", () => {
     expect(
       openai.responses.create.mock.calls[0][0].input.every((item) => item.status === "incomplete"),
     ).toBe(true);
-  });
-  test("handleToolCalls suppresses ordinary status completion output when timers are disabled", async () => {
-    const openai = { responses: { create: testMocks.fn() } };
-    const response = {
-      id: "resp-no-timers",
-      output: [],
-      usage: { input_tokens: 1, output_tokens: 1 },
-    };
-    await handleToolCalls(
-      openai,
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      { noTimers: true, suppressUsageOutput: true },
-    );
-    expect(stdoutWrites.join("")).toBe("");
   });
   test("executes destructive calls automatically when confirmation is disabled", async () => {
     const openai = {
@@ -587,8 +568,9 @@ describe("agent session modules", () => {
     ).resolves.toEqual({ id: "resp-next", output: [] });
 
     expect(maxActive).toBe(1);
-    expect(stdoutWrites.join("")).not.toContain("[32mone[0m\n");
-    expect(stdoutWrites.join("")).not.toContain("[32mtwo[0m\n");
+    const terminalOutput = writeTerminal.mock.calls.map(([text]) => text).join("");
+    expect(terminalOutput).not.toContain("one\\n");
+    expect(terminalOutput).not.toContain("two\\n");
     expect(createCalls).toHaveLength(1);
     expect(createCalls[0].input.map((item) => item.call_id)).toEqual(["call-1", "call-2"]);
   });

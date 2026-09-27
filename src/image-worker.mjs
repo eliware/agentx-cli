@@ -1,14 +1,10 @@
 import { createOpenAI } from "@eliware/openai";
 import { runImageInspection } from "./image-inspector.mjs";
+import { isValidImageWorkerRequest, resolveImageWorkerApiKey } from "./image-worker-config.mjs";
 
 const request = JSON.parse(process.env.AGENTX_IMAGE_REQUEST || "{}");
-const apiKey = process.env.agentx_api_key || process.env.AGENTX_API_KEY;
-const needsNoClient =
-  !String(request.args?.prompt ?? "").trim() ||
-  !Array.isArray(request.args?.images) ||
-  request.args.images.length === 0 ||
-  request.args.images.length > 10 ||
-  String(request.args?.prompt ?? "").length > 10_000;
+const apiKey = resolveImageWorkerApiKey(process.env);
+const needsNoClient = !isValidImageWorkerRequest(request.args);
 const openai = needsNoClient ? null : createOpenAI({ apiKey, transport: "websocket" });
 const usage = { turns: 0, inputTokens: 0, cachedTokens: 0, outputTokens: 0 };
 try {

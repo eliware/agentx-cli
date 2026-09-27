@@ -102,6 +102,37 @@ test("spawns, persists, and reports worker status", async () => {
   expect(await readFile(configPath, "utf8")).toBe("user config remains intact\n");
 });
 
+test("polls active workers through the wait deadline", async () => {
+  const child = createChild();
+  spawnMock.mockReturnValue(child);
+  let complete;
+  const completed = new Promise((resolve) => {
+    complete = resolve;
+  });
+  const spawned = await runParallelWorkerFunction(
+    { name: "spawn_agent", arguments: JSON.stringify({ task: "polling test" }) },
+    cwd,
+    { onWorkerComplete: complete },
+  );
+  const status = await runParallelWorkerFunction(
+    {
+      name: "agent_status",
+      arguments: JSON.stringify({ agent_ids: [spawned.agent.id, "missing"], wait_ms: 25 }),
+    },
+    cwd,
+  );
+  expect(status).toMatchObject({
+    waited_ms: 25,
+    timed_out: true,
+    agents: [
+      { id: spawned.agent.id, status: "running" },
+      { id: "missing", status: "unknown" },
+    ],
+  });
+  child.emit("close", 0, null);
+  await completed;
+});
+
 test("flushes buffered output and finalizes a worker spawn error", async () => {
   jest.useFakeTimers();
   const child = createChild();

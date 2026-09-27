@@ -166,4 +166,76 @@ describe("shell process lifecycle edge cases", () => {
     expect(stdout).toHaveBeenCalledWith("live output");
     expect(stderr).toHaveBeenCalledWith("live error");
   });
+
+  test("ignores duplicate completion and post-completion error events", async () => {
+    const promise = executeShellCommand("echo", "/tmp", { timeoutMs: null });
+    children[0].emit("close", 0, null);
+    children[0].emit("close", 1, null);
+    children[0].emit("error", new Error("late error"));
+    await expect(promise).resolves.toMatchObject({ outcome: { exit_code: 0 } });
+  });
+
+  test("uses the generic error when a process error has no message", async () => {
+    const promise = executeShellCommand("echo", "/tmp", { timeoutMs: null });
+    children[0].emit("error", {});
+    await expect(promise).resolves.toMatchObject({
+      stderr: "Unable to execute shell command",
+      outcome: { exit_code: 1 },
+    });
+  });
+
+  test("uses the generic error when spawning throws without a message", async () => {
+    spawn.mockImplementationOnce(() => {
+      throw {};
+    });
+    await expect(
+      executeShellCommand("echo", "/tmp", { platform: "linux" }),
+    ).resolves.toMatchObject({
+      stderr: "Unable to execute shell command",
+      outcome: { exit_code: 1 },
+    });
+  });
+
+  test("ignores abort callbacks after completion and stops a pending kill escalation", async () => {
+    jest.useFakeTimers();
+    const kill = jest.spyOn(process, "kill").mockImplementation(() => true);
+    const listeners = new Map();
+    let abortCallback;
+    const signal = {
+      aborted: false,
+      addEventListener: (event, callback) => {
+        abortCallback = callback;
+        listeners.set(event, callback);
+      },
+      removeEventListener: (event) => listeners.delete(event),
+    };
+    const completed = executeShellCommand("echo", "/tmp", { signal, timeoutMs: null });
+    children[0].emit("close", 0, null);
+    abortCallback();
+    await completed;
+
+    const controller = new AbortController();
+    const timed = executeShellCommand("sleep", "/tmp", {
+      signal: controller.signal,
+      timeoutMs: 10,
+      platform: "linux",
+    });
+    await jest.advanceTimersByTimeAsync(10);
+    controller.abort();
+    children[1].emit("close", null, "SIGTERM");
+    await expect(timed).resolves.toMatchObject({ outcome: { type: "timeout" } });
+    await jest.advanceTimersByTimeAsync(250);
+    expect(kill).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not escalate after a timed-out child closes within the grace period", async () => {
+    jest.useFakeTimers();
+    const kill = jest.spyOn(process, "kill").mockImplementation(() => true);
+    const timed = executeShellCommand("sleep", "/tmp", { timeoutMs: 10, platform: "linux" });
+    await jest.advanceTimersByTimeAsync(10);
+    children[0].emit("close", null, "SIGTERM");
+    await expect(timed).resolves.toMatchObject({ outcome: { type: "timeout" } });
+    await jest.advanceTimersByTimeAsync(250);
+    expect(kill).toHaveBeenCalledTimes(1);
+  });
 });

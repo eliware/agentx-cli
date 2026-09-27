@@ -1,8 +1,6 @@
-import { describe, expect, jest, test } from "@jest/globals";
+import { describe, expect, test } from "@jest/globals";
 import {
   applyResponseSnapshot,
-  applyRollbackSelection,
-  restoreSessionState,
   resetSessionState,
 } from "../../src/agent/conversation-transitions.mjs";
 
@@ -20,105 +18,6 @@ const baseState = {
 };
 
 describe("agent response snapshot transitions", () => {
-  test("restores normalized saved state without restoring a prior goal", () => {
-    const savedState = {
-      response_id: "saved-response",
-      usage: { inputTokens: "4", cachedTokens: null, outputTokens: 3, turns: 2 },
-      last_user_message: "saved question",
-      last_assistant_message: "saved answer",
-      pending_cli_transcript: "! ls\nfile.txt",
-      pending_tool_calls: [{ call_id: "pending" }],
-      execution_journal: [{ identity: "pending", status: "started" }],
-      history: [{ response_id: "saved-response" }],
-      rollback_backup: [{ response_id: "discarded" }],
-      failed_response: true,
-      pending_retry_request: { input: "tool output" },
-      pending_transaction: { base_response_id: "saved-response" },
-      goal: { text: "old goal", status: "active" },
-    };
-
-    expect(restoreSessionState(savedState, () => ({}))).toEqual({
-      previousResponseId: "saved-response",
-      lastUserMessage: "saved question",
-      lastAssistantMessage: "saved answer",
-      pendingCliTranscript: "! ls\nfile.txt",
-      sessionUsage: { inputTokens: 4, cachedTokens: 0, outputTokens: 3, turns: 2 },
-      pendingToolCalls: savedState.pending_tool_calls,
-      executionJournal: savedState.execution_journal,
-      history: savedState.history,
-      rollbackBackup: savedState.rollback_backup,
-      failedResponse: true,
-      pendingRetryRequest: savedState.pending_retry_request,
-      pendingTransaction: savedState.pending_transaction,
-      hasPendingTransaction: true,
-      activeGoal: null,
-    });
-  });
-
-  test("resumes from the last successful checkpoint after a failed request", () => {
-    const result = restoreSessionState(
-      {
-        response_id: "failed-response",
-        failed_response: true,
-        history: [{ response_id: "successful-response" }],
-      },
-      () => ({ inputTokens: 0 }),
-    );
-    expect(result.previousResponseId).toBe("successful-response");
-    expect(result.hasPendingTransaction).toBe(false);
-
-    const noHistory = restoreSessionState(
-      { response_id: "failed", failed_response: true, history: [], usage: {} },
-      () => ({}),
-    );
-    expect(noHistory.previousResponseId).toBe("");
-    expect(noHistory.sessionUsage).toEqual({
-      inputTokens: 0,
-      cachedTokens: 0,
-      outputTokens: 0,
-      turns: 0,
-    });
-  });
-
-  test("uses defaults for a missing state and malformed collections", () => {
-    const createUsageTotals = jest.fn(() => ({ inputTokens: 0, turns: 0 }));
-    expect(restoreSessionState(null, createUsageTotals)).toEqual({
-      previousResponseId: "",
-      lastUserMessage: "",
-      lastAssistantMessage: "",
-      pendingCliTranscript: "",
-      sessionUsage: { inputTokens: 0, turns: 0 },
-      pendingToolCalls: [],
-      executionJournal: [],
-      history: [],
-      rollbackBackup: [],
-      failedResponse: false,
-      pendingRetryRequest: null,
-      pendingTransaction: null,
-      hasPendingTransaction: false,
-      activeGoal: null,
-    });
-    expect(createUsageTotals).toHaveBeenCalledTimes(1);
-
-    const malformed = restoreSessionState(
-      {
-        response_id: "state",
-        pending_tool_calls: {},
-        execution_journal: null,
-        history: "not-an-array",
-        rollback_backup: {},
-      },
-      () => ({}),
-    );
-    expect(malformed).toMatchObject({
-      previousResponseId: "state",
-      pendingToolCalls: [],
-      executionJournal: [],
-      history: [],
-      rollbackBackup: [],
-    });
-  });
-
   test("stores pending tool calls without marking the response successful", () => {
     const calls = [{ call_id: "call-1" }];
     const result = applyResponseSnapshot(
@@ -229,72 +128,6 @@ describe("agent response snapshot transitions", () => {
       pending_retry_request: null,
       pending_transaction: null,
       goal: null,
-    });
-  });
-
-  test("restores a selected checkpoint and clears all pending session work", () => {
-    const older = {
-      response_id: "older",
-      last_user_message: "older question",
-      last_assistant_message: "older answer",
-      usage: { input_tokens: 2 },
-    };
-    const selected = {
-      response_id: "selected",
-      last_user_message: "selected question",
-      last_assistant_message: "selected answer",
-      usage: { input_tokens: 5 },
-    };
-    const newer = { response_id: "newer" };
-    const state = {
-      ...baseState,
-      pending_cli_transcript: "pending shell output",
-      pending_tool_calls: [{ call_id: "pending-call" }],
-      execution_journal: [{ identity: "pending-call", status: "started" }],
-      pending_retry_request: { input: "retry" },
-      pending_transaction: { base_response_id: "pending" },
-      failed_response: true,
-      goal: { status: "active" },
-      history: [older, selected, newer],
-    };
-
-    expect(applyRollbackSelection(state, selected)).toEqual({
-      ...state,
-      response_id: "selected",
-      last_user_message: "selected question",
-      last_assistant_message: "selected answer",
-      usage: { input_tokens: 5 },
-      pending_cli_transcript: "",
-      pending_tool_calls: [],
-      execution_journal: [],
-      pending_retry_request: null,
-      pending_transaction: null,
-      failed_response: false,
-      goal: null,
-      rollback_backup: [newer],
-      history: [older, selected],
-    });
-  });
-
-  test("rejects a checkpoint that is no longer in session history", () => {
-    expect(() => applyRollbackSelection(baseState, { response_id: "missing" })).toThrow(
-      "Selected rollback checkpoint is no longer available.",
-    );
-    expect(() => applyRollbackSelection({ ...baseState, history: undefined }, {})).toThrow(
-      "Selected rollback checkpoint is no longer available.",
-    );
-  });
-
-  test("defaults absent checkpoint messages and usage to empty values", () => {
-    const selected = { response_id: "minimal" };
-    const result = applyRollbackSelection({ ...baseState, history: [selected] }, selected);
-    expect(result).toMatchObject({
-      response_id: "minimal",
-      last_user_message: "",
-      last_assistant_message: "",
-      usage: {},
-      history: [selected],
-      rollback_backup: [],
     });
   });
 });

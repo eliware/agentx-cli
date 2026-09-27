@@ -6,7 +6,7 @@ function normalizeCommands(commands) {
   return [];
 }
 
-function normalizeSteps(steps, defaultCwd = "") {
+function normalizeSteps(steps, defaultCwd) {
   if (!Array.isArray(steps)) return [];
   return steps.map((step) => ({
     command: String(step?.command ?? ""),
