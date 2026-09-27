@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, jest as testMocks, test } from "@jest/globals";
 import { EventEmitter } from "node:events";
 import {
   attachKeypressListener,
@@ -10,9 +10,9 @@ import {
 function makeIO() {
   const input = new EventEmitter();
   input.isTTY = true;
-  input.setRawMode = jest.fn();
-  input.resume = jest.fn();
-  const output = { write: jest.fn() };
+  input.setRawMode = testMocks.fn();
+  input.resume = testMocks.fn();
+  const output = { write: testMocks.fn() };
   return { input, output };
 }
 
@@ -99,7 +99,7 @@ describe("resume menu", () => {
   });
 
   test("frame renderer clears both when populated and when already empty", () => {
-    const output = { write: jest.fn() };
+    const output = { write: testMocks.fn() };
     const frame = createFrameRenderer(output);
     frame.clear();
     expect(output.write).not.toHaveBeenCalled();
@@ -111,28 +111,28 @@ describe("resume menu", () => {
   });
 
   test("callIfFunction handles present and missing functions", () => {
-    const fn = jest.fn(() => "ok");
+    const fn = testMocks.fn(() => "ok");
     expect(callIfFunction(fn, 1, 2)).toBe("ok");
     expect(fn).toHaveBeenCalledWith(1, 2);
     expect(callIfFunction(undefined, 1, 2)).toBeUndefined();
   });
 
   test("attachKeypressListener handles present and missing on methods", () => {
-    const on = jest.fn();
+    const on = testMocks.fn();
     attachKeypressListener({ on }, () => {});
     expect(on).toHaveBeenCalledWith("keypress", expect.any(Function));
     expect(() => attachKeypressListener({}, () => {})).not.toThrow();
   });
 
   beforeEach(() => {
-    jest.resetModules();
+    testMocks.resetModules();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    testMocks.restoreAllMocks();
   });
 
-  test("auto-detects interactive mode when JEST and CI markers are absent", async () => {
+  test("auto-detects interactive mode when test-runner and CI markers are absent", async () => {
     const originalJestWorkerId = process.env.JEST_WORKER_ID;
     const originalCi = process.env.CI;
     delete process.env.JEST_WORKER_ID;
@@ -183,7 +183,7 @@ describe("resume menu", () => {
 
   test("selects options with number keys", async () => {
     const { input, output } = makeIO();
-    input.removeListener = jest.fn();
+    input.removeListener = testMocks.fn();
     const prompt = promptResumeMenu(
       { response_id: "resp-1" },
       { input, output, forceInteractive: true },

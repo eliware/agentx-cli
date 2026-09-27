@@ -49,16 +49,18 @@ describe("shell paths", () => {
   });
 
   test("resolves Windows-style home and drive paths", () => {
-    expect(getHomeDirectory({ USERPROFILE: "C:\\Users\\alice" }, "win32")).toBe("C:\\Users\\alice");
-    expect(getHomeDirectory({ HOMEDRIVE: "C:", HOMEPATH: "\\Users\\alice" }, "win32")).toBe(
-      "C:\\Users\\alice",
+    expect(getHomeDirectory({ USERPROFILE: "C:\\fixtures\\example" }, "win32")).toBe(
+      "C:\\fixtures\\example",
+    );
+    expect(getHomeDirectory({ HOMEDRIVE: "C:", HOMEPATH: "\\fixtures\\example" }, "win32")).toBe(
+      "C:\\fixtures\\example",
     );
     expect(
       resolveUserPath("~\\docs", "C:\\work", {
         platform: "win32",
-        env: { USERPROFILE: "C:\\Users\\alice" },
+        env: { USERPROFILE: "C:\\fixtures\\example" },
       }),
-    ).toBe("C:\\Users\\alice\\docs");
+    ).toBe("C:\\fixtures\\example\\docs");
     expect(resolveUserPath("C:\\Temp", "C:\\work", { platform: "win32", env: {} })).toBe(
       "C:\\Temp",
     );

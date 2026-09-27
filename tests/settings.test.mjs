@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 const readEnvState = jest.fn();
-await jest.unstable_mockModule("../src/setup.mjs", () => ({ readEnvState }));
+await jest.unstable_mockModule("../src/setup-env.mjs", () => ({ readEnvState }));
 const { DEFAULT_SETTINGS, settingsFromEnv, formatStartupSettings, applySettings, reloadSettings } =
   await import("../src/settings.mjs");
 
@@ -9,7 +9,7 @@ test("formats startup settings as a compact JSON message", () => {
   expect(
     JSON.parse(
       formatStartupSettings({
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
         reasoningMode: "standard",
         reasoningEffort: "low",
         reasoningSummary: "auto",
@@ -18,7 +18,7 @@ test("formats startup settings as a compact JSON message", () => {
       }),
     ),
   ).toEqual({
-    model: "gpt-5.6-luna",
+    model: "gpt-6-luna",
     mode: "standard",
     effort: "low",
     summary: "auto",

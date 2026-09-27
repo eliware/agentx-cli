@@ -1,136 +1,6 @@
-import { runShellCommands } from "./tool-shell.mjs";
+import { runShellCommands } from "./tool-shell-sequence.mjs";
 import { runParallelWorkerFunction } from "./parallel-workers.mjs";
-
-function stableValue(value) {
-  if (Array.isArray(value)) return value.map(stableValue);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, stableValue(value[key])]),
-    );
-  }
-  return value;
-}
-
-export function commandPermission(call) {
-  if (call?.type !== "shell_call") return "execute";
-  const commands = normalizeCommandList(call?.action?.commands).join(" && ").toLowerCase().trim();
-  if (!commands) return "read";
-  if (/[>]|\b(sed|perl|ruby|python|python3)\s+[^;&|]*\s-i(?:\s|$)/.test(commands)) return "write";
-  if (
-    /(^|[;&|\s])(rm|mv|cp|mkdir|rmdir|touch|tee|chmod|chown|truncate|dd|install|shutdown|reboot|poweroff|systemctl|apt|dnf|yum|npm\s+(install|uninstall|update|ci)|git\s+(commit|push|reset)|terraform|kubectl|ssh)(\s|$)/.test(
-      commands,
-    )
-  )
-    return "write";
-  if (
-    !/(^|[;&|\s])(cat|cut|diff|du|env|file|find|git\s+(branch|diff|log|show|status)|grep|head|less|ls|printf|pwd|rg|sed|sort|stat|tail|tree|uniq| wc)(\s|$)/.test(
-      commands,
-    )
-  )
-    return "execute";
-  if (
-    /(^|[;&|\s])(node|python|python3|perl|ruby|bash|sh|zsh|make|cargo|gradle|mvn|pytest|npx)(\s|$)/.test(
-      commands,
-    )
-  )
-    return "execute";
-  return "read";
-}
-
-export function permissionAllows(permission, call) {
-  const level =
-    permission === "read" || permission === "write" || permission === "execute"
-      ? permission
-      : "execute";
-  const required = commandPermission(call);
-  return (
-    level === "execute" ||
-    (level === "write" && required !== "execute") ||
-    (level === "read" && required === "read")
-  );
-}
-
-export function requiresDestructiveConfirmation(call) {
-  if (call?.type !== "shell_call") return false;
-  const commands = normalizeCommandList(call?.action?.commands).join(" && ").toLowerCase();
-  return /\brm\s+(?:-\S*r\S*|--recursive)\b|\b(?:rmdir|shred|mkfs(?:\.\w+)?|shutdown|reboot|poweroff|halt)\b|\bdd\s+.*\b(?:of=\/dev\/|if=\/dev\/)\S*|\bterraform\s+destroy\b|\bkubectl\s+delete\b|\bgit\s+reset\s+--hard\b|\bgit\s+clean\s+-\S*f\S*\b|\bgit\s+push\s+.*--force\b|\b(?:drop\s+(?:database|table)|truncate\s+table)\b/.test(
-    commands,
-  );
-}
-
-export function requiresToolConfirmation(call) {
-  if (call?.type !== "shell_call") return false;
-  const commands = normalizeCommandList(call?.action?.commands).join(" && ").toLowerCase();
-  return /(^|[;&|\s])(rm|mv|cp|mkdir|rmdir|shutdown|reboot|poweroff|xe\s+vm-(create|destroy|shutdown)|snapshot)(\s|$)/.test(
-    commands,
-  );
-}
-
-export function toolCallIdentity(call, cwd = "") {
-  const callId = call?.call_id || call?.id;
-  if (callId) return `id:${callId}`;
-  return `hash:${JSON.stringify(
-    stableValue({
-      type: call?.type || "",
-      name: call?.name || "",
-      cwd: cwd || "",
-      action: call?.action || {},
-      arguments: call?.arguments ?? call?.input ?? "",
-    }),
-  )}`;
-}
-
-export function dedupeToolCalls(calls, cwd = "") {
-  const seen = new Set();
-  return calls.filter((call) => {
-    const identity = toolCallIdentity(call, cwd);
-    if (seen.has(identity)) return false;
-    seen.add(identity);
-    return true;
-  });
-}
-
-export function dedupeToolOutputs(outputs) {
-  const seen = new Set();
-  return outputs.filter((output) => {
-    const callId = String(output?.call_id ?? "").trim();
-    const identity = callId || JSON.stringify(stableValue(output));
-    if (seen.has(identity)) return false;
-    seen.add(identity);
-    return true;
-  });
-}
-
-function normalizeCommandList(commands) {
-  if (Array.isArray(commands)) return commands.map((command) => String(command ?? ""));
-  if (typeof commands === "string") return [commands];
-  return [];
-}
-
-function summarizeShellCommands(commands) {
-  return normalizeCommandList(commands)
-    .filter((command) => command !== "")
-    .join(" && ");
-}
-
-function normalizeShellOutput(call, output) {
-  if (output && typeof output === "object" && output.type === "shell_call_output") {
-    return { ...output, call_id: output.call_id || call?.call_id || call?.id || "" };
-  }
-  throw new TypeError("shell_call must return shell_call_output");
-}
-
-function normalizeFunctionOutput(call, output) {
-  const callId = call?.call_id || call?.id || "";
-  const text = typeof output === "string" ? output : output == null ? "" : JSON.stringify(output);
-  return {
-    type: "function_call_output",
-    call_id: callId,
-    output: text,
-  };
-}
+import { commandPermission, permissionAllows } from "./tool-permissions.mjs";
 
 function parseShellActionCommands(call) {
   const commands = call?.action?.commands;
@@ -150,9 +20,8 @@ export async function runToolCall(call, cwd, options = {}) {
       permission: options.permission || process.env.AGENTX_PERMISSION || "execute",
     });
   }
-  if (call?.type === "function_call" && ["goal_update"].includes(call?.name)) {
+  if (call?.type === "function_call" && call?.name === "goal_update")
     return typeof call.input === "string" ? call.input : call.arguments || "{}";
-  }
 
   if (call?.type === "shell_call") {
     const permission = options?.permission || process.env.AGENTX_PERMISSION || "execute";
@@ -179,21 +48,4 @@ export async function runToolCall(call, cwd, options = {}) {
   }
 
   return `ERROR: unsupported tool ${call?.name || call?.type}`;
-}
-
-export function toolCallSummary(call, _output) {
-  if (call?.type === "shell_call") {
-    return summarizeShellCommands(call?.action?.commands);
-  }
-  return `${call?.name || call?.type || "tool"}... OK!`;
-}
-
-export function toolOutputForCall(call, output) {
-  if (call?.type === "shell_call") return normalizeShellOutput(call, output);
-  if (call?.type === "function_call") return normalizeFunctionOutput(call, output);
-  return {
-    type: "function_call_output",
-    call_id: call?.call_id || "",
-    output: String(output ?? ""),
-  };
 }

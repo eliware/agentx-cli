@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
-import { createStreamedResponse } from "../src/agent-session/response-stream.mjs";
+import { createStreamedResponse } from "../src/agent-turn/response-stream.mjs";
 
 describe("agent session modules", () => {
   let originalStdoutWrite;

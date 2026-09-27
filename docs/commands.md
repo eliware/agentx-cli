@@ -8,11 +8,12 @@ AgentX supports shell-like commands in the terminal, whether you launched it fro
 - `clear` or `/clear`: clear saved session state and start a fresh conversation
 - `!clear`: run the local shell `clear` command; this affects only the terminal display
 - `/usage`: print token and cost totals. Pricing follows the configured model:
-  - `gpt-5.6-luna`: $0.20 input, $0.02 cached input, $1.20 output per million tokens
-  - `gpt-5.6-terra`: $2.00 input, $0.20 cached input, $12.00 output per million tokens
-  - `gpt-5.6-sol`: $5.00 input, $0.50 cached input, $30.00 output per million tokens
+  - `gpt-6-luna`: $0.10 input, $0.01 cached input, $0.125 cache writes, $0.50 output per million tokens (Standard, short context)
+  - `gpt-5.6-luna`: $0.20 input, $0.02 cached input, $0.25 cache writes, $1.20 output per million tokens
+  - `gpt-5.6-terra`: $2.00 input, $0.20 cached input, $2.50 cache writes, $12.00 output per million tokens
+  - `gpt-5.6-sol`: $5.00 input, $0.50 cached input, $6.25 cache writes, $30.00 output per million tokens
 
-Inputs over 272,000 tokens use long-context pricing: 2x input/cached input and 1.5x output; the usage report marks these requests with a light-red warning.
+Inputs over 272,000 tokens use long-context pricing: 2x input, cached-input, and cache-write rates and 1.5x output; for GPT-6 Luna this is $0.20 input, $0.02 cached input, $0.25 cache writes, and $0.75 output per million tokens. The usage report marks these requests with a light-red warning.
 
 - `/rollback`: choose a successful response checkpoint to restore; pending tool calls are cleared and newer checkpoints are discarded
 - `/goal <text>`: start autonomous goal mode; `/goal status` reports progress, `/goal cancel` or `/stop` cancels it
@@ -57,6 +58,12 @@ agentx "review the current project status"
 One-shot mode inherits the latest successful checkpoint, but uses its own pending-state file. Multiple one-shots can run concurrently in the same directory without resuming or overwriting the interactive session's pending tool calls.
 
 ## Startup flags
+
+`agentx-setup --help` (`-h`) prints setup usage, and `agentx-setup --version`
+(`-v`) prints the package version. Both exit without entering the setup flow.
+
+`agentx-setup --help` (`-h`) prints setup usage, and `agentx-setup --version`
+(`-v`) prints the package version. Both exit without entering the setup flow.
 
 These are command-line flags, not in-app commands:
 

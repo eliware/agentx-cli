@@ -7,14 +7,14 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const OUTPUT_TRUNCATION_NOTE = "\n[output truncated]";
 const TERMINATION_GRACE_MS = 250;
 
-function killChildProcess(child, signal = "SIGTERM") {
-  if (process.platform !== "win32" && child?.pid) {
+function killChildProcess(child, signal = "SIGTERM", platform = process.platform) {
+  if (platform !== "win32" && child?.pid) {
     try {
       process.kill(-child.pid, signal);
       return;
     } catch {}
   }
-  if (process.platform === "win32" && child?.pid) {
+  if (platform === "win32" && child?.pid) {
     const force = signal === "SIGKILL" ? "/F" : "";
     const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", ...(force ? [force] : [])], {
       windowsHide: true,
@@ -72,7 +72,14 @@ function runLauncherCommand(
   plan,
   command,
   cwd,
-  { timeoutMs, maxOutputLength, writeStdout, writeStderr, signal } = {},
+  {
+    timeoutMs,
+    maxOutputLength,
+    writeStdout,
+    writeStderr,
+    signal,
+    platform = process.platform,
+  } = {},
 ) {
   if (!String(command ?? "").trim())
     return Promise.resolve(
@@ -95,7 +102,7 @@ function runLauncherCommand(
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
-      detached: process.platform !== "win32",
+      detached: platform !== "win32",
     });
 
     const stdoutDecoder = new StringDecoder("utf8");
@@ -172,9 +179,9 @@ function runLauncherCommand(
     const terminate = () => {
       if (terminationRequested || finished) return;
       terminationRequested = true;
-      killChildProcess(child, "SIGTERM");
+      killChildProcess(child, "SIGTERM", platform);
       terminationTimer = setTimeout(() => {
-        if (!finished) killChildProcess(child, "SIGKILL");
+        if (!finished) killChildProcess(child, "SIGKILL", platform);
       }, TERMINATION_GRACE_MS);
     };
     const timeout =
@@ -199,7 +206,7 @@ function runLauncherCommand(
   });
 }
 
-async function executeWithLaunchers(
+export async function executeShellCommand(
   command,
   cwd,
   {
@@ -220,6 +227,7 @@ async function executeWithLaunchers(
         writeStdout,
         writeStderr,
         signal,
+        platform,
       });
     } catch (error) {
       lastError = error;
@@ -243,75 +251,8 @@ async function executeWithLaunchers(
   });
 }
 
-function normalizeCommands(commands) {
-  if (Array.isArray(commands)) return commands.map((command) => String(command ?? ""));
-  if (typeof commands === "string") return [commands];
-  return [];
-}
-
-function normalizeSteps(
-  steps,
-  defaultCwd = "",
-  fallbackTimeoutMs = null,
-  fallbackMaxOutputLength = null,
-) {
-  if (!Array.isArray(steps)) return [];
-  return steps.map((step) => ({
-    command: String(step?.command ?? ""),
-    cwd: step?.cwd == null ? String(defaultCwd ?? "") : String(step.cwd),
-    timeoutMs: step?.timeoutMs ?? fallbackTimeoutMs,
-    maxOutputLength: step?.maxOutputLength ?? fallbackMaxOutputLength,
-  }));
-}
-
-export async function runShellCommandSequence(steps, { callId, defaultCwd = "", signal } = {}) {
-  const normalizedSteps = normalizeSteps(steps, defaultCwd);
-  const output = [];
-  let status = "completed";
-  let maxOutputLength = null;
-
-  for (const step of normalizedSteps) {
-    const chunk = await executeWithLaunchers(step.command, step.cwd, {
-      timeoutMs: step.timeoutMs,
-      maxOutputLength: step.maxOutputLength,
-      signal,
-    });
-    output.push(chunk);
-    const stepLimit = Number(step.maxOutputLength);
-    if (Number.isFinite(stepLimit) && stepLimit > 0) {
-      maxOutputLength = maxOutputLength == null ? stepLimit : Math.max(maxOutputLength, stepLimit);
-    }
-    if (chunk.outcome?.type === "timeout") {
-      status = "incomplete";
-      break;
-    }
-  }
-
-  return {
-    type: "shell_call_output",
-    call_id: callId || "",
-    status,
-    output,
-    max_output_length: maxOutputLength,
-  };
-}
-
-export async function runShellCommands(
-  commands,
-  cwd,
-  { timeoutMs, maxOutputLength, callId, signal } = {},
-) {
-  const steps = normalizeCommands(commands).map((command) => ({
-    command,
-    cwd,
-    timeoutMs,
-    maxOutputLength,
-  }));
-  return await runShellCommandSequence(steps, { callId, defaultCwd: cwd, signal });
-}
-
 export async function shellExec(command, cwd, { signal } = {}) {
-  const result = await executeWithLaunchers(command, cwd, {
+  const result = await executeShellCommand(command, cwd, {
     timeoutMs: null,
     signal,
     maxOutputLength: MAX_TOOL_OUTPUT,

@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from "@jest/globals";
+import { describe, expect, jest as testMocks, test } from "@jest/globals";
 import { EventEmitter } from "node:events";
 import { promptRollbackMenu } from "../src/rollback-menu.mjs";
 
@@ -20,9 +20,9 @@ const history = [
 function makeIO() {
   const input = new EventEmitter();
   input.isTTY = true;
-  input.setRawMode = jest.fn();
-  input.resume = jest.fn();
-  const output = { write: jest.fn() };
+  input.setRawMode = testMocks.fn();
+  input.resume = testMocks.fn();
+  const output = { write: testMocks.fn() };
   return { input, output };
 }
 
@@ -92,8 +92,8 @@ describe("rollback menu", () => {
 
   test("works with optional terminal methods absent", async () => {
     const input = new EventEmitter();
-    input.removeListener = jest.fn((event, listener) => listener("", {}));
-    const output = { write: jest.fn() };
+    input.removeListener = testMocks.fn((event, listener) => listener("", {}));
+    const output = { write: testMocks.fn() };
     const prompt = promptRollbackMenu(history, { input, output, forceInteractive: true });
     process.nextTick(() => {
       input.emit("keypress", "", { name: "up" });
@@ -107,9 +107,9 @@ describe("rollback menu", () => {
 test("renders missing preview metadata and cancels with Enter", async () => {
   const input = new EventEmitter();
   input.isTTY = true;
-  input.setRawMode = jest.fn();
-  input.resume = jest.fn();
-  const output = { write: jest.fn() };
+  input.setRawMode = testMocks.fn();
+  input.resume = testMocks.fn();
+  const output = { write: testMocks.fn() };
   const prompt = promptRollbackMenu(
     [{ response_id: "r", user_preview: null, assistant_preview: null }],
     { input, output, forceInteractive: true },
@@ -123,18 +123,18 @@ test("renders missing preview metadata and cancels with Enter", async () => {
 
 test("cleanup handles an immediate key before first render", async () => {
   const input = {
-    on: jest.fn((event, listener) => listener("1", { name: "1" })),
-    listenerCount: jest.fn(() => 0),
-    setRawMode: jest.fn(),
-    resume: jest.fn(),
+    on: testMocks.fn((event, listener) => listener("1", { name: "1" })),
+    listenerCount: testMocks.fn(() => 0),
+    setRawMode: testMocks.fn(),
+    resume: testMocks.fn(),
   };
-  const output = { write: jest.fn() };
+  const output = { write: testMocks.fn() };
   await expect(
     promptRollbackMenu([{ response_id: "r" }], { input, output, forceInteractive: true }),
   ).resolves.toMatchObject({ response_id: "r" });
 });
 
-test("evaluates noninteractive capability checks outside Jest", async () => {
+test("evaluates noninteractive capability checks outside the test runner", async () => {
   const saved = process.env.JEST_WORKER_ID;
   delete process.env.JEST_WORKER_ID;
   try {

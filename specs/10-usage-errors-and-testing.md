@@ -1,6 +1,10 @@
 # Usage, errors, and verification
 
-Use model pricing tables for the supported models and calculate costs in integer nano-dollars to avoid floating-point drift. Track input, cached input, output, and turns separately. A prompt above 272,000 input tokens is long-context: apply long-context pricing to input, cached input, and output and show a warning. Long-context input and cached-input rates are 2x short-context rates; output rates are 1.5x.
+Keep usage pricing/cost calculation separate from usage normalization and report formatting. The pricing module owns model rates, long-context selection, and integer nano-dollar calculations; usage reporting consumes that API to format reports. Mirror these boundaries in tests: price/rate/cost assertions belong in the pricing suite, while normalization and report-shape assertions belong in the usage-report suite. GPT-6 Luna Standard short-context rates per million tokens are $0.10 input, $0.01 cached input, $0.125 cache writes, and $0.50 output. For long context, use $0.20, $0.02, $0.25, and $0.75 respectively. A prompt above 272,000 input tokens is long-context: apply the model's long-context rates and show a warning. Other supported models retain their own model-specific rates; long-context rates are 2x short-context input, cached-input, and cache-write rates, and 1.5x output rates where applicable.
+
+Usage normalization is a pure boundary owned by `usage-normalization.mjs`: it strips ANSI sequences and coerces provider token counts. Its mirrored `tests/usage-normalization.test.mjs` covers those behaviors. `usage.mjs` assembles per-turn and cumulative reports, while `usage-pricing.mjs` owns pricing and cost calculations.
+
+Response transcript formatting tests live beside `agent-turn/response-format.mjs`; provider usage extraction tests belong to `response-parts.test.mjs`, and session-file/legacy response-ID tests belong to the conversation-state suites. Do not group these independent contracts in one response-format test file.
 
 Errors should be actionable and human-readable:
 

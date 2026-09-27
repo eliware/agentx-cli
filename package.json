@@ -5,19 +5,16 @@
   "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
   "main": "agentx.mjs",
   "scripts": {
-    "start": "node agentx.mjs",
     "lint": "eliware-test --lint",
     "audit": "eliware-test --audit",
     "test": "eliware-test",
-    "setup": "node agentx-setup.mjs",
     "pack": "eliware-test --pack",
     "format": "eliware-test --format",
-    "format:check": "eliware-test --format-check",
-    "validate:package": "npm run pack"
+    "format:check": "eliware-test --format-check"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eliware/agentx-cli.git"
+    "url": "https://github.com/eliware/agentx-cli"
   },
   "keywords": [
     "agentx",
@@ -27,7 +24,7 @@
     "terminal",
     "websocket"
   ],
-  "author": "Eli Sterling, eliware.org <eli@eliware.org>",
+  "author": "Eliware (Eli Sterling) <eli@eliware.org>",
   "license": "MIT",
   "prettier": {
     "printWidth": 100,
@@ -35,7 +32,14 @@
     "useTabs": false,
     "semi": true,
     "singleQuote": false,
-    "trailingComma": "all"
+    "quoteProps": "as-needed",
+    "jsxSingleQuote": false,
+    "trailingComma": "all",
+    "bracketSpacing": true,
+    "bracketSameLine": false,
+    "arrowParens": "always",
+    "proseWrap": "preserve",
+    "endOfLine": "lf"
   },
   "bugs": {
     "url": "https://github.com/eliware/agentx-cli/issues"
@@ -59,9 +63,9 @@
     "@eliware/common": "^2.0.0",
     "@eliware/openai": "^1.1.11",
     "@eliware/redact": "^6.0.0",
-    "dotenv": "^18.0.1",
+    "dotenv": "^18.0.4",
     "sharp": "^0.35.4",
-    "string-width": "^8.2.2",
+    "string-width": "^8.3.0",
     "strip-ansi": "^7.2.0"
   },
   "allowScripts": {
@@ -74,6 +78,7 @@
   "files": [
     "agentx.mjs",
     "agentx-setup.mjs",
+    "bin/",
     "prompt.json",
     "src/",
     "docs/",
@@ -113,9 +118,5 @@
         "authoritativeFor": "Cross-cutting operational authority"
       }
     ]
-  },
-  "devDependencies": {
-    "@eliware/test": "^6.0.1",
-    "prettier": "^3.9.8"
   }
 }

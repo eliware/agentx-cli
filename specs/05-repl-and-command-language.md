@@ -23,6 +23,8 @@ When a recoverable OpenAI request fails, the recovery menu includes an option to
 
 A direct shell transcript formats objects as stdout, then a blank line and `stderr:` when stderr exists; trim trailing whitespace. Multiple entries are separated by blank lines. This transcript is sent only with the next API user request, then cleared after successful submission.
 
+Transcript normalization and request-message composition are owned by `request-context.mjs` and its focused test suite. Runtime integration tests verify capture, submission, and clearing lifecycle only; they should not repeat the exact formatting cases covered by the request-context tests.
+
 Normal assistant responses are streamed/wrapped to terminal width. Tool status lines are temporary and must not overwrite final assistant output.
 
 - `/goal <text>` starts autonomous goal mode; `/goal status` reports it; `/goal resume` resumes a goal only when explicitly paused during the session; `/goal cancel` or `/stop` cancels it. Goal mode continues automatically until `goal_update` (`complete`, `incomplete`, or `blocked`), `goal_blocked`, cancellation, or the iteration limit; successful completion returns directly to the prompt without another model request. Goal lifecycle tool definitions (`goal_update`, `goal_blocked`) are sent only while goal mode is active. Saved goal metadata is discarded on startup; prior goals never resume or contact OpenAI. Ctrl-T cancels active goal mode.

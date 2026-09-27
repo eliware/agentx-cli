@@ -16,10 +16,10 @@ AgentX is an ESM-only Node.js terminal chat agent. It sends user messages to the
 - `agentx.mjs`: executable bootstrap, dotenv loading, flags, setup prompt, and error boundary.
 - `agentx-setup.mjs`: executable setup wrapper.
 - `src/agent.mjs`: public lifecycle/API re-export; runtime implementation lives under `src/agent/runtime.mjs`.
-- `src/agent-session/`: separated session orchestration, response streaming/events/formatting, tool loop, and terminal status output.
+- `src/agent-turn/`: separated session orchestration, response streaming/events/formatting, tool loop, and terminal status output.
 - `@eliware/openai`: official OpenAI Responses client, transport, streaming, errors, lifecycle, and test/mocking support.
 - `src/tool-dispatch.mjs`, `tool-shell.mjs`: model tool execution.
-- `src/session-state.mjs`: `.agentx_responseid` persistence.
+- `src/conversation-state.mjs`: `.agentx_responseid` persistence.
 - `src/setup.mjs`, `settings.mjs`: configuration.
 - `shell*.mjs`, `path-completion.mjs`: commands, prompt display, cwd, AGENTS discovery, completion.
 - `prompt.json`: request template.

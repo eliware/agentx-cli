@@ -1,17 +1,23 @@
-# AgentX Release Notes
+# Release Notes
 
-## 8.0.0 - Eliware convention alignment
+## 8.0.0 — 2026-09-21
+
+### Changed
 
 - Updated repository metadata, documentation, validation scaffolding, and publication configuration for the v8 convention baseline.
 
-## 1.6.8 - Windows compatibility and documentation refresh
+## 1.6.8 — 2026-08-11
+
+### Changed
 
 - Fixed Windows path, filesystem, launcher, and worker-registry compatibility using native path handling and shared ESM path helpers.
 - Added Windows-focused regression coverage and stabilized setup-flow timing on Windows.
 - Refreshed README, quickstart, configuration, troubleshooting, MCP smoke-test, and architecture documentation for current flags, MCP behavior, recovery retries, and cross-platform usage.
 - CI records coverage, lint, dependency-audit, and CLI smoke-check results for each release; consult the corresponding run before making verification claims.
 
-## 1.6.7 - MCP controls, output modes, and transport recovery
+## 1.6.7 — 2026-08-11
+
+### Changed
 
 - Added stackable output controls for quiet operation, including usage, color, timer, reasoning, shell-call, tool-call, MCP, and web-search suppression flags.
 - Separated `--no-mcp` tool loading from `--no-mcp-output` MCP rendering suppression, while preserving MCP execution in quiet mode.
@@ -21,7 +27,9 @@
 - Added regression and integration coverage while preserving 100% test coverage and clean lint results.
 - Updated runtime and development dependencies to current compatible releases.
 
-## 1.6.6 - Worker tooling, security, and release validation
+## 1.6.6 — 2026-08-09
+
+### Changed
 
 - Added safer asynchronous worker lifecycle handling, including persistent workers, bounded status output, cancellation, and corrected usage reporting.
 - Added autonomous goal controls and improved recovery, session persistence, terminal output, streaming, and shell-tool behavior.
@@ -29,57 +37,75 @@
 - Added production dependency auditing and npm package-artifact validation to CI and local release checks.
 - Consolidated regression tests while preserving 100% coverage and clean lint results.
 
-## 1.6.5 - CI setup-flow stability
+## 1.6.5 — 2026-08-09
+
+### Changed
 
 - Increased the interactive setup test input interval for reliable Node.js 26 CI execution.
 - Verified full coverage and lint behavior before release repair.
 
-## 1.6.4 - Image branch tool support
+## 1.6.4 — 2026-08-09
+
+### Changed
 
 - Enabled local shell calls and built-in image generation in isolated `view_image` branches.
 - Returned generated image paths to the inspection branch output while preserving tool isolation.
 - Added focused regression coverage and maintained 100% test coverage.
 
-## 1.6.3 - Fix image generation tool schema
+## 1.6.3 — 2026-08-09
+
+### Changed
 
 - Removed the unsupported `description` field from the built-in `image_generation` Responses API tool.
 - Added specification clarification and regression coverage.
 - Verified with focused tests and clean lint results.
 
-## 1.6.2 - Bounded worker status waits
+## 1.6.2 — 2026-08-09
+
+### Changed
 
 - Added a 15-second default wait timeout for `agent_status`.
 - Bounded waits to 10-180 seconds and documented adjusting the timeout from progress estimates.
 - Added regression coverage for timeout bounds.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.6.1 - Multi-image view_image inspection
+## 1.6.1 — 2026-08-09
+
+### Changed
 
 - Updated `view_image` to inspect up to 10 local images per call with optional sequential captions.
 - Added a 10,000-character `prompt` limit and changed the default image detail to low.
 - Added schema, specification, validation, and regression-test coverage.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.6.0 - Delegated worker usage accounting
+## 1.6.0 — 2026-08-08
+
+### Changed
 
 - Aggregated delegated worker per-turn token usage into parent session totals.
 - Added comma-tolerant usage parsing while preserving formatted token display.
 - Recalculated parent costs from aggregated token totals and added regression coverage.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.13 - Goal tool-loop coverage
+## 1.5.13 — 2026-08-08
+
+### Changed
 
 - Simplified goal continuation streaming options by removing an unreachable branch.
 - Added regression coverage for live-streaming goal continuation.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.12 - Image inspection checkpoint branching
+## 1.5.12 — 2026-08-08
+
+### Changed
 
 - Fixed image inspection to branch from the conversational response preceding the tool-call response.
 - Added fallback handling for callers without a predecessor response ID.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.11 - Image inspection and goal workflow hardening
+## 1.5.11 — 2026-08-08
+
+### Changed
 
 - Added isolated local image inspection with inline base64 image input and temporary JPEG transcoding.
 - Exposed `view_image` to delegated one-shot workers while keeping worker orchestration tools unavailable.
@@ -87,7 +113,9 @@
 - Added goal interruption, startup reset, prompt/status handling, and `cd -`/`cd ~` support.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.10 - Autonomous goal mode
+## 1.5.10 — 2026-08-08
+
+### Changed
 
 - Added autonomous `/goal` workflows with status, cancellation, blocking, and resumable session state.
 - Added `goal_update` goal-state tool contract with iteration limits and verification evidence.
@@ -95,20 +123,26 @@
 - Clarified goal commands and workflows in the user documentation.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.9 - Delegated worker role clarity
+## 1.5.9 — 2026-08-08
+
+### Changed
 
 - Added a concise developer instruction for one-shot delegated workers.
 - Prevented delegated workers from spawning agents, orchestrating work, or broadening task scope.
 - Added specification and regression coverage for the worker role instruction.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.8 - One-shot worker context output
+## 1.5.8 — 2026-08-08
+
+### Changed
 
 - Preserved inherited checkpoint context for spawned one-shot workers while suppressing human-oriented session recap output.
 - Added specification and regression coverage for worker session context behavior.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.7 - Recovery and validation hardening
+## 1.5.7 — 2026-08-08
+
+### Changed
 
 - Allowed repeated explicit interactive recovery retries while keeping new-chain recovery bounded.
 - Hardened worker, tool, shell, filesystem, and streamed-response failure handling.
@@ -116,7 +150,9 @@
 - Improved configuration, output-status, and release-validation documentation.
 - Verified with 100% test coverage, clean lint, and successful package smoke checks.
 
-## 1.5.6 - Convention alignment
+## 1.5.6 — 2026-08-07
+
+### Changed
 
 - Removed the stale `.agentx.example` package-file entry.
 - Added the standard `npm pack --dry-run` script.
@@ -124,7 +160,9 @@
 - Aligned test and coverage scripts with Eliware conventions.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.5 - Dependency refresh
+## 1.5.5 — 2026-08-07
+
+### Changed
 
 - Updated `@eliware/common` to 1.1.7.
 - Updated `@eliware/openai` to 1.1.11.
@@ -132,14 +170,18 @@
 - Moved README badges to the top of the document.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.4 - Responses WebSocket lifetime recovery
+## 1.5.4 — 2026-08-07
+
+### Changed
 
 - Registered a transport error listener to prevent unhandled WebSocket rejection noise.
 - Recreated expired or closed Responses WebSocket clients and retried the request once without discarding session state.
 - Added lifecycle specification coverage for WebSocket lifetime failures.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.3 - Interactive shell and recovery reliability
+## 1.5.3 — 2026-08-07
+
+### Changed
 
 - Removed automatic timeouts from interactive `!` commands.
 - Added Ctrl-C handling for local `!` commands: terminate the command/process group and return to AgentX without exiting.
@@ -150,7 +192,9 @@
 - Updated specifications, README, user documentation, release notes, and regression coverage.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.2 - Shared libraries and official OpenAI client
+## 1.5.2 — 2026-08-07
+
+### Changed
 
 - Replaced AgentX’s custom OpenAI WebSocket transport, framing, reconnect, and lifecycle code with `@eliware/openai`.
 - Removed the obsolete direct transport implementation and its duplicated tests; OpenAI transport behavior and mocks are now owned by Eliware’s shared library.
@@ -160,17 +204,23 @@
 - Normalized package metadata, lockfile, README, test/lint scripts, and CI workflow dispatch support.
 - Verified with 100% test coverage and clean lint results.
 
-## 1.5.1 - Worker status prompt schema
+## 1.5.1 — 2026-08-05
+
+### Changed
 
 - Updated the `agent_status` tool schema to expose byte-based output limits and pagination.
 
-## 1.5.0 - Byte-bounded worker status output
+## 1.5.0 — 2026-08-05
+
+### Changed
 
 - Changed `agent_status` output pagination from lines to bytes.
 - Default output is the last 2048 bytes; callers may request up to 8192 bytes with `output_bytes` and `output_offset`.
 - Updated regex search handling, specifications, documentation, and regression tests.
 
-## 1.4.9 - Agent status and Windows path improvements
+## 1.4.9 — 2026-08-05
+
+### Changed
 
 - Prioritized `HOME` over `USERPROFILE` for Windows home-directory resolution, including Git Bash and CI environments.
 - Improved `agent_status` to return the last 10 log lines by default instead of a large output tail.
@@ -178,13 +228,17 @@
 - Added regex searching across retained worker output with `search`.
 - Updated specifications, prompt schemas, documentation, and regression tests.
 
-## 1.4.8 - Resume readline hotfix
+## 1.4.8 — 2026-08-05
+
+### Changed
 
 - Fixed resume-time confirmation prompts accessing an uninitialized readline interface.
 - Prevented interrupted tool continuations from failing with `Cannot access 'rl' before initialization`.
 - Added lifecycle specification coverage for readline initialization ordering.
 
-## 1.4.7 - Worker hardening and recovery
+## 1.4.7 — 2026-08-05
+
+### Changed
 
 - Added worker permissions (`read`, `write`, `execute`), optional debug mode, and `cancel_agent`.
 - Limited delegation to 3 workers, disabled nested spawning, capped worker output at 1 MB, and added a 10-minute timeout.
@@ -194,7 +248,9 @@
 - Improved Ctrl-T interruption and readline stability after shell/tool execution.
 - Updated prompts, specifications, documentation, examples, and regression tests.
 
-## 1.4.6 - Parallel worker delegation
+## 1.4.6 — 2026-08-05
+
+### Changed
 
 - Added asynchronous `spawn_agent`, `agent_status`, and `cancel_agent` tools for delegating up to 3 independent tasks.
 - Workers run as separate AgentX processes with independent conversations, shared current working directory, with automatic approval by default.
@@ -202,19 +258,25 @@
 - Made tool confirmation opt-in via `--confirm`; `--yolo` remains a legacy alias.
 - Added prompt, documentation, specification, and regression-test coverage for worker delegation.
 
-## 1.4.5 - Readline state preservation
+## 1.4.5 — 2026-08-05
+
+### Changed
 
 - Fixed duplicate input echo and broken Up/Down command history after interactive shell execution.
 - Paused and resumed the readline interface while Ctrl-T raw-mode handling owns terminal input.
 - Added terminal UX specification coverage; lint and tests pass.
 
-## 1.4.3 - Terminal status and command interruption
+## 1.4.3 — 2026-08-05
+
+### Changed
 
 - Changed one-shot/non-interactive status output to disable live refresh timers and print one line per state transition, followed by the final transaction summary.
 - Added interactive Ctrl-T interruption for active shell commands, with timeout outcomes and model-visible user interruption notes.
 - Added specifications and regression coverage for both behaviors.
 
-## 1.4.2 - Safe one-shot execution and tool-call deduplication
+## 1.4.2 — 2026-08-04
+
+### Changed
 
 - Added positional one-shot CLI requests: `agentx "message"` performs the request, prints the response and usage summary, then exits.
 - Added `--yolo` for explicitly bypassing model-requested CLI confirmation in interactive and one-shot modes.
@@ -224,14 +286,18 @@
 - Added focused regression coverage, smoke tests, documentation, and diagnostics for duplicate execution and token/context bloat.
 - Reached 100% statements, branches, functions, and lines coverage across the repository.
 
-## 1.4.1 - Recovery diagnostics and failure cleanup
+## 1.4.1 — 2026-08-02
+
+### Changed
 
 - Added bounded OpenAI/WebSocket failure diagnostics to recovery menus, including error code/type, status, parameter, request ID, and cause when available.
 - Fixed failed streamed requests leaving live status refresh timers active over recovery prompts.
 - Preserved transport error metadata for more actionable retry and recovery decisions.
 - Added regression coverage and CI lint validation.
 
-## 1.4.0 - Cumulative rollup
+## 1.4.0 — 2026-08-01
+
+### Changed
 
 - Evolved from the initial Responses API CLI into a persistent, cross-platform terminal agent with cwd-aware prompts, commands, completion, usage reporting, and `AGENTS.md` discovery.
 - Added session persistence/resume, shell and file tools, structured parallel `shell_call` execution, server-side compaction, local shell passthrough, and interrupted-session recovery.
@@ -240,38 +306,50 @@
 - Hardened setup, terminal handling, WebSocket transport/reconnects, prompt/config loading, tests, and linting.
 - Added bounded API/WebSocket recovery, successful-response checkpoints, and `/rollback` without automatically undoing external side effects.
 
-## 1.3.10 - Recovery and rollback
+## 1.3.10 — 2026-08-01
+
+### Changed
 
 - Added bounded API/WebSocket error recovery without terminating the REPL.
 - Added `/rollback` for restoring successful response checkpoints.
 - Persisted bounded checkpoint history and failed-response state.
 
-## 1.3.9 - WebSocket reconnect robustness
+## 1.3.9 — 2026-07-31
+
+### Changed
 
 - Prevented duplicate reconnects when a WebSocket emits both error and close events.
 - Ignored stale events from replaced sockets so they cannot affect the active connection or request.
 - Added regression coverage for stale socket events and duplicate reconnect handling.
 
-## 1.3.8 - direct shell command prefix update
+## 1.3.8 — 2026-07-31
+
+### Changed
 
 - Changed direct local shell commands from the `>` prefix to `!`.
 - Direct commands continue streaming stdout and stderr to the console and buffering both for the next AI request.
 - Updated the CLI help, README, command docs, examples, specification, and regression tests.
 
-## 1.3.7 - setup persistence fix
+## 1.3.7 — 2026-07-31
+
+### Changed
 
 - Fixed setup to load persisted settings before applying defaults.
 - Setup now displays saved settings and persists explicit selection of the default model.
 - Added specification updates and regression coverage for persisted model settings.
 
-## 1.3.6 - usage pricing and command documentation
+## 1.3.6 — 2026-07-31
+
+### Changed
 
 - Updated model usage pricing for Luna and Terra.
 - Added long-context pricing above 272,000 input tokens: 2x input/cache and 1.5x output.
 - Updated `/usage` warnings, specifications, and regression tests.
 - Clarified `clear`, `/clear`, and `>clear` behavior in the README and command docs.
 
-## 1.3.5 - runtime robustness and terminal fixes
+## 1.3.5 — 2026-07-20
+
+### Changed
 
 - Fixed tab completion after changing directories with `cd`; completion now reads the active cwd without adding duplicate readline listeners.
 - Added graceful WebSocket shutdown with a timeout fallback, plus improved handling of connectivity failures and reconnectable closes.
@@ -280,7 +358,9 @@
 - Trimmed internal commands, consolidated `clear` handling, and improved `cd` error messages.
 - Compact transaction-completion logs by omitting empty fields.
 
-## 1.3.4 - reconstruction specifications and prompt guidance
+## 1.3.4 — 2026-07-20
+
+### Changed
 
 - Added normative reconstruction specifications covering architecture, lifecycle, configuration, prompts, REPL behavior, Responses API/tool execution, persistence, terminal UX, platform support, errors, and testing.
 - Added a specifications README with the recommended reading order and compatibility guidance.
@@ -288,7 +368,9 @@
 - Added concise-output guidance to the generated developer prompt.
 - Expanded prompt tests and fixed a status-line assertion typo.
 
-## 1.3.3 - MCP configuration and streaming fixes
+## 1.3.3 — 2026-07-18
+
+### Changed
 
 - Moved optional MCP configuration to `~/.agentx.mcp.json` with home-directory fallback support.
 - Improved streamed status-line cleanup so final responses and tool output are preserved.
@@ -296,7 +378,9 @@
 - Enhanced the setup screen with version, install path, configuration path, and MCP configuration details.
 - Added regression coverage for streaming transitions, setup fallbacks, and configuration-path handling.
 
-## 1.3.2 - MCP configuration and streaming support
+## 1.3.2 — 2026-07-18
+
+### Changed
 
 - Added optional local `.agentx.mcp.json` configuration, with support for merging MCP tools into the prompt template.
 - Added `.agentx.mcp.json.example` and ignored local MCP configuration files.
@@ -305,7 +389,9 @@
 - Upgraded `string-width` to 8.2.2 and refreshed the lockfile.
 - Added regression coverage for MCP configuration loading, streaming behavior, debug output, and display formatting.
 
-## 1.3.1 - setup and runtime improvements
+## 1.3.1 — 2026-07-18
+
+### Changed
 
 - Removed MCP server configuration from the setup flow and runtime settings.
 - Improved interactive `/setup` menus with numbered choices, arrow-key navigation, current-value indicators, and safer terminal handling.
@@ -314,7 +400,9 @@
 - Improved configuration-file persistence and response-content handling for missing content.
 - Updated prompt configuration, command documentation, example settings, and regression coverage.
 
-## 1.3.0 - streamlined CLI and configurable setup
+## 1.3.0 — 2026-07-18
+
+### Changed
 
 - Removed the experimental web GUI, including its server, frontend, authentication, systemd service, assets, build tooling, dependencies, and tests.
 - Added first-run setup prompting and an in-session `/setup` command for API key, model, reasoning, output, compaction, and MCP settings.
@@ -323,14 +411,18 @@
 - Simplified the setup flow, package dependencies, README, and user documentation around the terminal CLI.
 - Reworked regression coverage for the CLI, setup, settings, usage, and session behavior.
 
-## 1.2.9 - user-level configuration
+## 1.2.9 — 2026-07-18
+
+### Changed
 
 - Moved persisted AgentX configuration from the project-local `.env` file to `~/.agentx`.
 - Updated the CLI, setup helper, and Linux GUI service to load and manage the user-level configuration.
 - Renamed the packaged configuration example to `.agentx.example` so global npm upgrades do not overwrite user settings.
 - Updated documentation and regression tests for the new configuration path.
 
-## 1.2.8 - model, prompt, and usage updates
+## 1.2.8 — 2026-07-18
+
+### Changed
 
 - Updated the default model configuration and enabled programmatic tool calling.
 - Lowered the server-side compaction threshold and refined reasoning/tool settings.
@@ -338,14 +430,18 @@
 - Updated usage pricing for input, cached, and output tokens.
 - Adjusted regression tests for the new prompt formatting and usage totals.
 
-## 1.2.7 - lint tooling and cleanup
+## 1.2.7 — 2026-07-10
+
+### Changed
 
 - Added an `npm run lint` command powered by `oxlint` and updated package metadata.
 - Cleaned up unused imports, parameters, and helper code to satisfy the new lint pass.
 - Adjusted setup, tool-dispatch, and frontend code paths for the cleanup.
 - Updated regression tests to match the streamlined output and websocket payload handling.
 
-## 1.2.6 - live web search status and debug cleanup
+## 1.2.6 — 2026-07-09
+
+### Changed
 
 - Suppressed live status lines while `--debug` is enabled so raw websocket output stays readable.
 - Added live web search event handling with paused/resumed status updates and pink web-search progress/completion lines.
@@ -353,39 +449,51 @@
 - Bumped GitHub Actions workflow actions to the latest checkout and setup-node major versions.
 - Expanded regression coverage for debug quiet mode and web-search live streaming.
 
-## 1.2.5 - setup testability and cross-platform cleanup
+## 1.2.5 — 2026-07-09
+
+### Changed
 
 - Refactored the `agentx-setup` interactive flow to accept injected stdin/stdout streams instead of relying on process globals.
 - Cleaned up setup rendering and service install/repair helpers around a shared install root.
 - Reworked the setup-flow tests to use a fake terminal, which removed brittle TTY and stdout monkeypatching.
 - Noted the repository expectation that tests stay cross-platform friendly on Linux, Windows, and GitHub Actions.
 
-## 1.2.4 - frontend and setup robustness fixes
+## 1.2.4 — 2026-07-09
+
+### Changed
 
 - Hardened the frontend storage, DOM, transcript, and view helpers for missing browser APIs and empty state inputs.
 - Simplified credential and session storage loading so invalid or absent storage cleanly returns null.
 - Exposed additional setup internals and tightened the setup entrypoint behavior.
 - Expanded regression coverage for auth tokens, setup flow, and frontend edge cases.
 
-## 1.2.3 - GitHub Actions publish test fix
+## 1.2.3 — 2026-07-09
+
+### Changed
 
 - Updated the runtime test to use the checkout path instead of a local /opt path so the new GitHub Actions workflow can run `npm test` and publish to npm successfully.
 
-## 1.2.2 - setup workflow and release automation
+## 1.2.2 — 2026-07-09
+
+### Changed
 
 - Added the new `agentx-setup` interactive setup tool for editing `.env` values and managing the GUI service.
 - Added systemd service install, repair, uninstall, start/stop, enable/disable, and status helpers for `agentx-gui.service`.
 - Updated package metadata for the `agentx-cli` name, npm bin entry, and published file list.
 - Added a tag-triggered GitHub Actions publish workflow and expanded setup regression coverage.
 
-## 1.2.1 - shell runtime and frontend cleanup
+## 1.2.1 — 2026-07-09
+
+### Changed
 
 - Reworked shell execution around streaming launcher processes and sequential command steps inside each `shell_call`.
 - Simplified shell/tool dispatch for the current structured `shell_call` shape and updated live event handling.
 - Split the browser frontend into focused transcript, view, and style modules.
 - Expanded regression coverage for the new shell, transcript, and frontend helpers.
 
-## 1.2.0 - Web GUI proof of concept
+## 1.2.0 — 2026-07-08
+
+### Changed
 
 - Added a browser-based web GUI and local Express/WebSocket server mode for AgentX.
 - The GUI is only a proof of concept right now: lots of things are broken, some flows are incomplete, and it is not ready to rely on yet.
@@ -393,7 +501,9 @@
 - Added frontend build tooling, static assets, and a bundled `public/dist/` output.
 - Expanded tests and docs around the web GUI and session plumbing.
 
-## 1.1.15 - Windows-aware platform support and CLI packaging
+## 1.1.15 — 2026-07-08
+
+### Changed
 
 - Added cross-platform platform helpers for home-directory lookup, prompt identity, shell launcher selection, and display-path normalization.
 - Made `cd`, path completion, prompt formatting, and shell execution work across POSIX and Windows path conventions.
@@ -401,15 +511,19 @@
 - Added Windows support docs and refreshed startup/environment guidance for the no-`.env` workflow.
 - Expanded tests around platform handling, path completion, shell launchers, and resume behavior.
 
-## 1.1.14 - Interrupted-session resume and shell execution upgrades
+## 1.1.14 — 2026-07-08
+
+### Changed
 
 - Added a startup resume menu for sessions with pending tool calls, including auto-resume, retry-hint, interruption notice, and new-session paths.
 - Persisted pending tool calls in session state so interrupted turns can be resumed safely after restart.
 - Reworked shell-call execution to support sequential commands inside parallel groups, with per-group cwd, timeout, and output-limit controls.
 - Improved live status output, completion reporting, and usage formatting during streamed turns.
-- Expanded docs and regression coverage for resume flows, session-state persistence, shell dispatch, and path completion.
+- Expanded docs and regression coverage for resume flows, conversation-state persistence, shell dispatch, and path completion.
 
-## 1.1.13 - Live status updates and session/runtime polish
+## 1.1.13 — 2026-07-08
+
+### Changed
 
 - Added live terminal status lines for reasoning and tool execution, with elapsed time and spinner updates.
 - Improved streamed Responses handling so status output clears cleanly when assistant text or tool output starts.
@@ -418,7 +532,9 @@
 - Refined session persistence and usage reporting during tool-heavy turns.
 - Updated tests to cover the new status, websocket, and session behaviors.
 
-## 1.1.12 - WebSocket Responses transport and parallel shell calls
+## 1.1.12 — 2026-07-08
+
+### Changed
 
 - Switched the agent runtime to the direct `openai` package and added a WebSocket-based Responses transport.
 - Added reconnect and retry handling for websocket transport errors and response continuation.
@@ -427,7 +543,9 @@
 - Removed the terminal thinking spinner and cleaned up redundant shell-command echoing.
 - Updated prompt metadata, docs, and regression coverage for the new transport and shell flow.
 
-## 1.1.11 - CLI flags, startup hardening, and docs refresh
+## 1.1.11 — 2026-07-08
+
+### Changed
 
 - Added `--help/-h/-?`, `--version/-v`, and `--debug` startup flags.
 - Added clear startup errors for missing API keys and unreadable prompt templates.
@@ -436,13 +554,17 @@
 - Expanded the user docs under `docs/` with quickstart, command reference, examples, session state, and troubleshooting guides.
 - Added regression coverage for CLI flags, request shaping, Responses API compatibility, and smoke-startup behavior.
 
-## 1.1.10 - Usage accounting fixes for tool retriggers
+## 1.1.10 — 2026-07-07
+
+### Changed
 
 - Fixed per-turn usage accounting so shell tool retriggers are counted in the persisted session totals.
 - Restored usage status output during tool continuations so tool-heavy turns report accurate token totals.
 - Added regression coverage for usage accumulation and tool-retrigger reporting.
 
-## 1.1.9 - Server-side compaction and shell tool cleanup
+## 1.1.9 — 2026-07-07
+
+### Changed
 
 - Enabled server-side Responses API compaction via `context_management` in `prompt.json`.
 - Removed the old manual `/compact` flow and the local transcript-summarization fallback.
@@ -453,46 +575,60 @@
 - Updated docs (`README.md`, `AGENTS.md`) to reflect server-side compaction, `shell_call` only, and the lack of a manual `/compact` command.
 - Cleaned up package metadata and test scripts: refreshed the description/keywords, and made `npm test` run coverage by default.
 
-## 1.1.8 - Session transcript persistence and local shell passthrough
+## 1.1.8 — 2026-07-05
+
+### Changed
 
 - Added leading `>` shell command passthrough that runs locally and buffers output into the next AI request.
 - Persisted last user/assistant messages and pending CLI transcript in `.agentx_responseid`, with legacy-state normalization on load/save.
 - Restored and printed the last exchanged messages when resuming a saved session.
 - Expanded README docs and test coverage for session restore, shell passthrough, and state migration.
 
-## 1.1.7 - Request preservation and coverage hardening
+## 1.1.7 — 2026-07-04
+
+### Changed
 
 - Preserved top-level Responses API request fields across session resumes and tool-call continuations.
 - Improved direct-invocation detection so the REPL only starts when launched as the main entrypoint.
 - Added fallback handling for prompt building, CLI defaults, and path-completion edge cases.
 - Expanded coverage-focused tests and added a dedicated `coverage` npm script.
 
-## 1.1.6 - File tools
+## 1.1.6 — 2026-07-04
+
+### Changed
 
 - Added file tool support in `src/tool-files.mjs`.
 - Added corresponding test coverage in `tests/tool-files.test.mjs`.
 - Package metadata and lockfile version updates.
 
-## 1.1.5 - Session state and shell command expansion
+## 1.1.5 — 2026-07-03
 
-- Added full session-state management in `src/agent-session.mjs`.
+### Changed
+
+- Added full conversation-state management in `src/agent-turn.mjs`.
 - Expanded `src/agent.mjs` to support persisted session usage tracking and resume behavior.
 - Added support for shell commands in `src/shell-commands.mjs`.
 - Added and expanded tests for session management and shell behavior.
 - Added usage aggregation and per-turn reporting.
 
-## 1.1.4 - Shell agent improvements
+## 1.1.4 — 2026-07-03
+
+### Changed
 
 - Improved shell-agent handling in `src/shell-agents.mjs`.
 - Updated shell test coverage in `tests/shell.test.mjs`.
 - Package metadata and lockfile version updates.
 
-## 1.1.3 - Version bump
+## 1.1.3 — 2026-07-03
+
+### Changed
 
 - No functional code changes.
 - Package metadata and lockfile version updates only.
 
-## 1.1.2 - Initial release baseline
+## 1.1.2 — 2026-07-03
+
+### Changed
 
 Initial capabilities present in the 1.1.2 baseline:
 
@@ -512,7 +648,3 @@ Initial capabilities present in the 1.1.2 baseline:
 - Working-directory context included in the agent prompt.
 - Response text extraction and usage reporting.
 - Terminal output wrapping and prompt formatting.
-
-# v8.0.0
-
-- Align repository metadata and validation with the Eliware v8 convention baseline.

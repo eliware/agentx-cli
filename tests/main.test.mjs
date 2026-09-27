@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import path from "node:path";
 import * as realFs from "node:fs";
-import { getPackageVersion } from "../src/cli.mjs";
+import { getPackageVersion } from "../src/cli-version.mjs";
 import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
 
 const packageVersion = getPackageVersion();
@@ -22,7 +22,7 @@ describe("entrypoint", () => {
       promptPath: "/tmp/prompt.json",
     }));
     const runAgent = jest.fn();
-    await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+    await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
     await import("../agentx.mjs");
 
@@ -39,7 +39,7 @@ describe("entrypoint", () => {
       promptPath: "/tmp/prompt.json",
     }));
     const runAgent = jest.fn();
-    await jest.unstable_mockModule("../src/agent.mjs", () => ({
+    await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({
       runAgent,
     }));
 
@@ -66,7 +66,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn();
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -98,7 +98,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn();
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -145,7 +145,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn();
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -187,7 +187,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn();
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -225,7 +225,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn();
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -259,7 +259,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn();
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -283,7 +283,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -318,7 +318,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockRejectedValue(new Error("missing API key"));
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -356,7 +356,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockRejectedValue("boom");
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
 
       await import("../agentx.mjs");
 
@@ -385,7 +385,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
       await import("../agentx.mjs");
       expect(runAgent).toHaveBeenCalledWith({
         promptPath: "/tmp/prompt.json",
@@ -427,7 +427,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
       await import("../agentx.mjs");
       expect(rl.question).not.toHaveBeenCalled();
       expect(runAgent).toHaveBeenCalled();
@@ -467,10 +467,15 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
       const runSetup = jest.fn().mockResolvedValue(undefined);
       await jest.unstable_mockModule("../src/setup.mjs", () => ({
         runSetup,
+      }));
+      await jest.unstable_mockModule("../src/setup-env.mjs", () => ({
+        readEnvState: jest.fn().mockResolvedValue({ values: {} }),
+      }));
+      await jest.unstable_mockModule("../src/setup-paths.mjs", () => ({
         setupPaths: { envPath: "/tmp/missing-agentx" },
       }));
       await import("../agentx.mjs");
@@ -509,7 +514,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
       await import("../agentx.mjs");
       expect(rl.question).toHaveBeenCalled();
       expect(runAgent).toHaveBeenCalled();
@@ -549,7 +554,7 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
       await import("../agentx.mjs");
       expect(rl.question).toHaveBeenCalled();
     } finally {
@@ -591,10 +596,15 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
       const runSetup = jest.fn().mockResolvedValue(undefined);
       await jest.unstable_mockModule("../src/setup.mjs", () => ({
         runSetup,
+      }));
+      await jest.unstable_mockModule("../src/setup-env.mjs", () => ({
+        readEnvState: jest.fn().mockResolvedValue({ values: {} }),
+      }));
+      await jest.unstable_mockModule("../src/setup-paths.mjs", () => ({
         setupPaths: { envPath: "/tmp/setup-env" },
       }));
       await import("../agentx.mjs");
@@ -644,10 +654,15 @@ describe("entrypoint", () => {
         promptPath: "/tmp/prompt.json",
       }));
       const runAgent = jest.fn().mockResolvedValue(undefined);
-      await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
       const runSetup = jest.fn().mockResolvedValue(undefined);
       await jest.unstable_mockModule("../src/setup.mjs", () => ({
         runSetup,
+      }));
+      await jest.unstable_mockModule("../src/setup-env.mjs", () => ({
+        readEnvState: jest.fn().mockResolvedValue({ values: {} }),
+      }));
+      await jest.unstable_mockModule("../src/setup-paths.mjs", () => ({
         setupPaths: { envPath },
       }));
       await import("../agentx.mjs");
@@ -670,7 +685,7 @@ describe("entrypoint", () => {
       promptPath: "/tmp/prompt.json",
     }));
     const runAgent = jest.fn().mockResolvedValue(undefined);
-    await jest.unstable_mockModule("../src/agent.mjs", () => ({ runAgent }));
+    await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
     process.argv = [process.argv[0], process.argv[1], "hello", "world"];
     await import("../agentx.mjs");
     expect(runAgent).toHaveBeenCalledWith({
@@ -688,7 +703,7 @@ describe("entrypoint", () => {
       promptPath: "/tmp/prompt.json",
     }));
     const runAgent = jest.fn().mockResolvedValue(undefined);
-    await jest.unstable_mockModule("../src/agent.mjs", () => ({
+    await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({
       runAgent,
     }));
     process.argv = [process.argv[0], process.argv[1]];

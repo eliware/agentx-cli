@@ -1,94 +1,10 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import {
-  parseWorkerUsage,
-  redactWorkerLogText,
-  reportWorkerUsage,
-  runParallelWorkerFunction,
-  selectWorkerOutput,
-  workerLaunchArgs,
-} from "../src/parallel-workers.mjs";
+import { runParallelWorkerFunction } from "../src/parallel-workers.mjs";
 
 describe("parallel workers", () => {
   beforeEach(() => {
     delete process.env.AGENTX_WORKER_ID;
   });
-  test("parses structured usage summaries", () => {
-    expect(
-      parseWorkerUsage(
-        '{"in":"12 ($0.000)","cache":"3 ($0.000)","out":"7 ($0.000)","total":"$0.000"}',
-      ),
-    ).toEqual({ turns: 1, inputTokens: 12, cachedTokens: 3, outputTokens: 7 });
-    expect(
-      parseWorkerUsage(
-        '{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004"}\n{"in":"800 ($0.002)","cache":"100 ($0.000)","out":"30 ($0.000)","total":"$0.002"}\n{"in":"2,000","cache":"400","out":"100","turns":"3"}',
-      ),
-    ).toEqual({ turns: 2, inputTokens: 2000, cachedTokens: 400, outputTokens: 100 });
-    expect(
-      parseWorkerUsage(`{"in":"1,200 ($0.004)","cache":"300 ($0.000)","out":"70 ($0.000)","total":"$0.004","turns":"2","avg":"$0.002"}
-{"in":"2,000 ($0.004)","cache":"400 ($0.000)","out":"100 ($0.000)","total":"$0.004"}`),
-    ).toEqual({ turns: 1, inputTokens: 2000, cachedTokens: 400, outputTokens: 100 });
-    expect(
-      parseWorkerUsage(
-        '{"in":"1 ($0.000)","cache":"0 ($0.000)","out":"2 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}\n{"in":"3 ($0.000)","cache":"1 ($0.000)","out":"4 ($0.000)","turns":"2","avg":"$0.000","total":"$0.000"}',
-      ),
-    ).toEqual(null);
-    expect(parseWorkerUsage("no usage")).toBeNull();
-  });
-  test("ignores cumulative reports marked only with avg", () => {
-    expect(
-      parseWorkerUsage(
-        '{"in":"9","cache":"2","out":"1","avg":"$0.001"}\n{"in":"3","cache":"1","out":"2"}',
-      ),
-    ).toEqual({ turns: 1, inputTokens: 3, cachedTokens: 1, outputTokens: 2 });
-  });
-  test("parses colorized usage summaries", () => {
-    expect(
-      parseWorkerUsage(
-        `${String.fromCharCode(27)}[33m${JSON.stringify({ in: "3 ($0.000)", cache: "1 ($0.000)", out: "2 ($0.000)", total: "$0.000" })}${String.fromCharCode(27)}[0m`,
-      ),
-    ).toEqual({ turns: 1, inputTokens: 3, cachedTokens: 1, outputTokens: 2 });
-  });
-  test("reports worker usage exactly once, including canceled workers", () => {
-    const usage = { turns: 2, inputTokens: 10, cachedTokens: 3, outputTokens: 4 };
-    const reported = [];
-    const worker = { status: "cancelled", usage, usageReported: false };
-    expect(reportWorkerUsage(worker, (value) => reported.push(value))).toBe(true);
-    expect(reportWorkerUsage(worker, (value) => reported.push(value))).toBe(false);
-    expect(reported).toEqual([usage]);
-  });
-
-  test("selects bounded log tails and regex matches", () => {
-    const log = Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join("\n");
-    expect(selectWorkerOutput(log)).toBe(log);
-    expect(selectWorkerOutput(log, { output_bytes: 14, output_offset: 16 })).toBe(
-      "line 9\nline 10",
-    );
-    expect(Buffer.byteLength(selectWorkerOutput("x".repeat(10000)))).toBe(2048);
-    expect(selectWorkerOutput(log, { search: "^line (1|2|11|12)$" })).toBe(
-      "line 1\nline 2\nline 11\nline 12",
-    );
-  });
-  test("preserves flag-like tasks and redacts inherited API keys in logs", () => {
-    expect(workerLaunchArgs("/agentx.mjs", "--quiet", true)).toEqual([
-      "/agentx.mjs",
-      "--debug",
-      "--",
-      "--quiet",
-    ]);
-    expect(
-      redactWorkerLogText("key=secret and other=second", {
-        AGENTX_API_KEY: "secret",
-        agentx_api_key: "second",
-      }),
-    ).toBe("key=[REDACTED] and other=[REDACTED]");
-    expect(
-      redactWorkerLogText("Authorization: Bearer secret token=second api_key=third", {
-        AGENTX_API_KEY: "secret",
-        agentx_api_key: "second",
-      }),
-    ).toBe("Authorization: [REDACTED] [REDACTED] token=[REDACTED] api_key=[REDACTED]");
-  });
-
   test("validates worker calls before spawning or waiting", async () => {
     await expect(runParallelWorkerFunction(null, process.cwd())).resolves.toEqual({
       error: "invalid worker function call",
@@ -184,6 +100,33 @@ describe("parallel workers", () => {
       timed_out: false,
     });
   });
+
+  test("handles malformed arguments and unsupported worker calls", async () => {
+    await expect(
+      runParallelWorkerFunction({ name: "other_tool", arguments: "{" }, process.cwd()),
+    ).resolves.toEqual({ error: "unsupported worker function other_tool" });
+    await expect(
+      runParallelWorkerFunction({ name: "other_tool", input: { unused: true } }, process.cwd()),
+    ).resolves.toEqual({ error: "unsupported worker function other_tool" });
+    await expect(runParallelWorkerFunction({ arguments: "{}" }, process.cwd())).resolves.toEqual({
+      error: "unsupported worker function ",
+    });
+    await expect(
+      runParallelWorkerFunction({ name: "agent_status" }, process.cwd()),
+    ).resolves.toMatchObject({ agents: [], waited_ms: 0, timed_out: false });
+    await expect(
+      runParallelWorkerFunction(
+        { name: "cancel_agent", arguments: JSON.stringify({ agent_ids: "not-an-array" }) },
+        process.cwd(),
+      ),
+    ).resolves.toEqual({ agents: [] });
+    await expect(
+      runParallelWorkerFunction(
+        { name: "agent_status", arguments: JSON.stringify({ agent_ids: [], wait_ms: "nope" }) },
+        process.cwd(),
+      ),
+    ).resolves.toMatchObject({ waited_ms: 0, timed_out: false });
+  });
 });
 
 test("does not re-announce usage for recovered workers", async () => {
@@ -215,6 +158,46 @@ test("does not re-announce usage for recovered workers", async () => {
     expect(onComplete).not.toHaveBeenCalled();
     expect(onUsage).not.toHaveBeenCalled();
   } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("finds and cancels a recovered legacy worker", async () => {
+  const { mkdir, mkdtemp, rm, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const cwd = await mkdtemp(join(tmpdir(), "agentx-legacy-worker-"));
+  const id = `agent-${Date.now()}`;
+  const legacyDirectory = join(cwd, ".agentx", "workers");
+  const kill = jest.spyOn(process, "kill").mockImplementation(() => true);
+  try {
+    await mkdir(legacyDirectory, { recursive: true });
+    await writeFile(
+      join(legacyDirectory, `${id}.json`),
+      JSON.stringify({
+        id,
+        task: "legacy task",
+        cwd,
+        pid: 54321,
+        status: "running",
+        started_at: new Date().toISOString(),
+        lines: 1,
+      }),
+    );
+    const status = await runParallelWorkerFunction(
+      { name: "agent_status", arguments: JSON.stringify({ agent_ids: [id] }) },
+      cwd,
+    );
+    expect(status.agents[0]).toMatchObject({ id, status: "running" });
+
+    const cancelled = await runParallelWorkerFunction(
+      { name: "cancel_agent", arguments: JSON.stringify({ agent_ids: [id] }) },
+      cwd,
+    );
+    expect(kill).toHaveBeenCalledWith(54321, "SIGTERM");
+    expect(cancelled.agents[0]).toMatchObject({ id, status: "cancelled" });
+  } finally {
+    kill.mockRestore();
     await rm(cwd, { recursive: true, force: true });
   }
 });

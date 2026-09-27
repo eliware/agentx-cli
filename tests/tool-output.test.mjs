@@ -9,7 +9,6 @@ describe("tool output truncation", () => {
   test("truncateToolOutput trims oversized output", () => {
     const text = "x".repeat(MAX_TOOL_OUTPUT + 1);
     const output = truncateToolOutput(text);
-
     expect(output.startsWith("x".repeat(10_000))).toBe(true);
     expect(output).toContain("output truncated");
   });

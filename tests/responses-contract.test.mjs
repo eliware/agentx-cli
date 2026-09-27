@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import { extractTextFromResponse, extractUsage } from "../src/response.mjs";
-import { responseItemToTranscript } from "../src/agent-session/response-format.mjs";
-import { toolOutputForCall } from "../src/tool-dispatch.mjs";
+import { responseItemToTranscript } from "../src/agent-turn/response-format.mjs";
+import { toolOutputForCall } from "../src/tool-output-adapter.mjs";
 
 describe("responses contract", () => {
   test("parses current Responses API shapes used by AgentX", () => {

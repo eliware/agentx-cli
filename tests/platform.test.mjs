@@ -21,17 +21,26 @@ describe("platform helpers", () => {
 
   test("resolves home directories across platforms", () => {
     expect(getHomeDirectory()).toBe(String(process.env.HOME || process.env.USERPROFILE || ""));
-    expect(getHomeDirectory({ USERPROFILE: "C:\\Users\\alice" }, "win32")).toBe("C:\\Users\\alice");
+    expect(getHomeDirectory({ USERPROFILE: "C:\\fixtures\\example" }, "win32")).toBe(
+      "C:\\fixtures\\example",
+    );
     expect(
-      getHomeDirectory({ HOME: "/home/alice", USERPROFILE: "C:\\Users\\alice" }, "win32"),
-    ).toBe("/home/alice");
-    expect(getHomeDirectory({ HOMEDRIVE: "C:", HOMEPATH: "\\Users\\alice" }, "win32")).toBe(
-      "C:\\Users\\alice",
+      getHomeDirectory(
+        { HOME: "/workspace/example", USERPROFILE: "C:\\fixtures\\example" },
+        "win32",
+      ),
+    ).toBe("/workspace/example");
+    expect(getHomeDirectory({ HOMEDRIVE: "C:", HOMEPATH: "\\fixtures\\example" }, "win32")).toBe(
+      "C:\\fixtures\\example",
     );
     expect(getHomeDirectory({ HOMEDRIVE: "C:" }, "win32")).toBe("C:");
-    expect(getHomeDirectory({ HOMEPATH: "\\Users\\alice" }, "win32")).toBe("\\Users\\alice");
-    expect(getHomeDirectory({ HOME: "/home/alice" }, "linux")).toBe("/home/alice");
-    expect(getHomeDirectory({ USERPROFILE: "C:\\Users\\alice" }, "linux")).toBe("C:\\Users\\alice");
+    expect(getHomeDirectory({ HOMEPATH: "\\fixtures\\example" }, "win32")).toBe(
+      "\\fixtures\\example",
+    );
+    expect(getHomeDirectory({ HOME: "/workspace/example" }, "linux")).toBe("/workspace/example");
+    expect(getHomeDirectory({ USERPROFILE: "C:\\fixtures\\example" }, "linux")).toBe(
+      "C:\\fixtures\\example",
+    );
   });
 
   test("uses default platform and identity fallbacks when omitted", () => {
@@ -108,33 +117,39 @@ describe("platform helpers", () => {
     expect(resolveUserPath("~", "", { env: {}, platform: "linux" })).toBe(path.posix.resolve(""));
     expect(resolveUserPath("~", "/work", { env: {}, platform: "linux" })).toBe("/work");
     expect(resolveUserPath("notes", "/work")).toBe(path.resolve("/work", "notes"));
-    expect(resolveUserPath("", "/work", { env: { HOME: "/home/alice" }, platform: "linux" })).toBe(
-      "/home/alice",
-    );
     expect(
-      resolveUserPath("~/notes", "/work", { env: { HOME: "/home/alice" }, platform: "linux" }),
-    ).toBe("/home/alice/notes");
+      resolveUserPath("", "/work", { env: { HOME: "/workspace/example" }, platform: "linux" }),
+    ).toBe("/workspace/example");
     expect(
-      resolveUserPath("/abs/path", "/work", { env: { HOME: "/home/alice" }, platform: "linux" }),
+      resolveUserPath("~/notes", "/work", {
+        env: { HOME: "/workspace/example" },
+        platform: "linux",
+      }),
+    ).toBe("/workspace/example/notes");
+    expect(
+      resolveUserPath("/abs/path", "/work", {
+        env: { HOME: "/workspace/example" },
+        platform: "linux",
+      }),
     ).toBe("/abs/path");
     expect(
       resolveUserPath("", "C:\\work", {
-        env: { USERPROFILE: "C:\\Users\\alice" },
+        env: { USERPROFILE: "C:\\fixtures\\example" },
         platform: "win32",
       }),
-    ).toBe("C:\\Users\\alice");
+    ).toBe("C:\\fixtures\\example");
     expect(
       resolveUserPath("docs", "C:\\work", {
-        env: { USERPROFILE: "C:\\Users\\alice" },
+        env: { USERPROFILE: "C:\\fixtures\\example" },
         platform: "win32",
       }),
     ).toBe(path.win32.resolve("C:\\work", "docs"));
     expect(
       resolveUserPath("~\\docs", "C:\\work", {
-        env: { USERPROFILE: "C:\\Users\\alice" },
+        env: { USERPROFILE: "C:\\fixtures\\example" },
         platform: "win32",
       }),
-    ).toBe("C:\\Users\\alice\\docs");
+    ).toBe("C:\\fixtures\\example\\docs");
     expect(resolveUserPath("C:\\Temp", "C:\\work", { env: {}, platform: "win32" })).toBe(
       "C:\\Temp",
     );

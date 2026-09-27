@@ -29,6 +29,10 @@ describe("prompt text", () => {
     expect(text).toContain("AGENTS body");
     expect(text).toContain("Terminal guidance: You are in a terminal.");
     expect(text).toContain("inline ANSI SGR styling");
+    expect(text).toContain(
+      "persist status/output in the private per-user state directory partitioned by canonical working directory",
+    );
+    expect(text).not.toContain("persist status/output under .agentx/workers");
   });
 
   test("falls back to template instructions and a missing AGENTS notice", () => {
@@ -37,6 +41,12 @@ describe("prompt text", () => {
     expect(text).toContain("instructions only");
     expect(text).toContain(
       "AGENTS.md not present in the current working directory or any parent directory. Consider creating one.",
+    );
+  });
+
+  test("handles absent prompt templates", () => {
+    expect(buildDeveloperText(null, "", "/tmp/work")).toContain(
+      "Current working directory: /tmp/work",
     );
   });
 });

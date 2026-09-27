@@ -1,7 +1,5 @@
-import { describe, expect, jest, test } from "@jest/globals";
-import { handleToolCalls } from "../src/agent-session/tool-loop.mjs";
-import { sendMessage } from "../src/agent-session/session-service.mjs";
-import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
+import { describe, expect, jest as testMocks, test } from "@jest/globals";
+import { handleToolCalls } from "../src/agent-turn/tool-loop.mjs";
 
 describe("agent session modules", () => {
   let originalStdoutWrite;
@@ -59,7 +57,9 @@ describe("agent session modules", () => {
   test("passes the caller response predecessor to image inspection", async () => {
     const predecessors = [];
     const openai = {
-      responses: { create: jest.fn().mockResolvedValue({ id: "resp-after-image", output: [] }) },
+      responses: {
+        create: testMocks.fn().mockResolvedValue({ id: "resp-after-image", output: [] }),
+      },
     };
     const response = {
       id: "resp-image-call",
@@ -85,41 +85,12 @@ describe("agent session modules", () => {
       input: [{ type: "function_call_output", call_id: "image-1", output: "image result" }],
     });
   });
-  test("persists failed tool continuation for retry", async () => {
-    const retryStates = [];
-    const openai = { responses: { create: jest.fn().mockRejectedValue(new Error("overloaded")) } };
-    const response = {
-      id: "resp-tool",
-      output: [{ type: "shell_call", call_id: "call-1", action: { commands: ["printf output"] } }],
-    };
-    await expect(
-      handleToolCalls(
-        openai,
-        response,
-        { model: "test-model", tools: [] },
-        "/tmp/work",
-        null,
-        async () => ({
-          type: "shell_call_output",
-          call_id: "call-1",
-          output: [],
-          status: "completed",
-        }),
-        { onRetryState: async (state) => retryStates.push(state) },
-      ),
-    ).rejects.toThrow("overloaded");
-    expect(retryStates).toHaveLength(1);
-    expect(retryStates[0].request).toMatchObject({
-      previous_response_id: "resp-tool",
-      store: true,
-      input: [{ call_id: "call-1" }],
-    });
-  });
-  test("handleToolCalls prints turn and cumulative usage after each response", async () => {
+  test("handleToolCalls forwards each response to cumulative usage accounting", async () => {
     const cumulative = { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 };
+    const reportedUsages = [];
     const openai = {
       responses: {
-        create: jest
+        create: testMocks
           .fn()
           .mockResolvedValueOnce({
             id: "resp-1",
@@ -161,6 +132,7 @@ describe("agent session modules", () => {
       { model: "test-model", tools: [] },
       "/tmp/work",
       (usage) => {
+        reportedUsages.push(usage);
         cumulative.inputTokens += usage.inputTokens;
         cumulative.cachedTokens += usage.cachedTokens;
         cumulative.outputTokens += usage.outputTokens;
@@ -176,13 +148,12 @@ describe("agent session modules", () => {
       }),
     );
 
-    const output = stdoutWrites.join("");
-    expect(output).toContain(
-      '{"in":"6 ($0.000)","cache":"4 ($0.000)","out":"6 ($0.000)","total":"$0.000"}',
-    );
-    expect(output).toContain(
-      '{"in":"12 ($0.000)","cache":"8 ($0.000)","out":"12 ($0.000)","turns":"2","avg":"$0.000","total":"$0.000"}',
-    );
+    expect(reportedUsages).toEqual([
+      { inputTokens: 6, cachedTokens: 4, outputTokens: 6 },
+      { inputTokens: 6, cachedTokens: 4, outputTokens: 6 },
+      { inputTokens: 8, cachedTokens: 0, outputTokens: 2 },
+    ]);
+    expect(cumulative).toEqual({ inputTokens: 20, cachedTokens: 8, outputTokens: 14, turns: 3 });
   });
   test("handleToolCalls can skip initial usage accounting on the first response", async () => {
     const stateCalls = [];
@@ -247,57 +218,6 @@ describe("agent session modules", () => {
       isInitialResponse: true,
     });
   });
-  test("handleToolCalls preserves request fields on tool continuations", async () => {
-    const template = {
-      model: "test-model",
-      input: [],
-      text: { format: { type: "text" }, verbosity: "low" },
-      reasoning: { effort: "medium", summary: null },
-      context_management: [{ type: "compaction", compact_threshold: 300000 }],
-      tools: [],
-    };
-    const calls = [];
-    const tmp = makeTempDir("agentx-handle-tool-");
-    try {
-      const openai = {
-        responses: {
-          create: async (request) => {
-            calls.push(request);
-            if (calls.length === 1) {
-              return {
-                id: "resp-1",
-                model: "test-model",
-                output: [
-                  {
-                    type: "shell_call",
-                    call_id: "call-1",
-                    action: { commands: ['printf "tool output"'] },
-                  },
-                ],
-              };
-            }
-            return { id: "resp-2", model: "test-model", output: [] };
-          },
-        },
-      };
-
-      await sendMessage(openai, template, "prev-1", "next", "", "/tmp/work", null, null, {
-        liveStreaming: true,
-      });
-
-      expect(calls[1]).toMatchObject({
-        model: "test-model",
-        text: { format: { type: "text" }, verbosity: "low" },
-        reasoning: { effort: "medium", summary: null },
-        context_management: [{ type: "compaction", compact_threshold: 300000 }],
-        previous_response_id: "resp-1",
-        store: true,
-        tools: [],
-      });
-    } finally {
-      cleanupTempDir(tmp);
-    }
-  });
   test("handleToolCalls does not emit REST-style debug logs", async () => {
     const originalArgv = [...process.argv];
     const originalConsoleLog = console.log;
@@ -345,7 +265,7 @@ describe("agent session modules", () => {
   test("handleToolCalls shows executing progress and resumes reasoning for the follow-up response", async () => {
     const openai = {
       responses: {
-        create: jest
+        create: testMocks
           .fn()
           .mockResolvedValueOnce({
             id: "resp-1",
@@ -417,7 +337,9 @@ describe("agent session modules", () => {
   });
   test("handleToolCalls refuses unconfirmed state-changing calls", async () => {
     const openai = {
-      responses: { create: jest.fn(async (request) => ({ id: "resp-next", output: [], request })) },
+      responses: {
+        create: testMocks.fn(async (request) => ({ id: "resp-next", output: [], request })),
+      },
     };
     const response = {
       id: "resp-1",
@@ -428,7 +350,7 @@ describe("agent session modules", () => {
         { type: "shell_call", action: { commands: ["poweroff now"] } },
       ],
     };
-    const runToolCallFn = jest.fn();
+    const runToolCallFn = testMocks.fn();
     await handleToolCalls(
       openai,
       response,
@@ -445,7 +367,7 @@ describe("agent session modules", () => {
     ).toBe(true);
   });
   test("handleToolCalls suppresses ordinary status completion output when timers are disabled", async () => {
-    const openai = { responses: { create: jest.fn() } };
+    const openai = { responses: { create: testMocks.fn() } };
     const response = {
       id: "resp-no-timers",
       output: [],
@@ -464,7 +386,9 @@ describe("agent session modules", () => {
   });
   test("executes destructive calls automatically when confirmation is disabled", async () => {
     const openai = {
-      responses: { create: jest.fn(async (request) => ({ id: "resp-next", output: [], request })) },
+      responses: {
+        create: testMocks.fn(async (request) => ({ id: "resp-next", output: [], request })),
+      },
     };
     const response = {
       id: "resp-1",
@@ -473,13 +397,13 @@ describe("agent session modules", () => {
         { type: "shell_call", call_id: "call-danger", action: { commands: ["shutdown now"] } },
       ],
     };
-    const runToolCallFn = jest.fn(async (call) => ({
+    const runToolCallFn = testMocks.fn(async (call) => ({
       type: "shell_call_output",
       call_id: call.call_id,
       output: [],
       status: "completed",
     }));
-    const confirmToolCall = jest.fn();
+    const confirmToolCall = testMocks.fn();
 
     await handleToolCalls(
       openai,
@@ -513,7 +437,7 @@ describe("agent session modules", () => {
         { type: "shell_call", call_id: "call-1", action: { commands: ["one"] } },
       ],
     };
-    const runToolCallFn = jest.fn(async (call) => ({
+    const runToolCallFn = testMocks.fn(async (call) => ({
       type: "shell_call_output",
       call_id: call.call_id,
       output: [],
@@ -546,8 +470,8 @@ describe("agent session modules", () => {
         },
       ],
     };
-    const onWorkerComplete = jest.fn();
-    const runToolCallFn = jest.fn(async (_call, _cwd, options) => {
+    const onWorkerComplete = testMocks.fn();
+    const runToolCallFn = testMocks.fn(async (_call, _cwd, options) => {
       options.onWorkerComplete({
         usage: { turns: 1, inputTokens: 2, cachedTokens: 0, outputTokens: 3 },
       });
@@ -566,11 +490,11 @@ describe("agent session modules", () => {
     expect(onWorkerComplete).toHaveBeenCalledTimes(1);
     const delayedStatus = {
       isWriting: () => true,
-      pause: jest.fn(),
-      resume: jest.fn(),
-      clear: jest.fn(),
-      showExecuting: jest.fn(),
-      updateExecuting: jest.fn(),
+      pause: testMocks.fn(),
+      resume: testMocks.fn(),
+      clear: testMocks.fn(),
+      showExecuting: testMocks.fn(),
+      updateExecuting: testMocks.fn(),
     };
     await handleToolCalls(
       openai,
@@ -597,7 +521,7 @@ describe("agent session modules", () => {
         },
       ],
     };
-    const runToolCallFn = jest.fn(async () => ({
+    const runToolCallFn = testMocks.fn(async () => ({
       agents: [{ id: "missing-agent", status: "unknown" }],
       waited: false,
       timed_out: false,
@@ -671,7 +595,7 @@ describe("agent session modules", () => {
 });
 
 test("covers missing response ids on ordinary tool continuation", async () => {
-  const openai = { responses: { create: jest.fn().mockResolvedValue({ output: [] }) } };
+  const openai = { responses: { create: testMocks.fn().mockResolvedValue({ output: [] }) } };
   const response = {
     output: [{ type: "shell_call", call_id: "missing-id", action: { commands: ["printf x"] } }],
   };
@@ -690,432 +614,4 @@ test("covers missing response ids on ordinary tool continuation", async () => {
       }),
     ),
   ).resolves.toEqual({ output: [] });
-});
-
-test("covers missing response ids while a goal continues", async () => {
-  const openai = {
-    responses: {
-      create: jest
-        .fn()
-        .mockResolvedValueOnce({ output: [] })
-        .mockResolvedValueOnce({
-          id: "goal-complete",
-          output: [
-            {
-              type: "function_call",
-              name: "goal_update",
-              call_id: "goal-1",
-              arguments: JSON.stringify({ method: "complete", summary: "done" }),
-            },
-          ],
-        })
-        .mockResolvedValueOnce({ output: [] }),
-    },
-  };
-  const response = {
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "goal-0",
-        arguments: JSON.stringify({ method: "incomplete" }),
-      },
-    ],
-  };
-  await expect(
-    handleToolCalls(
-      openai,
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      { goalMode: true, goalText: "test goal" },
-    ),
-  ).resolves.toEqual({ output: [] });
-});
-
-test("handles goal questions and blocked outcomes", async () => {
-  const makeOpenai = (method) => ({
-    responses: {
-      create: jest
-        .fn()
-        .mockResolvedValueOnce({
-          id: `${method}-next`,
-          output: [
-            {
-              type: "function_call",
-              name: "goal_update",
-              call_id: `${method}-complete`,
-              arguments: JSON.stringify({ method: "complete" }),
-            },
-          ],
-        })
-        .mockResolvedValueOnce({ id: `${method}-final`, output: [] }),
-    },
-  });
-  const questionOpenai = makeOpenai("question");
-  const question = {
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "question-1",
-        arguments: JSON.stringify({ method: "question", question: "Continue?" }),
-      },
-    ],
-  };
-  await expect(
-    handleToolCalls(
-      questionOpenai,
-      question,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      {
-        goalMode: true,
-        onGoalBlocked: async () => "yes",
-      },
-    ),
-  ).resolves.toEqual({ id: "question-final", output: [] });
-
-  const blockedOpenai = makeOpenai("blocked");
-  const blocked = {
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "blocked-1",
-        arguments: JSON.stringify({ method: "blocked" }),
-      },
-    ],
-  };
-  await expect(
-    handleToolCalls(
-      blockedOpenai,
-      blocked,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      {
-        goalMode: true,
-        onGoalLimit: jest.fn(),
-        goalIterations: 2,
-      },
-    ),
-  ).resolves.toEqual({
-    id: "blocked-next",
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "blocked-complete",
-        arguments: JSON.stringify({ method: "complete" }),
-      },
-    ],
-  });
-});
-
-test("handles goal_blocked calls and resumes after the user answer", async () => {
-  const openai = {
-    responses: { create: jest.fn().mockResolvedValue({ id: "blocked-next", output: [] }) },
-  };
-  const response = {
-    id: "blocked",
-    output: [
-      {
-        type: "function_call",
-        name: "goal_blocked",
-        call_id: "blocked-1",
-        arguments: JSON.stringify({ question: "Continue?" }),
-      },
-    ],
-  };
-  const statusController = {
-    pause: jest.fn(),
-    resume: jest.fn(),
-    clear: jest.fn(),
-    showExecuting: jest.fn(),
-    updateExecuting: jest.fn(),
-    snapshot: jest.fn(() => null),
-  };
-  await expect(
-    handleToolCalls(
-      openai,
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      {
-        goalMode: true,
-        onGoalBlocked: async () => "",
-        statusController,
-      },
-    ),
-  ).resolves.toEqual({ id: "blocked-next", output: [] });
-  expect(statusController.pause).toHaveBeenCalled();
-  expect(statusController.resume).toHaveBeenCalledWith({ renderNow: false });
-  expect(openai.responses.create.mock.calls[0][0].input[0].output).toBe(
-    "Continue without user input.",
-  );
-});
-
-test("returns invalid goal_update methods as tool output", async () => {
-  const openai = {
-    responses: { create: jest.fn().mockResolvedValue({ id: "invalid-next", output: [] }) },
-  };
-  const response = {
-    id: "invalid",
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "invalid-1",
-        arguments: JSON.stringify({ method: "unknown" }),
-      },
-    ],
-  };
-  await expect(
-    handleToolCalls(
-      openai,
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      { goalMode: true },
-    ),
-  ).resolves.toEqual({ id: "invalid-next", output: [] });
-  expect(openai.responses.create.mock.calls[0][0].input[0].output).toContain(
-    'Invalid goal_update method "unknown"',
-  );
-});
-
-test("reports usage and completion after a goal completes", async () => {
-  const openai = {
-    responses: {
-      create: jest.fn().mockResolvedValue({
-        id: "goal-final",
-        output: [],
-        usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 },
-      }),
-    },
-  };
-  const response = {
-    id: "goal",
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "goal-1",
-        arguments: JSON.stringify({ method: "complete" }),
-      },
-    ],
-  };
-  const statusController = {
-    pause: jest.fn(),
-    clear: jest.fn(),
-    showExecuting: jest.fn(),
-    updateExecuting: jest.fn(),
-    snapshot: jest.fn(() => null),
-  };
-  const usage = [];
-  await expect(
-    handleToolCalls(
-      openai,
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      (value) => {
-        usage.push(value);
-        return { inputTokens: 2, cachedTokens: 1, outputTokens: 3, turns: 1 };
-      },
-      undefined,
-      { goalMode: true, statusController },
-    ),
-  ).resolves.toEqual({ id: "goal-final", output: [], usage: expect.any(Object) });
-  expect(usage).toHaveLength(2);
-});
-
-test("handles malformed goal input and missing method", async () => {
-  const openai = {
-    responses: { create: jest.fn().mockResolvedValue({ id: "bad-next", output: [] }) },
-  };
-  const response = {
-    output: [
-      { type: "function_call", name: "goal_update", call_id: "bad-json", arguments: "{" },
-      { type: "function_call", name: "goal_update", call_id: "missing-method", arguments: "{}" },
-    ],
-  };
-  await handleToolCalls(
-    openai,
-    response,
-    { model: "test-model", tools: [] },
-    "/tmp/work",
-    null,
-    undefined,
-    { goalMode: true },
-  );
-  const outputs = openai.responses.create.mock.calls[0][0].input.map((item) => item.output);
-  expect(outputs[0]).toContain('Invalid goal_update method "(missing)"');
-  expect(outputs[1]).toContain('Invalid goal_update method "(missing)"');
-});
-
-test("stops a goal when cancellation is requested", async () => {
-  const clear = jest.fn();
-  const response = { output: [] };
-  await expect(
-    handleToolCalls(
-      { responses: { create: jest.fn() } },
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      {
-        goalMode: true,
-        isGoalCancelled: () => true,
-        statusController: { clear },
-      },
-    ),
-  ).resolves.toBe(response);
-  expect(clear).toHaveBeenCalled();
-});
-
-test("handles image generation callbacks and unavailable image inspection", async () => {
-  const imageGeneration = jest.fn();
-  const openai = {
-    responses: { create: jest.fn().mockResolvedValue({ id: "image-next", output: [] }) },
-  };
-  const response = {
-    output: [
-      { type: "image_generation_call", result: "data", call_id: "generation-1" },
-      { type: "function_call", name: "view_image", call_id: "image-1", arguments: "{}" },
-    ],
-  };
-  await handleToolCalls(
-    openai,
-    response,
-    { model: "test-model", tools: [] },
-    "/tmp/work",
-    null,
-    undefined,
-    { onImageGeneration: imageGeneration },
-  );
-  expect(imageGeneration).toHaveBeenCalled();
-  expect(openai.responses.create.mock.calls[0][0].input[0].output).toBe(
-    "ERROR: image inspection is unavailable",
-  );
-});
-
-test("cancels during goal tool execution", async () => {
-  const clear = jest.fn();
-  const response = {
-    output: [{ type: "shell_call", call_id: "shell-1", action: { commands: ["echo hi"] } }],
-  };
-  let checks = 0;
-  await expect(
-    handleToolCalls(
-      { responses: { create: jest.fn() } },
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      async () => ({}),
-      {
-        goalMode: true,
-        isGoalCancelled: () => checks++ > 0,
-        statusController: { clear, showExecuting: jest.fn() },
-      },
-    ),
-  ).resolves.toBe(response);
-  expect(clear).toHaveBeenCalled();
-});
-
-test("enforces the goal iteration limit", async () => {
-  const clear = jest.fn();
-  const onLimit = jest.fn();
-  const response = { output: [] };
-  await expect(
-    handleToolCalls(
-      { responses: { create: jest.fn() } },
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      {
-        goalMode: true,
-        goalIterations: 2,
-        goalMaxIterations: 2,
-        onGoalLimit: onLimit,
-        statusController: { clear },
-      },
-    ),
-  ).resolves.toBe(response);
-  expect(onLimit).toHaveBeenCalledWith(3);
-  expect(clear).toHaveBeenCalled();
-});
-
-test("parses goal input and default arguments safely", async () => {
-  const openai = {
-    responses: { create: jest.fn().mockResolvedValue({ id: "parse-next", output: [] }) },
-  };
-  const response = {
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "input-1",
-        input: JSON.stringify({ method: "invalid" }),
-      },
-      { type: "function_call", name: "goal_update", call_id: "empty-1" },
-    ],
-  };
-  await handleToolCalls(
-    openai,
-    response,
-    { model: "test-model", tools: [] },
-    "/tmp/work",
-    null,
-    undefined,
-    { goalMode: true },
-  );
-  expect(openai.responses.create).toHaveBeenCalled();
-});
-
-test("can suppress goal completion usage output", async () => {
-  const openai = {
-    responses: {
-      create: jest.fn().mockResolvedValue({
-        id: "quiet-final",
-        output: [],
-        usage: { input_tokens: 1, output_tokens: 1 },
-      }),
-    },
-  };
-  const response = {
-    output: [
-      {
-        type: "function_call",
-        name: "goal_update",
-        call_id: "quiet-1",
-        arguments: JSON.stringify({ method: "complete" }),
-      },
-    ],
-  };
-  await expect(
-    handleToolCalls(
-      openai,
-      response,
-      { model: "test-model", tools: [] },
-      "/tmp/work",
-      null,
-      undefined,
-      { goalMode: true, suppressUsageOutput: true, noTimers: true },
-    ),
-  ).resolves.toMatchObject({ id: "quiet-final" });
 });

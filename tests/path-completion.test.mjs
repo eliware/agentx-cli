@@ -26,9 +26,9 @@ describe("path completion", () => {
   });
 
   test("parses Windows-style prefixes without listing the filesystem", () => {
-    const win = tokenPrefix("C:\\Users\\alice\\Doc", "win32");
-    expect(win.baseDir).toBe("C:\\Users\\alice");
-    expect(win.prefix).toBe("C:\\Users\\alice\\");
+    const win = tokenPrefix("C:\\fixtures\\example\\Doc", "win32");
+    expect(win.baseDir).toBe("C:\\fixtures\\example");
+    expect(win.prefix).toBe("C:\\fixtures\\example\\");
     expect(win.needle).toBe("Doc");
   });
 
@@ -60,12 +60,12 @@ describe("path completion", () => {
     if (process.platform === "win32") return;
     const tmp = makeTempDir("agentx-complete-");
     try {
-      makeDirectory(tmp, "opt");
-      makeFile(tmp, "opt/agentx");
-      const [matches, token] = await completePath("/op", tmp);
-      expect(token).toBe("/op");
-      expect(matches).not.toContain(`//opt${sep}`);
-      expect(matches).toContain("/opt/");
+      makeDirectory(tmp, "workspace");
+      makeFile(tmp, "workspace/agentx");
+      const [matches, token] = await completePath("/work", tmp);
+      expect(token).toBe("/work");
+      expect(matches).not.toContain(`//workspace${sep}`);
+      expect(matches).toContain("/workspace/");
     } finally {
       cleanupTempDir(tmp);
     }
@@ -123,9 +123,9 @@ describe("path completion", () => {
   test("normalizes doubled leading slashes in the active token", async () => {
     const tmp = makeTempDir("agentx-complete-");
     try {
-      const [matches, token] = await completePath("//op", tmp);
-      expect(token).toBe("/op");
-      expect(matches).not.toContain(`//opt${sep}`);
+      const [matches, token] = await completePath("//work", tmp);
+      expect(token).toBe("/work");
+      expect(matches).not.toContain(`//workspace${sep}`);
     } finally {
       cleanupTempDir(tmp);
     }

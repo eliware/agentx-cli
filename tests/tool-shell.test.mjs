@@ -1,23 +1,20 @@
 import { describe, expect, test } from "@jest/globals";
 import { accessSync } from "node:fs";
 import {
+  executeShellCommand,
   getShellLaunchers,
   normalizeTerminationOutcome,
-  runShellCommandSequence,
-  runShellCommands,
   shellExec,
 } from "../src/tool-shell.mjs";
 import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
 
-describe("tool shell", () => {
-  test("exposes Windows launcher order", () => {
+describe("shell process execution", () => {
+  test("exposes Windows launcher order and normalizes exit outcomes", () => {
     expect(getShellLaunchers("win32").map((item) => item.file)).toEqual([
       "pwsh",
       "powershell.exe",
       "cmd.exe",
     ]);
-  });
-  test("normalizes termination outcomes across platforms", () => {
     expect(normalizeTerminationOutcome({ timedOut: true, code: 1 })).toEqual({ type: "timeout" });
     expect(normalizeTerminationOutcome({ interrupted: true, code: 1 })).toEqual({
       type: "timeout",
@@ -27,206 +24,105 @@ describe("tool shell", () => {
       exit_code: 1,
     });
     expect(normalizeTerminationOutcome({ code: 7 })).toEqual({ type: "exit", exit_code: 7 });
-  });
-
-  test("runs individual shell commands", async () => {
-    const tmp = makeTempDir("agentx-shell-");
-    try {
-      const result = await runShellCommands(["node -e \"process.stdout.write('ok')\""], tmp, {
-        callId: "call-1",
-      });
-      expect(result).toMatchObject({
-        type: "shell_call_output",
-        call_id: "call-1",
-        status: "completed",
-      });
-      expect(result.output[0]).toMatchObject({
-        stdout: "ok",
-        stderr: "",
-        outcome: { type: "exit", exit_code: 0 },
-      });
-    } finally {
-      cleanupTempDir(tmp);
-    }
+    expect(normalizeTerminationOutcome({ code: null })).toEqual({ type: "exit", exit_code: 1 });
   });
 
   test("rejects empty commands and missing working directories before spawning", async () => {
-    const empty = await runShellCommands(["   "], process.cwd());
-    expect(empty.output[0]).toMatchObject({
+    await expect(executeShellCommand("   ", process.cwd())).resolves.toMatchObject({
       stderr: "Unable to execute an empty shell command",
       outcome: { exit_code: 2 },
     });
-
-    const missingCwd = await runShellCommands(["echo nope"], null);
-    expect(missingCwd.output[0]).toMatchObject({
+    await expect(executeShellCommand("echo nope", null)).resolves.toMatchObject({
       stderr: "Unable to execute shell command without a working directory",
       outcome: { exit_code: 2 },
     });
   });
 
-  test("runs shell command sequences in order", async () => {
-    const tmp = makeTempDir("agentx-shell-");
+  test("captures process output and reports a clean exit", async () => {
+    const directory = makeTempDir("agentx-shell-process-");
     try {
-      const result = await runShellCommandSequence(
-        [
-          {
-            cwd: tmp,
-            command: "node -e \"process.stdout.write('one')\"",
-            timeoutMs: 1000,
-            maxOutputLength: 10,
-          },
-          {
-            cwd: tmp,
-            command: "node -e \"process.stdout.write('two')\"",
-            timeoutMs: 1000,
-            maxOutputLength: 10,
-          },
-        ],
-        { callId: "call-2", defaultCwd: tmp },
-      );
-
-      expect(result).toMatchObject({
-        type: "shell_call_output",
-        call_id: "call-2",
-        status: "completed",
-      });
-      expect(result.output).toHaveLength(2);
-      expect(result.output[0]).toMatchObject({
-        stdout: "one",
+      await expect(
+        executeShellCommand("node -e " + JSON.stringify("process.stdout.write('ok')"), directory),
+      ).resolves.toMatchObject({
+        stdout: "ok",
         stderr: "",
         outcome: { type: "exit", exit_code: 0 },
       });
-      expect(result.output[1]).toMatchObject({
-        stdout: "two",
-        stderr: "",
-        outcome: { type: "exit", exit_code: 0 },
-      });
-      expect(result.max_output_length).toBe(10);
     } finally {
-      cleanupTempDir(tmp);
+      cleanupTempDir(directory);
     }
   });
 
-  test("applies timeouts and truncates output per step", async () => {
-    const tmp = makeTempDir("agentx-shell-");
-    try {
-      const result = await runShellCommandSequence(
-        [
-          {
-            cwd: tmp,
-            command: "node -e \"process.stdout.write('abc')\"",
-            timeoutMs: 1000,
-            maxOutputLength: 3,
-          },
-          {
-            cwd: tmp,
-            command: 'node -e "setTimeout(() => console.log(2), 200)"',
-            timeoutMs: 50,
-            maxOutputLength: 10,
-          },
-        ],
-        { callId: "call-3", defaultCwd: tmp },
-      );
-
-      expect(result.status).toBe("incomplete");
-      expect(result.output[0]).toMatchObject({
-        stdout: "abc",
-        stderr: "",
-        outcome: { type: "exit", exit_code: 0 },
-      });
-      expect(result.output[1]).toMatchObject({ outcome: { type: "timeout" } });
-      expect(result.max_output_length).toBe(10);
-    } finally {
-      cleanupTempDir(tmp);
-    }
-  });
-
-  test("escalates when a shell process ignores SIGTERM", async () => {
+  test("escalates termination for timeouts and abort signals", async () => {
     if (process.platform === "win32") return;
-    const tmp = makeTempDir("agentx-shell-stubborn-");
-    try {
-      const result = await runShellCommands(
-        [`node -e "process.on('SIGTERM', () => {}); setTimeout(() => {}, 5000)"`],
-        tmp,
-        { callId: "call-stubborn", timeoutMs: 25 },
-      );
-      expect(result.status).toBe("incomplete");
-      expect(result.output[0].outcome).toEqual({ type: "timeout" });
-    } finally {
-      cleanupTempDir(tmp);
-    }
-  });
-
-  test("terminates descendants with the timed-out shell process group", async () => {
-    if (process.platform === "win32") return;
-    const tmp = makeTempDir("agentx-shell-descendant-");
-    try {
-      const marker = `${tmp}/descendant-ran`;
-      const descendantScript = `const fs=require('fs'); setTimeout(()=>fs.writeFileSync(${JSON.stringify(marker)},'bad'),1000)`;
-      const parentScript = `const cp=require('child_process'); cp.spawn(process.execPath,['-e',${JSON.stringify(descendantScript)}],{stdio:'ignore'}); setTimeout(()=>{},5000)`;
-      const command = `node -e ${JSON.stringify(parentScript)}`;
-      const result = await runShellCommands([command], tmp, {
-        callId: "call-descendant",
-        timeoutMs: 250,
-      });
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      expect(result.status).toBe("incomplete");
-      expect(result.output[0].outcome).toEqual({ type: "timeout" });
-      expect(() => accessSync(marker)).toThrow();
-    } finally {
-      cleanupTempDir(tmp);
-    }
-  });
-
-  test("reports Ctrl-T-style aborts as timeout outcomes", async () => {
-    const tmp = makeTempDir("agentx-shell-");
+    const directory = makeTempDir("agentx-shell-timeout-");
     const controller = new AbortController();
     try {
-      const resultPromise = runShellCommands(['node -e "setTimeout(() => {}, 1000)"'], tmp, {
-        callId: "call-abort",
-        signal: controller.signal,
-      });
+      const timed = await executeShellCommand(
+        `node -e "process.on('SIGTERM', () => {}); setTimeout(() => {}, 5000)"`,
+        directory,
+        { timeoutMs: 25 },
+      );
+      expect(timed.outcome).toEqual({ type: "timeout" });
+      const abortedPromise = executeShellCommand(
+        'node -e "setTimeout(() => {}, 1000)"',
+        directory,
+        {
+          signal: controller.signal,
+        },
+      );
       setTimeout(() => controller.abort(), 25);
-      const result = await resultPromise;
-      expect(result.status).toBe("incomplete");
-      expect(result.output[0].outcome).toEqual({ type: "timeout" });
+      await expect(abortedPromise).resolves.toMatchObject({ outcome: { type: "timeout" } });
     } finally {
-      cleanupTempDir(tmp);
+      cleanupTempDir(directory);
     }
   });
 
-  test("shellExec streams and returns command output", async () => {
+  test("terminates descendants with the timed-out process group", async () => {
     if (process.platform === "win32") return;
-    const tmp = makeTempDir("agentx-shell-");
-    const originalStdoutWrite = process.stdout.write;
-    const originalStderrWrite = process.stderr.write;
-    const stdoutChunks = [];
-    const stderrChunks = [];
-    process.stdout.write = (chunk) => {
-      stdoutChunks.push(String(chunk));
-      return true;
-    };
-    process.stderr.write = (chunk) => {
-      stderrChunks.push(String(chunk));
-      return true;
-    };
-
+    const directory = makeTempDir("agentx-shell-descendant-");
     try {
-      const output = await shellExec(
-        "node -e \"process.stdout.write('hello'); process.stderr.write('oops')\"",
-        tmp,
+      const marker = `${directory}/descendant-ran`;
+      const childScript = `const fs=require('fs'); setTimeout(()=>fs.writeFileSync(${JSON.stringify(marker)},'bad'),1000)`;
+      const parentScript = `const cp=require('child_process'); cp.spawn(process.execPath,['-e',${JSON.stringify(childScript)}],{stdio:'ignore'}); setTimeout(()=>{},5000)`;
+      const result = await executeShellCommand(
+        `node -e ${JSON.stringify(parentScript)}`,
+        directory,
+        {
+          timeoutMs: 250,
+        },
       );
-      expect(output).toMatchObject({
-        stdout: "hello",
-        stderr: "oops",
-        outcome: { type: "exit", exit_code: 0 },
-      });
-      expect(stdoutChunks.join("")).toContain("hello");
-      expect(stderrChunks.join("")).toContain("oops");
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      expect(result.outcome).toEqual({ type: "timeout" });
+      expect(() => accessSync(marker)).toThrow();
     } finally {
-      process.stdout.write = originalStdoutWrite;
-      process.stderr.write = originalStderrWrite;
-      cleanupTempDir(tmp);
+      cleanupTempDir(directory);
+    }
+  });
+
+  test("streams interactive shell output and returns captured output", async () => {
+    if (process.platform === "win32") return;
+    const directory = makeTempDir("agentx-shell-stream-");
+    const oldOut = process.stdout.write;
+    const oldErr = process.stderr.write;
+    const stdout = [];
+    const stderr = [];
+    process.stdout.write = (chunk) => (stdout.push(String(chunk)), true);
+    process.stderr.write = (chunk) => (stderr.push(String(chunk)), true);
+    try {
+      await expect(
+        shellExec(
+          "node -e " +
+            JSON.stringify("process.stdout.write('hello'); process.stderr.write('oops')"),
+          directory,
+        ),
+      ).resolves.toMatchObject({ stdout: "hello", stderr: "oops", outcome: { exit_code: 0 } });
+      expect(stdout.join("")).toContain("hello");
+      expect(stderr.join("")).toContain("oops");
+    } finally {
+      process.stdout.write = oldOut;
+      process.stderr.write = oldErr;
+      cleanupTempDir(directory);
     }
   });
 });

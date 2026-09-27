@@ -1,4 +1,4 @@
-import { getToolCallId } from "./checkpoint.mjs";
+import { getToolCallId } from "./pending-response.mjs";
 
 const INTERRUPTED_TOOL_OUTPUT_RETRY = `The previous transaction was interrupted while tool calls were in progress.
 

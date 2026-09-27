@@ -10,6 +10,7 @@ import {
 import { mkdtempSync, symlinkSync, rmSync, unlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 describe("runtime helpers", () => {
   test("hits ENOENT handling through a mocked module import", async () => {
@@ -37,6 +38,31 @@ describe("runtime helpers", () => {
 
   test("isDirectInvocation returns a boolean", () => {
     expect(typeof isDirectInvocation()).toBe("boolean");
+  });
+
+  test("isDirectInvocation recognizes the entrypoint real path on every platform", () => {
+    const originalArgv1 = process.argv[1];
+    const entrypoint = new URL("../agentx.mjs", import.meta.url);
+
+    try {
+      process.argv[1] = fileURLToPath(entrypoint);
+      expect(isDirectInvocation(entrypoint.href)).toBe(true);
+    } finally {
+      process.argv[1] = originalArgv1;
+    }
+  });
+
+  test("isDirectInvocation recognizes the matching package bin launcher", () => {
+    const originalArgv1 = process.argv[1];
+    const moduleUrl = new URL("../agentx.mjs", import.meta.url).href;
+    const launcher = new URL("../bin/agentx.mjs", import.meta.url);
+
+    try {
+      process.argv[1] = fileURLToPath(launcher);
+      expect(isDirectInvocation(moduleUrl)).toBe(true);
+    } finally {
+      process.argv[1] = originalArgv1;
+    }
   });
 
   test("isDirectInvocation resolves symlinks to the real launcher", () => {

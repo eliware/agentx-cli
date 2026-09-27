@@ -16,8 +16,8 @@ describe("confirmation policy", () => {
     expect(confirmationKey(call, "/tmp/work")).toBe(
       JSON.stringify({ type: "shell_call", cwd: "/tmp/work", commands: ["npm install foo"] }),
     );
-    expect(confirmationFilePath({ HOME: "/home/test" })).toBe(
-      path.join("/home/test", ".agentx-confirmations.json"),
+    expect(confirmationFilePath({ HOME: "/workspace/example" })).toBe(
+      path.join("/workspace/example", ".agentx-confirmations.json"),
     );
     expect(confirmationFilePath({})).toBe("");
     const originalHome = process.env.HOME;

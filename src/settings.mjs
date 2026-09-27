@@ -1,7 +1,7 @@
-import { readEnvState } from "./setup.mjs";
+import { readEnvState } from "./setup-env.mjs";
 
 export const DEFAULT_SETTINGS = {
-  model: "gpt-5.6-luna",
+  model: "gpt-6-luna",
   reasoningMode: "standard",
   reasoningEffort: "low",
   reasoningSummary: "auto",

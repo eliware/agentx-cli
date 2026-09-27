@@ -1,88 +1,15 @@
-const MODEL_PRICING = {
-  "gpt-5.6-luna": { input: 200n, cached: 20n, cacheWrite: 250n, output: 1_200n },
-  "gpt-5.6-terra": { input: 2_000n, cached: 200n, cacheWrite: 2_500n, output: 12_000n },
-  "gpt-5.6-sol": { input: 5_000n, cached: 500n, cacheWrite: 6_250n, output: 30_000n },
-};
+import {
+  calculateUsageCostNanoDollars,
+  isJumboPrompt,
+  ratesForUsage,
+  usagePricingInternals,
+} from "./usage-pricing.mjs";
+import { numericValue } from "./usage-normalization.mjs";
 
-const DEFAULT_MODEL = "gpt-5.6-luna";
-const JUMBO_PROMPT_THRESHOLD = 272_000;
+const { DEFAULT_MODEL } = usagePricingInternals;
+
 const NANO_DOLLARS_PER_DISPLAY_UNIT = 1_000_000n;
 const JUMBO_WARNING = "\u001b[91mLong-context pricing applied\u001b[0m";
-const ANSI_ESCAPE = new RegExp(String.raw`\u001b\[[0-?]*[ -/]*[@-~]`, "g");
-
-export function stripAnsi(value) {
-  return String(value ?? "").replace(ANSI_ESCAPE, "");
-}
-function numericValue(value) {
-  const parsed = Number(stripAnsi(value));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-export function normalizeUsage({
-  inputTokens = 0,
-  cachedTokens = 0,
-  cacheWriteTokens = 0,
-  outputTokens = 0,
-  reasoningTokens = 0,
-} = {}) {
-  const totalInputTokens = numericValue(inputTokens);
-  const totalCachedTokens = numericValue(cachedTokens);
-  const hiddenInputTokens = Math.max(totalInputTokens - totalCachedTokens, 0);
-  const result = {
-    inputTokens: hiddenInputTokens,
-    cachedTokens: totalCachedTokens,
-    outputTokens: numericValue(outputTokens),
-  };
-  if (numericValue(cacheWriteTokens) !== 0)
-    result.cacheWriteTokens = numericValue(cacheWriteTokens);
-  if (numericValue(reasoningTokens) !== 0) result.reasoningTokens = numericValue(reasoningTokens);
-  return result;
-}
-
-export function getModelPricing(model = DEFAULT_MODEL) {
-  return MODEL_PRICING[String(model || "").toLowerCase()] || MODEL_PRICING[DEFAULT_MODEL];
-}
-
-export function isJumboPrompt({ inputTokens = 0, cachedTokens = 0 } = {}) {
-  const hiddenInputTokens = Math.max(Number(inputTokens ?? 0) - Number(cachedTokens ?? 0), 0);
-  return hiddenInputTokens > JUMBO_PROMPT_THRESHOLD;
-}
-
-function ratesForUsage({ inputTokens, cachedTokens, model }) {
-  const pricing = getModelPricing(model);
-  if (!isJumboPrompt({ inputTokens, cachedTokens })) return pricing;
-  return {
-    input: pricing.input * 2n,
-    cached: pricing.cached * 2n,
-    cacheWrite: pricing.cacheWrite * 2n,
-    output: (pricing.output * 3n) / 2n,
-  };
-}
-
-function toTokenCount(value) {
-  return BigInt(Math.max(0, Math.trunc(numericValue(value))));
-}
-
-export function calculateUsageCostNanoDollars({
-  inputTokens = 0,
-  cachedTokens = 0,
-  cacheWriteTokens = 0,
-  outputTokens = 0,
-  model = DEFAULT_MODEL,
-} = {}) {
-  const rates = ratesForUsage({ inputTokens, cachedTokens, model });
-  return (
-    toTokenCount(inputTokens) * rates.input +
-    toTokenCount(cachedTokens) * rates.cached +
-    toTokenCount(cacheWriteTokens) * rates.cacheWrite +
-    toTokenCount(outputTokens) * rates.output
-  );
-}
-
-export function calculateUsageCost(fields = {}) {
-  return Number(calculateUsageCostNanoDollars(fields)) / 1_000_000_000;
-}
-
 export function formatMoney(value) {
   const nanoDollars =
     typeof value === "bigint" ? value : BigInt(Math.trunc(Number(value ?? 0) * 1_000_000_000));
@@ -101,7 +28,7 @@ function formatTokenCount(tokens) {
   return numericValue(tokens).toLocaleString("en-US");
 }
 function formatTokenCost(tokens, rateNanoDollarsPerToken) {
-  return `${formatTokenCount(tokens)} (${formatMoney(BigInt(Math.trunc(Number(tokens ?? 0))) * rateNanoDollarsPerToken)})`;
+  return `${formatTokenCount(tokens)} (${formatMoney(BigInt(Math.trunc(numericValue(tokens))) * rateNanoDollarsPerToken)})`;
 }
 function formatUsageJson(fields) {
   return JSON.stringify(fields).replaceAll("\\u001b", "\u001b");
@@ -172,8 +99,6 @@ export function formatTurnUsage(fields = {}) {
 }
 
 export const usageInternals = {
-  DEFAULT_MODEL,
-  JUMBO_PROMPT_THRESHOLD,
   JUMBO_WARNING,
-  MODEL_PRICING,
+  ...usagePricingInternals,
 };

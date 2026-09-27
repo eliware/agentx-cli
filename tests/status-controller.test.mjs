@@ -1,11 +1,8 @@
 import { describe, expect, jest, test } from "@jest/globals";
-import { formatUsageSummary } from "../src/response.mjs";
 import {
-  formatElapsedStatus,
-  formatSpinnerFrame,
-  formatTransactionCompletionMessage,
   createStatusLineController,
-} from "../src/agent-session/status-controller.mjs";
+  formatSpinnerFrame,
+} from "../src/agent-turn/status-controller.mjs";
 
 describe("agent session modules", () => {
   let originalStdoutWrite;
@@ -24,9 +21,7 @@ describe("agent session modules", () => {
     process.stdout.write = originalStdoutWrite;
   });
 
-  test("status helpers fall back cleanly for undefined timing values", () => {
-    expect(formatElapsedStatus(undefined)).toBe("0s");
-    expect(formatElapsedStatus(61000)).toBe("1m 1s");
+  test("spinner frame helper returns no animation", () => {
     expect(formatSpinnerFrame(undefined)).toBe("");
   });
   test("status line controller uses the default session start time when omitted", () => {
@@ -42,6 +37,9 @@ describe("agent session modules", () => {
   });
   test("status line controller accepts omitted transition options", () => {
     const controller = createStatusLineController(Date.now());
+    expect(controller.snapshot()).toEqual(
+      expect.objectContaining({ time: expect.any(String), reasoning: expect.any(Object) }),
+    );
     controller.showReasoning();
     expect(stdoutWrites.join("")).toContain('"reasoning":');
     controller.clear();
@@ -55,6 +53,55 @@ describe("agent session modules", () => {
     controller.resume({ renderNow: false });
 
     expect(stdoutWrites.join("")).toBe("");
+    controller.clear();
+  });
+  test("unchanged transitions honor paused and renderNow states", () => {
+    const controller = createStatusLineController(Date.now());
+    controller.showReasoning();
+    stdoutWrites = [];
+    controller.pause();
+    stdoutWrites = [];
+    controller.showReasoning();
+    controller.showReasoning({ renderNow: false });
+    controller.updateExecuting();
+    expect(stdoutWrites).toEqual([]);
+    controller.resume({ renderNow: false });
+    expect(stdoutWrites).toEqual([]);
+    controller.clear();
+  });
+  test("writing transitions suppress status until explicitly allowed", () => {
+    const controller = createStatusLineController(Date.now());
+    controller.beginWriting();
+    stdoutWrites = [];
+    controller.showReasoning();
+    expect(stdoutWrites).toEqual([]);
+    controller.showExecuting(0, 1, { allowStatusAfterOutput: true, renderNow: false });
+    expect(stdoutWrites).toEqual([]);
+    controller.refresh();
+    expect(stdoutWrites.join("")).toContain('"executing":');
+    controller.clear();
+  });
+  test("resuming a writing phase does not render a status frame", () => {
+    const controller = createStatusLineController(Date.now());
+    controller.beginWriting();
+    controller.pause();
+    stdoutWrites = [];
+    controller.resume();
+    expect(stdoutWrites).toEqual([]);
+    controller.clear();
+  });
+  test("paused phase transitions resume rendering only when requested", () => {
+    const controller = createStatusLineController(Date.now());
+    controller.showReasoning();
+    controller.pause();
+    stdoutWrites = [];
+    controller.showExecuting();
+    expect(stdoutWrites).toEqual([]);
+    controller.resume();
+    expect(stdoutWrites.join("")).toContain('"executing":');
+    stdoutWrites = [];
+    controller.resume();
+    expect(stdoutWrites).toEqual([]);
     controller.clear();
   });
   test("status line controller renders JSON stats and highlights the active state", () => {
@@ -113,18 +160,6 @@ describe("agent session modules", () => {
     controller.clear();
     expect(stdoutWrites.join("")).not.toContain("\u001b[");
   });
-  test("formatTransactionCompletionMessage handles missing summary fields and non-string status values", () => {
-    // With no input, the output should be an empty JSON object
-    expect(formatTransactionCompletionMessage()).toBe("{}");
-    expect(
-      formatTransactionCompletionMessage({
-        time: 42,
-        reasoning: { value: "1s/2s" },
-        executing: { value: undefined },
-        writing: null,
-      }),
-    ).toBe('{"time":"42","reasoning":"1s/2s"}');
-  });
   test("reports whether the status controller is currently writing", () => {
     const controller = createStatusLineController(Date.now());
     expect(controller.isWriting()).toBe(false);
@@ -171,36 +206,6 @@ describe("agent session modules", () => {
     } finally {
       jest.useRealTimers();
     }
-  });
-  test("transaction completion message serializes timing values as plain strings", () => {
-    expect(
-      formatTransactionCompletionMessage({
-        time: "30s",
-        reasoning: { active: false, value: "1s/13s" },
-        executing: { active: false, value: "5s/6s" },
-        writing: { active: false, value: "1s/12s" },
-      }),
-    ).toBe('{"time":"30s","reasoning":"1s/13s","writing":"1s/12s","executing":"5s/6s"}');
-  });
-  test("transaction completion message omits empty fields", () => {
-    expect(formatTransactionCompletionMessage({ time: "30s" })).toBe('{"time":"30s"}');
-    expect(
-      formatTransactionCompletionMessage({
-        time: "30s",
-        reasoning: { active: false, value: "" },
-        executing: { active: true, value: undefined },
-        writing: { active: false, value: null },
-      }),
-    ).toBe('{"time":"30s"}');
-  });
-  test("formatUsageSummary renders usage stats", () => {
-    expect(
-      formatUsageSummary({
-        usage: { input_tokens: 2, input_tokens_details: { cached_tokens: 1 }, output_tokens: 3 },
-      }),
-    ).toBe(
-      '{"in":"1 ($0.000)","cache":"1 ($0.000)","out":"3 ($0.000)","turns":"1","avg":"$0.000","total":"$0.000"}',
-    );
   });
   test("stop halts refresh timer and clears temporary status", () => {
     jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });

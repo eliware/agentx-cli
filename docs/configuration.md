@@ -37,7 +37,7 @@ Before publishing, run:
 npm test
 npm run lint
 npm run audit
-npm run validate:package
+npm run pack
 ```
 
 The audit checks production dependencies only and fails on moderate-or-higher advisories. Package validation checks the dry-run artifact for required runtime files and excludes tests, state, credentials, and build artifacts. CI runs the same checks before the publish step.

@@ -1,7 +1,8 @@
 import { fs, path } from "@eliware/common";
 import { realpathSync } from "node:fs";
 import { existsSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { basename, dirname, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const promptPath = path(import.meta, "../prompt.json");
 
@@ -9,7 +10,10 @@ export function isDirectInvocation(moduleUrl = import.meta.url) {
   if (!process.argv[1]) return false;
   if (!existsSync(process.argv[1])) return false;
   const realPath = realpathSync(process.argv[1]);
-  return pathToFileURL(realPath).href === moduleUrl;
+  if (pathToFileURL(realPath).href === moduleUrl) return true;
+  const modulePath = fileURLToPath(moduleUrl);
+  const launcherPath = resolve(dirname(modulePath), "bin", basename(modulePath));
+  return existsSync(launcherPath) && realpathSync(launcherPath) === realPath;
 }
 
 export async function readJson(filePath) {

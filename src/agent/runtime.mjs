@@ -1,30 +1,21 @@
 import { setTerminalOutputOptions, writeTerminal } from "../terminal-output.mjs";
 import { stdin as defaultInput, stdout as defaultOutput } from "node:process";
 import { log, registerHandlers, registerSignals, path } from "@eliware/common";
-import { createOpenAI } from "@eliware/openai";
-import { shellExec } from "../tool-shell.mjs";
-import { clearSession, persistResponseState, readSessionState } from "../session-state.mjs";
+import { clearSession, persistResponseState, readSessionState } from "../conversation-state.mjs";
+import { cleanupStaleOneShotStates } from "../conversation-state-cleanup.mjs";
+import { persistCheckpoint, readLatestCheckpoint } from "../conversation-checkpoint.mjs";
 import { extractTextFromResponse } from "../response.mjs";
-import { handleToolCalls } from "../agent-session/tool-loop.mjs";
-import { sendMessage } from "../agent-session/session-service.mjs";
-import {
-  buildWorkingDirectoryNote,
-  formatPromptForCwd,
-  formatSystemMessage,
-  parseInternalCommand,
-  readAgentsFromCwdAndParents,
-  resolveCdTarget,
-} from "../shell.mjs";
+import { handleToolCalls } from "../agent-turn/tool-loop.mjs";
+import { sendMessage } from "../agent-turn/response-service.mjs";
+import { buildWorkingDirectoryNote, resolveCdTarget } from "../shell-paths.mjs";
+import { formatPromptForCwd, formatSystemMessage } from "../shell-display.mjs";
+import { parseInternalCommand } from "../shell-commands.mjs";
+import { readAgentsFromCwdAndParents } from "../shell-agents.mjs";
 import { createUsageTotals, addUsageTotals, formatUsageReport } from "../response.mjs";
-import {
-  appendCliTranscript,
-  buildRequestMessage,
-  buildRequestOverride,
-  loadPromptTemplate,
-  withGoalTools,
-  resolveAgentApiKey,
-  WORKER_ROLE_MESSAGE,
-} from "../agent-flow.mjs";
+import { appendCliTranscript, buildRequestMessage } from "../request-context.mjs";
+import { buildRequestOverride, withGoalTools, WORKER_ROLE_MESSAGE } from "../request-builder.mjs";
+import { loadPromptTemplate } from "../prompt-loader.mjs";
+import { resolveAgentApiKey } from "./client.mjs";
 import { promptResumeMenu } from "../resume-menu.mjs";
 import { promptRollbackMenu } from "../rollback-menu.mjs";
 import { promptRecoveryMenu } from "../recovery-menu.mjs";
@@ -42,13 +33,7 @@ import {
   saveGlobalConfirmations,
 } from "../confirmation-policy.mjs";
 import { terminateWorkers } from "../parallel-workers.mjs";
-import {
-  cleanupStaleOneShotStates,
-  createPendingResponse,
-  getToolCallId,
-  persistCheckpoint,
-  readLatestCheckpoint,
-} from "./checkpoint.mjs";
+import { createPendingResponse, getToolCallId } from "./pending-response.mjs";
 import {
   createReplInterface,
   printAgentText,
@@ -56,10 +41,23 @@ import {
   printUsageReport,
 } from "./repl.mjs";
 import { createResumeToolCallRunner } from "./recovery.mjs";
+import { createSessionPersistence } from "./conversation-persistence.mjs";
+import { restoreSessionState } from "./conversation-transitions.mjs";
+import { transitionGoalCommand } from "./goal-command-state.mjs";
+import { executeLocalShellCommand } from "./local-shell.mjs";
+import { bindAgentDebugListeners, createAgentClient } from "./client.mjs";
 import { inspectImage } from "../image-inspector.mjs";
 import { saveGeneratedImage } from "../image-generation.mjs";
 import { recreateOpenAIClient, waitForWebsocketRetry } from "../retry-recovery.mjs";
-import { normalizeOutputFlags, parseCliArgs } from "../cli.mjs";
+import {
+  decideRecoveryMenuChoice,
+  decideRequestFailure,
+  isWebsocketRecoveryError,
+} from "./request-recovery.mjs";
+import { createGoalCallbacks } from "./goal-callbacks.mjs";
+import { createInteractiveToolCallRunner } from "./interactive-tool-call.mjs";
+import { parseCliArgs } from "../cli-args.mjs";
+import { normalizeOutputFlags } from "../cli-flags.mjs";
 
 registerHandlers({ log });
 let activeOpenAI = null;
@@ -109,32 +107,15 @@ export async function runAgent({
     ? (await readLatestCheckpoint(checkpointPath, sessionStatePath)) || null
     : await readSessionState(statePath);
   const savedResponseId = savedState?.response_id || "";
+  const restoredSession = restoreSessionState(savedState, createUsageTotals);
   const apiKey =
     process.env.agentx_api_key ||
     process.env.AGENTX_API_KEY ||
     (process.env.JEST_WORKER_ID ? "test-key" : resolveAgentApiKey());
   let debugEnabled = Boolean(outputFlags.debug);
   const yoloEnabled = !outputFlags.confirm;
-  const attachOpenAIListeners = (client) => {
-    if (typeof client?.responses?.on !== "function") return;
-    // Always bind error: the SDK otherwise reports transport errors as unhandled rejections.
-    client.responses.on("error", (detail) => {
-      if (debugEnabled) process.stderr.write(`[openai:error] ${JSON.stringify(detail ?? {})}\n`);
-    });
-    if (debugEnabled) bindOpenAIDebugListeners(client);
-  };
-  const bindOpenAIDebugListeners = (client) => {
-    if (typeof client?.responses?.on !== "function") return;
-    for (const event of ["connecting", "open", "reconnecting", "reconnected", "close"]) {
-      client.responses.on(event, (detail) =>
-        process.stderr.write(`[openai:${event}] ${JSON.stringify(detail ?? {})}\n`),
-      );
-    }
-  };
   const createSessionClient = () => {
-    const client = createOpenAI({ apiKey, transport: "websocket" });
-    attachOpenAIListeners(client);
-    return client;
+    return createAgentClient({ apiKey, isDebugEnabled: () => debugEnabled });
   };
   let openai = createSessionClient();
   activeOpenAI = openai;
@@ -152,51 +133,34 @@ export async function runAgent({
     printResumeMessage("Last user message", savedState?.last_user_message || "");
     printResumeMessage("Last assistant message", savedState?.last_assistant_message || "");
   }
-  const hasPendingTransaction = Boolean(
-    savedState?.failed_response && savedState?.pending_retry_request,
-  );
+  const { hasPendingTransaction } = restoredSession;
   if (savedState?.failed_response) {
     const message = hasPendingTransaction
       ? "Previous continuation failed; pending tool transaction preserved for recovery."
       : "Previous request failed; starting from the last successful checkpoint.";
     writeTerminal(`${formatSystemMessage(message)}\n`);
   }
-  let previousResponseId =
-    savedState?.failed_response && !hasPendingTransaction
-      ? savedState?.history?.at(-1)?.response_id || ""
-      : savedResponseId;
+  let previousResponseId = restoredSession.previousResponseId;
   let cwdNote = "";
   let previousCwd = null;
-  let lastUserMessage = savedState?.last_user_message || "";
-  let lastAssistantMessage = savedState?.last_assistant_message || "";
-  let pendingCliTranscript = savedState?.pending_cli_transcript || "";
+  let lastUserMessage = restoredSession.lastUserMessage;
+  let lastAssistantMessage = restoredSession.lastAssistantMessage;
+  let pendingCliTranscript = restoredSession.pendingCliTranscript;
   const onWorkerComplete = (worker) => {
     if (!worker?.usage) return;
     if (outputFlags.noUsage) return;
     const usage = formatUsageReport({ ...worker.usage, model: template?.model });
     writeTerminal(`\u001b[38;5;33m${usage}\u001b[0m\n`);
   };
-  let sessionUsage = savedState?.usage
-    ? {
-        inputTokens: Number(savedState.usage.inputTokens ?? 0),
-        cachedTokens: Number(savedState.usage.cachedTokens ?? 0),
-        outputTokens: Number(savedState.usage.outputTokens ?? 0),
-        turns: Number(savedState.usage.turns ?? 0),
-      }
-    : createUsageTotals();
-  let pendingToolCalls = Array.isArray(savedState?.pending_tool_calls)
-    ? savedState.pending_tool_calls
-    : [];
-  let executionJournal = Array.isArray(savedState?.execution_journal)
-    ? savedState.execution_journal
-    : [];
-  let history = Array.isArray(savedState?.history) ? savedState.history : [];
-  let rollbackBackup = Array.isArray(savedState?.rollback_backup) ? savedState.rollback_backup : [];
-  let failedResponse = Boolean(savedState?.failed_response);
-  let pendingRetryRequest = savedState?.pending_retry_request || null;
-  let pendingTransaction = savedState?.pending_transaction || null;
-  // Goals are session-scoped; never restore goal state across restart.
-  let activeGoal = null;
+  let sessionUsage = restoredSession.sessionUsage;
+  let pendingToolCalls = restoredSession.pendingToolCalls;
+  let executionJournal = restoredSession.executionJournal;
+  let history = restoredSession.history;
+  let rollbackBackup = restoredSession.rollbackBackup;
+  let failedResponse = restoredSession.failedResponse;
+  let pendingRetryRequest = restoredSession.pendingRetryRequest;
+  let pendingTransaction = restoredSession.pendingTransaction;
+  let activeGoal = restoredSession.activeGoal;
   const globalConfirmationPath = confirmationFilePath();
   const globalConfirmations = await loadGlobalConfirmations(globalConfirmationPath);
   const sessionConfirmations = new Set();
@@ -229,66 +193,51 @@ export async function runAgent({
     }
   }
 
-  async function saveState() {
-    await persistResponseState(statePath, {
+  const sessionPersistence = createSessionPersistence({
+    statePath,
+    checkpointPath,
+    oneShot,
+    getState: () => ({
       response_id: previousResponseId,
       usage: sessionUsage,
       last_user_message: lastUserMessage,
       last_assistant_message: lastAssistantMessage,
-      pending_cli_transcript: pendingCliTranscript,
       pending_tool_calls: pendingToolCalls,
-      execution_journal: executionJournal,
       history,
-      rollback_backup: rollbackBackup,
       failed_response: failedResponse,
       pending_retry_request: pendingRetryRequest,
       pending_transaction: pendingTransaction,
+      pending_cli_transcript: pendingCliTranscript,
+      execution_journal: executionJournal,
+      rollback_backup: rollbackBackup,
       goal: activeGoal,
-    });
-  }
-
-  async function persistResponseSnapshot(snapshot) {
-    const response = snapshot?.response;
-    const nextCalls = Array.isArray(snapshot?.pendingToolCalls) ? snapshot.pendingToolCalls : [];
-    previousResponseId = response?.id || previousResponseId;
-    pendingToolCalls = nextCalls;
-    if (response?.id && nextCalls.length > 0) {
-      pendingTransaction = {
-        base_response_id: response.id,
-        calls: nextCalls,
-        request: null,
-        execution_journal: executionJournal,
-      };
-    }
-    if (response?.id && nextCalls.length === 0) {
-      failedResponse = false;
-      pendingRetryRequest = null;
-      pendingTransaction = null;
-      lastAssistantMessage = extractTextFromResponse(response);
-      history = [
-        ...history.filter((entry) => entry.response_id !== response.id),
-        {
-          response_id: response.id,
-          timestamp: new Date().toISOString(),
-          user_preview: lastUserMessage.slice(0, 20),
-          assistant_preview: lastAssistantMessage.slice(0, 20),
-          usage: { ...sessionUsage },
-          last_user_message: lastUserMessage,
-          last_assistant_message: lastAssistantMessage,
-        },
-      ].slice(-20);
-    }
-    await saveState();
-    if (response?.id && nextCalls.length === 0 && !oneShot) {
-      await persistCheckpoint(checkpointPath, {
-        response_id: response.id,
-        usage: sessionUsage,
-        last_user_message: lastUserMessage,
-        last_assistant_message: lastAssistantMessage,
-        history,
-      });
-    }
-  }
+    }),
+    setState: (state) => {
+      previousResponseId = state.response_id;
+      sessionUsage = state.usage;
+      lastUserMessage = state.last_user_message;
+      lastAssistantMessage = state.last_assistant_message;
+      pendingCliTranscript = state.pending_cli_transcript;
+      pendingToolCalls = state.pending_tool_calls;
+      executionJournal = state.execution_journal;
+      history = state.history;
+      rollbackBackup = state.rollback_backup;
+      failedResponse = state.failed_response;
+      pendingRetryRequest = state.pending_retry_request;
+      pendingTransaction = state.pending_transaction;
+      activeGoal = state.goal;
+    },
+    persistResponseState,
+    persistCheckpoint,
+    extractAssistantText: extractTextFromResponse,
+  });
+  const {
+    saveState,
+    persistResponseSnapshot,
+    persistToolExecutionState,
+    resetState,
+    applyRollback,
+  } = sessionPersistence;
   if (savedState?.goal) await saveState();
   if (activeGoal?.status === "paused" && !oneShot) {
     writeTerminal(
@@ -317,21 +266,6 @@ export async function runAgent({
       return true;
     }
     return choice === "y" || choice === "yes";
-  }
-
-  async function persistToolExecutionState({ call, response, status, identity: suppliedIdentity }) {
-    const identity = suppliedIdentity || `id:${String(call?.call_id || call?.id || "")}`;
-    const record = {
-      identity,
-      status,
-      response_id: String(response?.id || ""),
-      updated_at: new Date().toISOString(),
-    };
-    executionJournal = [
-      ...executionJournal.filter((entry) => entry.identity !== identity),
-      record,
-    ].slice(-100);
-    await saveState();
   }
 
   async function exitWithSummary({ leadingNewline = false } = {}) {
@@ -364,15 +298,7 @@ export async function runAgent({
         `${formatSystemMessage("Interrupted work abandoned; returned to the last successful checkpoint.")}\n`,
       );
     } else if (resumeChoice === "new-session") {
-      previousResponseId = "";
-      lastUserMessage = "";
-      lastAssistantMessage = "";
-      pendingCliTranscript = "";
-      pendingToolCalls = [];
-      history = [];
-      rollbackBackup = [];
-      failedResponse = false;
-      sessionUsage = createUsageTotals();
+      resetState(createUsageTotals());
       await clearSession(statePath);
       writeTerminal(`${formatSystemMessage("Session cleared")}\n`);
     } else {
@@ -465,12 +391,7 @@ export async function runAgent({
       } catch (error) {
         if (error?.code === "previous_response_not_found") {
           writeTerminal(`${formatSystemMessage("Pending response not found; clearing session")}\n`);
-          previousResponseId = "";
-          lastUserMessage = "";
-          lastAssistantMessage = "";
-          pendingCliTranscript = "";
-          pendingToolCalls = [];
-          sessionUsage = createUsageTotals();
+          resetState(createUsageTotals());
           await clearSession(statePath);
         } else {
           failedResponse = true;
@@ -484,50 +405,13 @@ export async function runAgent({
     }
   }
 
-  async function runInteractiveToolCall(call, toolCwd, options = {}) {
-    const controller = new AbortController();
-    const interactive =
-      !oneShot &&
-      terminalInput?.isTTY &&
-      typeof terminalInput?.setRawMode === "function" &&
-      typeof terminalInput?.on === "function";
-    let interrupted = false;
-    const onRawData = (chunk) => {
-      if (String(chunk).includes("\x14")) {
-        interrupted = true;
-        options?.statusController?.pause?.();
-        writeTerminal(`${formatSystemMessage("User interrupted command (Ctrl-T)")}\n`);
-        controller.abort();
-      }
-    };
-    if (interactive) {
-      preserveReplHistory();
-      rl?.close?.();
-      terminalInput.setRawMode(true);
-      terminalInput.on("data", onRawData);
-      terminalInput.resume?.();
-    }
-    try {
-      const { runToolCall } = await import("../tool-dispatch.mjs");
-      const output = await runToolCall(call, toolCwd, {
-        ...options,
-        permission: options.permission || process.env.AGENTX_PERMISSION || "execute",
-        signal: controller.signal,
-      });
-      if (interrupted && output?.type === "shell_call_output") {
-        const first = output.output?.[0];
-        if (first)
-          first.stderr = `${first.stderr || ""}${first.stderr ? "\n" : ""}The user requested interruption (Ctrl-T). Stop executing and do not retry or run additional commands. Return the current status to the user.`;
-      }
-      return output;
-    } finally {
-      if (interactive) {
-        terminalInput.removeListener?.("data", onRawData);
-        terminalInput.setRawMode(false);
-        replaceReplInterface();
-      }
-    }
-  }
+  const runInteractiveToolCall = createInteractiveToolCallRunner({
+    oneShot,
+    terminalInput,
+    preserveHistory: preserveReplHistory,
+    closeReadline: () => rl?.close?.(),
+    replaceReadline: replaceReplInterface,
+  });
 
   function attachGoalInterrupt() {
     if (oneShot || !activeGoal || !terminalInput?.on) return () => {};
@@ -588,37 +472,16 @@ export async function runAgent({
       if (message.startsWith("!")) {
         const command = message.slice(1).trim();
         if (!command) continue;
-        const controller = new AbortController();
-        const interactiveShell =
-          !oneShot &&
-          terminalInput?.isTTY &&
-          typeof terminalInput?.setRawMode === "function" &&
-          typeof terminalInput?.on === "function";
-        let interruptedShell = false;
-        const onShellInput = (chunk) => {
-          if (!String(chunk).includes("\x03")) return;
-          interruptedShell = true;
-          controller.abort();
-        };
-        if (interactiveShell) {
-          preserveReplHistory();
-          rl?.close?.();
-          terminalInput.setRawMode(true);
-          terminalInput.on("data", onShellInput);
-          terminalInput.resume?.();
-        }
-        let result;
-        try {
-          result = await shellExec(command, cwd, { signal: controller.signal });
-          if (interruptedShell)
-            writeTerminal(`${formatSystemMessage("User interrupted command (Ctrl-C)")}\n`);
-        } finally {
-          if (interactiveShell) {
-            terminalInput.removeListener?.("data", onShellInput);
-            terminalInput.setRawMode(false);
-            replaceReplInterface();
-          }
-        }
+        const result = await executeLocalShellCommand({
+          command,
+          cwd,
+          input: oneShot ? null : terminalInput,
+          readline: rl,
+          preserveHistory: preserveReplHistory,
+          replaceReadline: replaceReplInterface,
+          reportInterruption: () =>
+            writeTerminal(`${formatSystemMessage("User interrupted command (Ctrl-C)")}\n`),
+        });
         pendingCliTranscript = appendCliTranscript(pendingCliTranscript, command, result);
         await saveState();
         continue;
@@ -649,59 +512,13 @@ export async function runAgent({
         rl = createReplInterface(() => cwd, terminalInput, terminalOutput, replHistory);
         continue;
       }
-      if (internal?.type === "goal_help") {
-        writeTerminal(
-          `${formatSystemMessage("Usage: /goal <text> | /goal status | /goal resume | /goal cancel")}\n`,
-        );
-        continue;
-      }
-      if (internal?.type === "goal_status") {
-        const label =
-          activeGoal?.status === "active"
-            ? `Active goal: ${activeGoal.text} (iteration ${activeGoal.iterations || 0})`
-            : activeGoal?.status === "paused"
-              ? `Paused goal: ${activeGoal.text} (iteration ${activeGoal.iterations || 0}); use /goal resume`
-              : "No active goal.";
-        writeTerminal(`${formatSystemMessage(label)}\n`);
-        continue;
-      }
-      if (internal?.type === "goal_cancel") {
-        if (activeGoal) {
-          activeGoal = { ...activeGoal, status: "cancelled" };
-          await saveState();
-          writeTerminal(`${formatSystemMessage("Goal cancelled")}\n`);
-        } else writeTerminal(`${formatSystemMessage("No active goal.")}\n`);
-        continue;
-      }
-      if (internal?.type === "goal_resume") {
-        if (activeGoal?.status !== "paused") {
-          writeTerminal(`${formatSystemMessage("No paused goal to resume.")}\n`);
-          continue;
-        }
-        activeGoal = { ...activeGoal, status: "active", resumed_at: new Date().toISOString() };
-        await saveState();
-        writeTerminal(`${formatSystemMessage(`Resuming goal: ${activeGoal.text}`)}\n`);
-        message = activeGoal.text;
-      }
-      if (internal?.type === "goal") {
-        if (activeGoal?.status === "active") {
-          writeTerminal(`${formatSystemMessage("A goal is already active; cancel it first.")}\n`);
-          continue;
-        }
-        if (activeGoal?.status === "paused") {
-          writeTerminal(
-            `${formatSystemMessage("A paused goal exists; use /goal resume or /goal cancel first.")}\n`,
-          );
-          continue;
-        }
-        activeGoal = {
-          text: internal.goal,
-          status: "active",
-          iterations: 0,
-          started_at: new Date().toISOString(),
-        };
-        writeTerminal(`${formatSystemMessage(`Goal started: ${internal.goal}`)}\n`);
-        message = internal.goal;
+      const goalCommand = transitionGoalCommand(activeGoal, internal);
+      if (goalCommand.handled) {
+        activeGoal = goalCommand.goal;
+        if (goalCommand.persist) await saveState();
+        if (goalCommand.message) writeTerminal(`${formatSystemMessage(goalCommand.message)}\n`);
+        if (goalCommand.inputMessage) message = goalCommand.inputMessage;
+        if (goalCommand.continue) continue;
       }
 
       if (internal?.type === "exit") {
@@ -713,13 +530,7 @@ export async function runAgent({
 
       if (internal?.type === "session_clear") {
         if (!outputFlags.noUsage) printUsageReport(sessionUsage, { model: template.model });
-        previousResponseId = "";
-        lastUserMessage = "";
-        lastAssistantMessage = "";
-        pendingCliTranscript = "";
-        pendingToolCalls = [];
-        activeGoal = null;
-        sessionUsage = createUsageTotals();
+        resetState(createUsageTotals());
         await clearSession(statePath);
         writeTerminal(`${formatSystemMessage("Session cleared")}\n`);
         continue;
@@ -736,15 +547,7 @@ export async function runAgent({
             output: terminalOutput,
           });
           if (selected) {
-            previousResponseId = selected.response_id;
-            lastUserMessage = selected.last_user_message;
-            lastAssistantMessage = selected.last_assistant_message;
-            sessionUsage = { ...selected.usage };
-            pendingToolCalls = [];
-            const selectedIndex = history.indexOf(selected);
-            rollbackBackup = history.slice(selectedIndex + 1);
-            history = history.slice(0, selectedIndex + 1);
-            failedResponse = false;
+            applyRollback(selected);
             await saveState();
             await persistCheckpoint(checkpointPath, selected);
             writeTerminal(`${formatSystemMessage(`Rolled back to ${selected.response_id}`)}\n`);
@@ -848,123 +651,87 @@ export async function runAgent({
             addUsageTotals(sessionUsage, usage);
             sessionUsage.turns += usage.turns || 0;
           };
-          const onGoalIteration = async (iterations) => {
-            if (activeGoal?.status === "active") {
-              activeGoal = { ...activeGoal, iterations };
-              await saveState();
-            }
-          };
-          const onGoalComplete = async (result) => {
-            activeGoal = {
-              ...activeGoal,
-              status: "completed",
-              result,
-              completed_at: new Date().toISOString(),
-            };
-            await saveState();
-            // Final response is rendered by the goal completion continuation.
-          };
-          const onGoalBlocked = async ({ question, choices = [] }) => {
-            // Goal interruption handling uses raw mode for Ctrl-T. Readline
-            // questions need cooked mode, and the live status line must stay
-            // paused until the answer is complete.
-            terminalInput.setRawMode?.(false);
-            writeTerminal(
-              `${formatSystemMessage(`GOAL QUESTION: ${question || "Input required"}`)}\n`,
-            );
-            choices.forEach((choice, index) =>
-              writeTerminal(`${String.fromCharCode(65 + index)}) ${choice}\n`),
-            );
-            const answer = rl
-              ? await rl.question(choices.length ? "Choose A-D or answer: " : "Answer: ")
-              : "";
-            activeGoal = { ...activeGoal, last_question: question };
-            await saveState();
-            return answer;
-          };
-          const onGoalLimit = async (iterations) => {
-            activeGoal = { ...activeGoal, status: "blocked", iterations };
-            await saveState();
-            writeTerminal(
-              `${formatSystemMessage(`Goal stopped after ${iterations} iterations`)}\n`,
-            );
-          };
-          try {
-            response = await sendMessage(
-              openai,
-              requestTemplate,
-              previousResponseId,
-              requestMessage,
-              agentsText,
-              cwd,
-              onResponseUsage,
-              retryRequest || activeOverride,
-              {
-                liveStreaming: true,
-                sessionStartedAt,
-                onResponseState: persistResponseSnapshot,
-                onRetryState,
-                onToolExecutionState: persistToolExecutionState,
-                confirmToolCall,
-                suppressStatusOutput: debugEnabled || outputFlags.quiet,
-                suppressUsageOutput: outputFlags.noUsage,
-                noTimers: outputFlags.noTimers,
-                colors: !outputFlags.noColors,
-                noReasoning: outputFlags.noReasoning,
-                noShellCalls: outputFlags.noShellCalls,
-                noToolCalls: outputFlags.noToolCalls,
-                noMcpOutput: outputFlags.noMcpOutput,
-                noWebsearch: outputFlags.noWebsearch,
-                debug: debugEnabled,
-                transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
-                runToolCall: runInteractiveToolCall,
-                onImageGeneration: handleImageGeneration,
-                onViewImage,
-                yolo: yoloEnabled,
-                onWorkerUsage,
-                onWorkerComplete,
-                goalMode: activeGoal?.status === "active",
-                goalText: activeGoal?.text || message,
-                goalIterations: activeGoal?.iterations || 0,
-                onGoalIteration,
-                isGoalCancelled: () => activeGoal?.status !== "active",
-                onGoalComplete,
-                onGoalFinalResponse: async (text) => {
-                  if (text) printAgentText(text);
-                },
-                onGoalBlocked,
-                onGoalLimit,
-              },
-            );
-          } finally {
-          }
+          const goalCallbacks = createGoalCallbacks({
+            getGoal: () => activeGoal,
+            setGoal: (goal) => {
+              activeGoal = goal;
+            },
+            saveState,
+            getReadline: () => rl,
+            terminalInput,
+            printFinalResponse: printAgentText,
+          });
+          response = await sendMessage(
+            openai,
+            requestTemplate,
+            previousResponseId,
+            requestMessage,
+            agentsText,
+            cwd,
+            onResponseUsage,
+            retryRequest || activeOverride,
+            {
+              liveStreaming: true,
+              sessionStartedAt,
+              onResponseState: persistResponseSnapshot,
+              onRetryState,
+              onToolExecutionState: persistToolExecutionState,
+              confirmToolCall,
+              suppressStatusOutput: debugEnabled || outputFlags.quiet,
+              suppressUsageOutput: outputFlags.noUsage,
+              noTimers: outputFlags.noTimers,
+              colors: !outputFlags.noColors,
+              noReasoning: outputFlags.noReasoning,
+              noShellCalls: outputFlags.noShellCalls,
+              noToolCalls: outputFlags.noToolCalls,
+              noMcpOutput: outputFlags.noMcpOutput,
+              noWebsearch: outputFlags.noWebsearch,
+              debug: debugEnabled,
+              transitionOnlyStatus: oneShot || !terminalInput?.isTTY,
+              runToolCall: runInteractiveToolCall,
+              onImageGeneration: handleImageGeneration,
+              onViewImage,
+              yolo: yoloEnabled,
+              onWorkerUsage,
+              onWorkerComplete,
+              goalMode: activeGoal?.status === "active",
+              goalText: activeGoal?.text || message,
+              goalIterations: activeGoal?.iterations || 0,
+              onGoalIteration: goalCallbacks.onGoalIteration,
+              isGoalCancelled: () => activeGoal?.status !== "active",
+              onGoalComplete: goalCallbacks.onGoalComplete,
+              onGoalFinalResponse: goalCallbacks.onGoalFinalResponse,
+              onGoalBlocked: goalCallbacks.onGoalBlocked,
+              onGoalLimit: goalCallbacks.onGoalLimit,
+            },
+          );
         } catch (error) {
-          const errorText = `${error?.message || ""} ${error?.cause?.message || ""}`;
-          const websocketExpired =
-            error?.code === "websocket_connection_limit_reached" ||
-            errorText.includes("websocket_connection_limit_reached") ||
-            errorText.includes("cannot send on a closed WebSocket");
+          const websocketExpired = isWebsocketRecoveryError(error);
+          let websocketRetryAvailable = false;
           if (websocketExpired) {
             websocketRecoveryStartedAt ??= Date.now();
-            if (
-              await waitForWebsocketRetry(websocketRecoveryStartedAt, websocketRecoveryAttempts)
-            ) {
-              websocketRecoveryAttempts += 1;
-              openai = await recreateOpenAIClient(openai, createSessionClient);
-              activeOpenAI = openai;
-              writeTerminal(
-                `${formatSystemMessage("Responses connection expired; reconnecting.")}\n`,
-              );
-              continue;
-            }
-            recoveryAttempts = 1;
+            websocketRetryAvailable = await waitForWebsocketRetry(
+              websocketRecoveryStartedAt,
+              websocketRecoveryAttempts,
+            );
           }
-          if (
-            error?.code === "previous_response_not_found" &&
-            previousResponseId &&
-            recoveryAttempts < 1
-          ) {
-            recoveryAttempts += 1;
+          const recovery = decideRequestFailure(error, {
+            oneShot,
+            recoveryAttempts,
+            previousResponseId,
+            websocketRetryAvailable,
+          });
+          recoveryAttempts = recovery.recoveryAttempts;
+          if (recovery.action === "reconnect") {
+            websocketRecoveryAttempts += 1;
+            openai = await recreateOpenAIClient(openai, createSessionClient);
+            activeOpenAI = openai;
+            writeTerminal(
+              `${formatSystemMessage("Responses connection expired; reconnecting.")}\n`,
+            );
+            continue;
+          }
+          if (recovery.action === "new-chain") {
             previousResponseId = "";
             retryRequest = null;
             pendingRetryRequest = null;
@@ -977,8 +744,7 @@ export async function runAgent({
           if (!pendingTransaction?.request) pendingToolCalls = [];
           await saveState();
           if (oneShot) {
-            if (recoveryAttempts < 1) {
-              recoveryAttempts += 1;
+            if (recovery.action === "retry-pending") {
               retryRequest = pendingRetryRequest;
               continue;
             }
@@ -1002,55 +768,40 @@ export async function runAgent({
             }
             throw menuError;
           }
-          if (choice === "retry" || choice === "debug-retry") {
+          const menuRecovery = decideRecoveryMenuChoice(choice, recoveryAttempts);
+          recoveryAttempts = menuRecovery.recoveryAttempts;
+          if (menuRecovery.action === "retry" || menuRecovery.action === "debug-retry") {
             openai = await recreateOpenAIClient(openai, createSessionClient);
             activeOpenAI = openai;
-            if (choice === "debug-retry" && !debugEnabled) {
+            if (menuRecovery.action === "debug-retry" && !debugEnabled) {
               debugEnabled = true;
-              bindOpenAIDebugListeners(openai);
+              bindAgentDebugListeners(openai);
               process.stderr.write("[agentx:debug] enabled for retry\n");
             }
-            recoveryAttempts += 1;
             retryRequest = pendingRetryRequest;
             continue;
           }
-          if (choice === "new-chain" && recoveryAttempts < 2) {
-            recoveryAttempts += 1;
+          if (menuRecovery.action === "new-chain") {
             previousResponseId = "";
             retryRequest = null;
             pendingRetryRequest = null;
             continue;
           }
-          if (choice === "rollback") {
+          if (menuRecovery.action === "rollback") {
             const selected = await promptRollbackMenu(history, {
               input: terminalInput,
               output: terminalOutput,
             });
             if (selected) {
-              previousResponseId = selected.response_id;
-              lastUserMessage = selected.last_user_message;
-              lastAssistantMessage = selected.last_assistant_message;
-              sessionUsage = { ...selected.usage };
-              const selectedIndex = history.indexOf(selected);
-              rollbackBackup = history.slice(selectedIndex + 1);
-              history = history.slice(0, selectedIndex + 1);
-              failedResponse = false;
+              applyRollback(selected);
               await saveState();
+              await persistCheckpoint(checkpointPath, selected);
             }
             break;
           }
-          if (choice === "clear") {
-            previousResponseId = "";
+          if (menuRecovery.action === "clear") {
             retryRequest = null;
-            pendingRetryRequest = null;
-            lastUserMessage = "";
-            lastAssistantMessage = "";
-            pendingCliTranscript = "";
-            pendingToolCalls = [];
-            history = [];
-            rollbackBackup = [];
-            failedResponse = false;
-            sessionUsage = createUsageTotals();
+            resetState(createUsageTotals());
             await clearSession(statePath);
             writeTerminal(`${formatSystemMessage("Session cleared")}\n`);
             break;

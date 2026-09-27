@@ -1,9 +1,9 @@
 import { writeTerminal } from "../terminal-output.mjs";
 import { createInterface } from "node:readline/promises";
 import { stdin as defaultInput, stdout as defaultOutput } from "node:process";
-import { completePath } from "../completion.mjs";
+import { completePath } from "../path-completion.mjs";
 import { formatFinalUsageMessage, formatWhiteMessage } from "../shell-display.mjs";
-import { formatPromptForCwd, formatSystemMessage } from "../shell.mjs";
+import { formatPromptForCwd, formatSystemMessage } from "../shell-display.mjs";
 import { getTerminalWidth, wrapText } from "../text-wrap.mjs";
 import { formatUsageReport } from "../response.mjs";
 

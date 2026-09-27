@@ -1,20 +1,23 @@
 #!/usr/bin/env node
-import { config as loadDotenv } from "dotenv";
 import { path } from "@eliware/common";
 import { existsSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { getHomeDirectory } from "./src/platform.mjs";
+import { loadUserConfiguration } from "./src/env-loader.mjs";
 
 const homeDirectory = getHomeDirectory();
 if (homeDirectory) {
-  loadDotenv({ path: path(homeDirectory, ".agentx"), quiet: true });
+  loadUserConfiguration(path(homeDirectory, ".agentx"));
 }
 
 const { isDirectInvocation, promptPath } = await import("./src/runtime.mjs");
-const { runAgent } = await import("./src/agent.mjs");
-const { formatQuickHelp, getPackageVersion, parseCliArgs } = await import("./src/cli.mjs");
-const { formatMcpConfigValidation, validateMcpConfigFile } = await import("./src/mcp-config.mjs");
+const { runAgent } = await import("./src/agent/runtime.mjs");
+const { formatQuickHelp } = await import("./src/cli-help.mjs");
+const { getPackageVersion } = await import("./src/cli-version.mjs");
+const { parseCliArgs } = await import("./src/cli-args.mjs");
+const { formatMcpConfigValidation } = await import("./src/mcp-config-format.mjs");
+const { validateMcpConfigFile } = await import("./src/mcp-config-file.mjs");
 
 function printAndExit(text, code = 0) {
   process.stdout.write(`${text}\n`);
@@ -38,9 +41,10 @@ async function confirmSetup() {
       .toLowerCase();
     if (answer && answer !== "y" && answer !== "yes") return false;
     rl.close();
-    const { runSetup, setupPaths } = await import("./src/setup.mjs");
+    const { runSetup } = await import("./src/setup.mjs");
+    const { setupPaths } = await import("./src/setup-paths.mjs");
     await runSetup({ stdin: process.stdin, stdout: process.stdout });
-    loadDotenv({ path: setupPaths.envPath, quiet: true, override: true });
+    loadUserConfiguration(setupPaths.envPath, { override: true });
     return Boolean(
       existsSync(setupPaths.envPath) && (process.env.agentx_api_key || process.env.AGENTX_API_KEY),
     );
@@ -66,6 +70,9 @@ if (isDirectInvocation(import.meta.url)) {
     printAndExit(formatMcpConfigValidation(result), result.valid ? 0 : 1);
   } else {
     try {
+      const { readEnvState } = await import("./src/setup-env.mjs");
+      await readEnvState();
+      if (process.env.AGENTX_MODEL === "gpt-5.6-luna") process.env.AGENTX_MODEL = "gpt-6-luna";
       const messageArgs = parsed.messageArgs;
       if (parsed.flags.cwd === "") throw new Error("--cwd requires a path");
       const cwd = parsed.flags.cwd ? resolvePath(process.cwd(), parsed.flags.cwd) : process.cwd();
