@@ -1,7 +1,7 @@
 {
   "name": "@eliware/agentx-cli",
   "type": "module",
-  "version": "8.0.0",
+  "version": "9.0.0",
   "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
   "main": "agentx.mjs",
   "scripts": {
@@ -63,8 +63,8 @@
     "@eliware/common": "^2.0.0",
     "@eliware/openai": "^1.1.11",
     "@eliware/redact": "^6.0.0",
-    "dotenv": "^18.0.4",
-    "sharp": "^0.35.4",
+    "dotenv": "^18.0.5",
+    "sharp": "^0.35.5",
     "string-width": "^8.3.0",
     "strip-ansi": "^7.2.0"
   },
