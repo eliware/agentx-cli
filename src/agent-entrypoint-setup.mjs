@@ -1,6 +1,7 @@
 import { path } from "@eliware/common";
 import { existsSync } from "node:fs";
 import { loadUserConfiguration } from "./env-loader.mjs";
+import { acceptsSetupAnswer, isSetupEligible } from "./agent-entrypoint-setup-policy.mjs";
 
 export async function confirmSetup({
   isTest,
@@ -11,9 +12,8 @@ export async function confirmSetup({
   runSetup,
   reloadConfiguration,
 }) {
-  if (isTest || !isTty || (configured && hasApiKey())) return false;
-  const answer = (await ask()).trim().toLowerCase();
-  if (answer && answer !== "y" && answer !== "yes") return false;
+  if (!isSetupEligible({ isTest, isTty, configured, hasApiKey })) return false;
+  if (!acceptsSetupAnswer(await ask())) return false;
   await runSetup();
   await reloadConfiguration();
   return hasApiKey();

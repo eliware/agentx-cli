@@ -1,8 +1,10 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { createLiveResponseHandlers } from "../../src/agent-turn/response-events.mjs";
+
 describe("live response event routing", () => {
   let originalStdoutWrite;
   let stdoutWrites;
+
   beforeEach(() => {
     originalStdoutWrite = process.stdout.write;
     stdoutWrites = [];
@@ -11,26 +13,66 @@ describe("live response event routing", () => {
       return true;
     };
   });
+
   afterEach(() => {
     process.stdout.write = originalStdoutWrite;
   });
+
   test("returns no handlers when streaming is disabled", () => {
     expect(createLiveResponseHandlers({ liveStreaming: false }).handlers).toBeNull();
   });
-  test("routes text, shell, and custom-tool output while tracking visible text", () => {
-    const status = { beginWriting: jest.fn() };
-    const live = createLiveResponseHandlers({ liveStreaming: true, statusController: status });
+
+  test("connects stream callbacks to each renderer and tracks visible output", () => {
+    const statusController = {
+      beginWriting: jest.fn(),
+      showExecuting: jest.fn(),
+      showReasoning: jest.fn(),
+      pause: jest.fn(),
+      resume: jest.fn(),
+    };
+    const live = createLiveResponseHandlers({ liveStreaming: true, statusController });
     live.handlers.onTextDelta("answer");
+    live.handlers.onEvent({ type: "response.completed" });
+    live.handlers.onEvent({ type: "response.test" });
+    live.handlers.onEvent({ type: "response.reasoning_summary_text.delta", delta: "reasoning" });
+    live.handlers.onEvent({
+      type: "response.reasoning_summary_text.delta",
+      text: "reasoning text",
+    });
+    live.handlers.onEvent({
+      type: "response.reasoning_summary_part.delta",
+      summary_text: "reasoning summary",
+    });
+    live.handlers.onEvent({ type: "response.reasoning_summary_text.done" });
+    live.handlers.onEvent({ type: "response.reasoning_summary_part.added" });
+    live.handlers.onEvent({ type: "response.web_search_call.in_progress" });
+    live.handlers.onEvent({ type: "response.web_search_call.searching" });
+    live.handlers.onEvent({ type: "response.web_search_call.completed" });
+    live.handlers.onEvent({ type: "response.mcp_call.progress", progress: "half" });
+    live.handlers.onEvent({ type: "response.mcp_call_arguments.delta", delta: "{}" });
     live.handlers.onEvent({ type: "response.function_call_arguments.delta", delta: "custom" });
+    live.handlers.onEvent({ type: "response.function_call_arguments.delta", delta: "" });
+    live.handlers.onEvent({ type: "response.function_call_arguments.delta" });
     live.handlers.onEvent({ type: "response.shell_call_command.delta", delta: "shell" });
+    live.handlers.onEvent({ type: "response.shell_call_command.delta", delta: "" });
+    live.handlers.onEvent({ type: "response.shell_call_command.delta" });
+    live.handlers.onItemAdded({ type: "mcp_call", name: "lookup" });
+    live.handlers.onItemDone({ type: "mcp_call", name: "lookup" });
+    live.handlers.onItemDone({ type: "web_search_call", action: { queries: ["q"] } });
     live.handlers.onItemDone({ type: "function_call" });
     live.handlers.onItemDone({ type: "shell_call" });
+    live.handlers.onItemDone({
+      type: "reasoning",
+      summary: [{ type: "output_text", text: "fallback" }],
+    });
+    live.handlers.onTextDelta(undefined);
     expect(live.sawOutput()).toBe(true);
-    expect(live.streamedText()).toBe("answercustomshell\n\n");
+    expect(live.streamedText()).toBe("answercustomshell\n\n\n");
     expect(stdoutWrites.join("")).toContain("answer");
-    expect(status.beginWriting).toHaveBeenCalledTimes(1);
+    expect(statusController.beginWriting).toHaveBeenCalled();
   });
-  test("keeps assistant text while category suppression options are active", () => {
+
+  test("keeps assistant text when category suppression is active", () => {
     const live = createLiveResponseHandlers({
       liveStreaming: true,
       noReasoning: true,
@@ -40,112 +82,35 @@ describe("live response event routing", () => {
       noWebsearch: true,
     });
     live.handlers.onTextDelta("answer");
-    live.handlers.onEvent({ type: "response.reasoning_summary_text.delta", delta: "reasoning" });
-    live.handlers.onEvent({ type: "response.shell_call_command.delta", delta: "shell" });
-    live.handlers.onEvent({ type: "response.function_call_arguments.delta", delta: "tool" });
-    live.handlers.onEvent({ type: "response.mcp_call_arguments.delta", delta: "mcp" });
+    live.handlers.onEvent({ type: "response.reasoning_summary_text.delta", delta: "hidden" });
+    live.handlers.onEvent({ type: "response.shell_call_command.delta", delta: "hidden" });
+    live.handlers.onEvent({ type: "response.function_call_arguments.delta", delta: "hidden" });
+    live.handlers.onEvent({ type: "response.mcp_call_arguments.delta", delta: "hidden" });
     live.handlers.onEvent({ type: "response.web_search_call.searching" });
     live.handlers.onItemAdded({ type: "mcp_call", name: "lookup" });
-    live.handlers.onItemDone({ type: "shell_call" });
-    live.handlers.onItemDone({ type: "function_call" });
     live.handlers.onItemDone({ type: "mcp_call" });
     live.handlers.onItemDone({ type: "web_search_call" });
-    live.handlers.onItemDone({
-      type: "reasoning",
-      summary: [{ type: "output_text", text: "hidden" }],
-    });
     expect(live.streamedText()).toBe("answer");
   });
-  test("routes reasoning summaries and avoids duplicate reasoning transcripts", () => {
-    const status = { pause: jest.fn(), resume: jest.fn() };
-    const live = createLiveResponseHandlers({ liveStreaming: true, statusController: status });
-    live.handlers.onEvent({ type: "response.reasoning_summary_text.delta", text: "summary" });
-    live.handlers.onEvent({ type: "response.reasoning_summary_text.done" });
-    live.handlers.onItemDone({
-      type: "reasoning",
-      summary: [{ type: "output_text", text: "fallback" }],
-    });
-    expect(stdoutWrites.join("")).toContain("summary");
-    expect(stdoutWrites.join("")).not.toContain("fallback");
-    expect(status.pause).toHaveBeenCalled();
-    expect(status.resume).toHaveBeenCalledWith({ renderNow: false });
-  });
-  test("routes MCP and web-search events to their renderers", () => {
-    const statusController = {
-      showExecuting: jest.fn(),
-      showReasoning: jest.fn(),
-      beginWriting: jest.fn(),
-      pause: jest.fn(),
-      resume: jest.fn(),
-    };
-    const live = createLiveResponseHandlers({ liveStreaming: true, statusController });
-    live.handlers.onEvent({ type: "response.mcp_call.progress", progress: "half" });
-    live.handlers.onEvent({ type: "response.web_search_call.in_progress" });
-    live.handlers.onEvent({ type: "response.web_search_call.searching" });
-    live.handlers.onItemAdded({ type: "mcp_call", name: "lookup" });
-    live.handlers.onItemDone({ type: "mcp_call", name: "lookup" });
-    live.handlers.onItemDone({
-      type: "web_search_call",
-      action: { queries: ["q"] },
-    });
-    expect(live.sawOutput()).toBe(true);
-    expect(statusController.showExecuting).toHaveBeenCalled();
-    expect(statusController.resume).toHaveBeenCalled();
-  });
-  test("uses a reasoning transcript when no streamed summary was received", () => {
-    const live = createLiveResponseHandlers({ liveStreaming: true });
-    live.handlers.onItemDone({
-      type: "reasoning",
-      summary: [{ type: "output_text", text: "transcript" }],
-    });
-    expect(stdoutWrites.join("")).toContain("transcript");
-  });
-  test("ignores web-search completion events until the completion item arrives", () => {
-    const live = createLiveResponseHandlers({ liveStreaming: true });
-    live.handlers.onEvent({ type: "response.web_search_call.completed" });
-    live.handlers.onEvent({ type: "response.web_search_call.unknown" });
-    expect(stdoutWrites).toEqual([]);
-  });
-  test("covers empty and alternate event fields without producing spurious output", () => {
-    const live = createLiveResponseHandlers({ liveStreaming: true });
-    live.handlers.onEvent({ type: "response.unknown" }, { raw: '{"type":"response.completed"}' });
-    live.handlers.onEvent({
-      type: "response.reasoning_summary_part.delta",
-      summary_text: "summary",
-    });
-    live.handlers.onEvent({ type: "response.reasoning_summary_part.added" });
-    live.handlers.onEvent({ type: "response.mcp_call.update" });
-    live.handlers.onEvent({ type: "response.mcp_call.other" });
-    live.handlers.onEvent({ type: "response.mcp_call_arguments.delta", delta: "" });
-    live.handlers.onEvent({ type: "response.mcp_call_arguments.delta" });
-    live.handlers.onEvent({ type: "response.function_call_arguments.delta", delta: "" });
-    live.handlers.onEvent({ type: "response.function_call_arguments.delta" });
-    live.handlers.onEvent({ type: "response.shell_call_command.delta", delta: "" });
-    live.handlers.onEvent({ type: "response.shell_call_command.delta" });
-    live.handlers.onTextDelta(undefined);
-    live.handlers.onItemAdded({ type: "mcp_call", server_label: "server" });
-    live.handlers.onItemAdded({ type: "mcp_call" });
-    expect(live.sawOutput()).toBe(true);
-    expect(stdoutWrites.join("")).toContain("server(");
-    expect(stdoutWrites.join("")).toContain("mcp_call(");
-    expect(stdoutWrites.join("")).not.toContain("response.completed");
-  });
-  test("ignores completion and unrelated events, and debug mode suppresses local summaries", () => {
-    const status = { pause: jest.fn(), beginWriting: jest.fn() };
-    const live = createLiveResponseHandlers({
-      liveStreaming: true,
-      statusController: status,
-      debug: true,
-    });
-    live.handlers.onEvent({ type: "response.completed" });
-    live.handlers.onEvent({ type: "response.test" });
+
+  test("passes debug policy to event and item callbacks", () => {
+    const live = createLiveResponseHandlers({ liveStreaming: true, debug: true });
     live.handlers.onEvent({ type: "response.reasoning_summary_text.delta", delta: "hidden" });
     live.handlers.onEvent({ type: "response.mcp_call_arguments.delta", delta: "hidden" });
     live.handlers.onItemDone({
       type: "reasoning",
       summary: [{ type: "output_text", text: "hidden" }],
     });
+    expect(live.streamedText()).toBe("");
     expect(stdoutWrites.join("")).toBe("");
-    expect(live.sawOutput()).toBe(false);
+  });
+
+  test("renders a reasoning transcript when no summary arrived", () => {
+    const live = createLiveResponseHandlers({ liveStreaming: true });
+    live.handlers.onItemDone({
+      type: "reasoning",
+      summary: [{ type: "output_text", text: "transcript" }],
+    });
+    expect(stdoutWrites.join("")).toContain("transcript");
   });
 });

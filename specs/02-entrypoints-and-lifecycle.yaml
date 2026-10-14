@@ -12,7 +12,7 @@ body: |
 
   `agent-entrypoint-env.mjs` resolves the home directory and loads `$HOME/.agentx` quietly. Environment variables already present remain usable; the runtime must support both `agentx_api_key` and `AGENTX_API_KEY`, preferring the lowercase name.
 
-  `agent-entrypoint.mjs` owns executable invocation and environment loading. `agent-entrypoint-bootstrap.mjs` owns action and startup orchestration plus the top-level error boundary. CLI action handling belongs in `agent-entrypoint-actions.mjs`; startup configuration belongs in `agent-entrypoint-config.mjs`. The interactive setup prompt, setup call, and configuration reload belong to `agent-entrypoint-setup.mjs`. Keep launcher and direct-invocation tests in `tests/agent-entrypoint.test.mjs`; test bootstrap behavior in `tests/agent-entrypoint-bootstrap.test.mjs` and each focused helper in its mirrored suite.
+  `agent-entrypoint.mjs` owns executable invocation and environment loading. `agent-entrypoint-bootstrap.mjs` owns action and startup orchestration plus the top-level error boundary. CLI action handling belongs in `agent-entrypoint-actions.mjs`; startup configuration belongs in `agent-entrypoint-config.mjs`. `agent-entrypoint-setup-policy.mjs` owns setup eligibility and answer rules. `agent-entrypoint-setup.mjs` resolves setup dependencies and runs the setup workflow. Keep policy tests in `tests/agent-entrypoint-setup-policy.test.mjs`; keep adapter and reload tests in `tests/agent-entrypoint-setup.test.mjs`.
 
   Flags are handled before the REPL:
 

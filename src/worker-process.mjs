@@ -3,31 +3,15 @@ import { path, snowflake } from "@eliware/common";
 import { persistWorkerRecord } from "./worker-process-record.mjs";
 import { attachWorkerLifecycle } from "./worker-child-lifecycle.mjs";
 import { terminateWorkerChildren } from "./worker-shutdown.mjs";
+import { buildWorkerEnvironment } from "./worker-environment.mjs";
+import { workerLaunchArgs } from "./worker-launch-arguments.mjs";
+
+export { workerLaunchArgs } from "./worker-launch-arguments.mjs";
 
 const SHUTDOWN_GRACE_MS = 2000;
 const WORKER_TIMEOUT_MS = 10 * 60 * 1000;
 export const workerProcessState = { workers: new Map(), children: new Map() };
 const entrypoint = path(import.meta, "./agent-entrypoint.mjs");
-const workerEnvironmentKeys = [
-  "PATH",
-  "Path",
-  "PATHEXT",
-  "SystemRoot",
-  "ComSpec",
-  "TEMP",
-  "TMP",
-  "HOME",
-  "USERPROFILE",
-  "NODE_PATH",
-  "NODE_OPTIONS",
-  "AGENTX_API_KEY",
-  "agentx_api_key",
-];
-
-export function workerLaunchArgs(entrypointPath, task, debug = false) {
-  return [entrypointPath, ...(debug ? ["--debug"] : []), "--", task];
-}
-
 export const persistWorker = persistWorkerRecord;
 
 export function startWorker(task, cwd, permissions, debug, onUsage, onComplete) {
@@ -47,11 +31,7 @@ export function startWorker(task, cwd, permissions, debug, onUsage, onComplete) 
     killTimer: null,
   };
   workerProcessState.workers.set(worker.id, worker);
-  const env = Object.fromEntries(
-    workerEnvironmentKeys
-      .filter((key) => process.env[key] !== undefined)
-      .map((key) => [key, process.env[key]]),
-  );
+  const env = buildWorkerEnvironment();
   const child = spawn(process.execPath, workerLaunchArgs(entrypoint, task, debug), {
     cwd,
     detached: true,
