@@ -17,7 +17,7 @@ function createFakeClient() {
 }
 
 describe("AgentX OpenAI client boundary", () => {
-  test("resolves the configured API key with lowercase precedence", () => {
+  test("resolves API keys from explicit and process environments", () => {
     expect(resolveAgentApiKey({ agentx_api_key: " lower ", AGENTX_API_KEY: "upper" })).toBe(
       "lower",
     );
@@ -25,9 +25,6 @@ describe("AgentX OpenAI client boundary", () => {
     expect(() => resolveAgentApiKey({})).toThrow(
       "Set agentx_api_key or AGENTX_API_KEY in your shell environment.",
     );
-  });
-
-  test("resolves API keys from process.env by default", () => {
     const lower = process.env.agentx_api_key;
     const upper = process.env.AGENTX_API_KEY;
     try {

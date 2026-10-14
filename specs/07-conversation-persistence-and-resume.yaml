@@ -14,6 +14,8 @@ body: |
   - `history`: bounded array of successful response checkpoints
   - `rollback_backup`: single bounded array containing checkpoints discarded by the latest rollback
 
+  `conversation-state-normalization.mjs` normalizes persisted fields and uses `json-value-clone.mjs` for safe JSON copies of nested values.
+
   Each `history` entry contains:
 
   - `response_id`: completed Responses API response ID

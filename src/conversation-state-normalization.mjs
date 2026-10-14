@@ -1,3 +1,5 @@
+import { cloneJsonValue } from "./json-value-clone.mjs";
+
 function normalizeUsage(usage = {}) {
   return {
     inputTokens: Number(usage?.inputTokens ?? 0),
@@ -9,17 +11,15 @@ function normalizeUsage(usage = {}) {
 
 function normalizePendingToolCall(call) {
   if (!call || typeof call !== "object") return null;
-  try {
-    return JSON.parse(JSON.stringify(call));
-  } catch {
-    return {
-      type: String(call.type ?? "function_call"),
-      name: call.name == null ? undefined : String(call.name),
-      call_id: String(call.call_id ?? call.id ?? ""),
-      input: call.input == null ? undefined : String(call.input),
-      arguments: call.arguments == null ? undefined : String(call.arguments),
-    };
-  }
+  const cloned = cloneJsonValue(call);
+  if (cloned !== null) return cloned;
+  return {
+    type: String(call.type ?? "function_call"),
+    name: call.name == null ? undefined : String(call.name),
+    call_id: String(call.call_id ?? call.id ?? ""),
+    input: call.input == null ? undefined : String(call.input),
+    arguments: call.arguments == null ? undefined : String(call.arguments),
+  };
 }
 
 function normalizeHistoryEntry(entry) {
@@ -62,7 +62,7 @@ function normalizeExecutionJournal(records) {
 }
 
 function cloneOptionalObject(value) {
-  return value && typeof value === "object" ? JSON.parse(JSON.stringify(value)) : null;
+  return value && typeof value === "object" ? cloneJsonValue(value) : null;
 }
 
 export function normalizeSessionState(state) {

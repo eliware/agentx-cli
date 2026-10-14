@@ -143,6 +143,14 @@ describe("session state normalization", () => {
     ]);
   });
 
+  test("clears optional metadata that cannot be cloned as JSON", () => {
+    const pendingTransaction = {};
+    pendingTransaction.self = pendingTransaction;
+    expect(
+      normalizeSessionState({ pending_transaction: pendingTransaction }).pending_transaction,
+    ).toBeNull();
+  });
+
   test("normalizes absent optional values when their persisted keys exist", () => {
     expect(
       normalizeSessionState({

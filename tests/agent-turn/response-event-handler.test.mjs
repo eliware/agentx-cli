@@ -36,7 +36,6 @@ function setup(options = {}) {
 describe("response event handler", () => {
   test("handles reasoning, web search, and MCP events", () => {
     const state = setup();
-    state.onEvent({ type: "response.completed" });
     state.onEvent({ type: "response.reasoning_summary_text.delta", delta: "think" });
     state.onEvent({ type: "response.reasoning_summary_text.delta", text: "fallback" });
     state.onEvent({ type: "response.reasoning_summary_part.delta", summary_text: "summary" });
@@ -56,6 +55,15 @@ describe("response event handler", () => {
     expect(state.webSearchRenderer.searching).toHaveBeenCalled();
     expect(state.mcpRenderer.writeArguments).toHaveBeenCalled();
     expect(state.mcpRenderer.handleEvent).toHaveBeenCalled();
+  });
+
+  test("ignores completion events without changing renderer state", () => {
+    const state = setup();
+    state.onEvent({ type: "response.completed" });
+    expect(state.reasoningRenderer.writeDelta).not.toHaveBeenCalled();
+    expect(state.webSearchRenderer.start).not.toHaveBeenCalled();
+    expect(state.mcpRenderer.handleEvent).not.toHaveBeenCalled();
+    expect(state.markOutput).not.toHaveBeenCalled();
   });
 
   test("streams tool deltas and honors suppression flags", () => {
