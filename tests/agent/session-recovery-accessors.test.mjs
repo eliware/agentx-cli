@@ -46,10 +46,10 @@ test("reads and writes recovery values through session accessors", () => {
     state.websocketRecoveryStartedAt,
   ]).toEqual(["retry", 1, 2, 2, 3]);
   state.clearPendingContinuationForNewChain();
-  expect(state.previousResponseId).toBe("");
-  expect(state.pendingTransaction).toBeNull();
-  expect(state.pendingToolCalls).toEqual([]);
-  expect(state.executionJournal).toEqual([]);
-  expect(state.failedResponse).toBe(false);
-  expect(state.retryRequest).toBeNull();
+  expect(session.setPreviousResponseId).toHaveBeenCalledWith("");
+  expect(session.setPendingRetryRequest).toHaveBeenCalledWith(null);
+  expect(session.setPendingTransaction).toHaveBeenCalledWith(null);
+  expect(session.setPendingToolCalls).toHaveBeenCalledWith([]);
+  expect(session.setExecutionJournal).toHaveBeenCalledWith([]);
+  expect(session.setFailedResponse).toHaveBeenCalledWith(false);
 });

@@ -1,5 +1,6 @@
 import { buildRequestMessage } from "../request-context.mjs";
 import { createRecoveryState } from "./session-recovery-accessors.mjs";
+import { prepareSessionUserTurnState } from "./session-user-turn-state.mjs";
 
 export async function runSessionUserTurn({ message, session, deps }) {
   const requestMessage = buildRequestMessage({
@@ -8,12 +9,7 @@ export async function runSessionUserTurn({ message, session, deps }) {
     message,
   });
   const sessionStartedAt = deps.now();
-  session.setCwdNote("");
-  session.setLastUserMessage(message);
-  session.setPendingRetryRequest(null);
-  session.setPendingTransaction(null);
-  session.setPendingToolCalls([]);
-  session.setFailedResponse(false);
+  prepareSessionUserTurnState(session, message);
   await session.saveState();
 
   const result = await deps.runRequestCycle({

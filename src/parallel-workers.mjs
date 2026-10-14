@@ -1,18 +1,10 @@
 import { readWorkerRecord } from "./worker-registry.mjs";
-import {
-  workerProcessState,
-  persistWorker,
-  startWorker,
-  terminateWorkers,
-  workerLaunchArgs,
-} from "./worker-process.mjs";
+import { workerProcessState, persistWorker, startWorker } from "./worker-process.mjs";
 import { parseWorkerArguments } from "./parallel-worker-arguments.mjs";
 import { recoverParallelWorkers } from "./parallel-worker-recovery-coordinator.mjs";
 import { spawnWorker } from "./parallel-worker-spawn.mjs";
 import { cancelWorkers } from "./parallel-worker-cancel.mjs";
 import { getWorkerStatus } from "./parallel-worker-status.mjs";
-
-export { terminateWorkers, workerLaunchArgs };
 
 export async function runParallelWorkerFunction(call, cwd, options = {}) {
   if (!call || typeof call !== "object" || Array.isArray(call))

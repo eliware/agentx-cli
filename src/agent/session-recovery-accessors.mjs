@@ -1,3 +1,5 @@
+import { clearPendingContinuationForNewChain } from "./session-recovery-state.mjs";
+
 export function createRecoveryState(session) {
   let retryRequest = null;
   let recoveryAttempts = 0;
@@ -18,13 +20,7 @@ export function createRecoveryState(session) {
       session.setPreviousResponseId(value);
     },
     clearPendingContinuationForNewChain() {
-      session.setPreviousResponseId("");
-      retryRequest = null;
-      session.setPendingRetryRequest(null);
-      session.setPendingTransaction(null);
-      session.setPendingToolCalls([]);
-      session.setExecutionJournal([]);
-      session.setFailedResponse(false);
+      clearPendingContinuationForNewChain(this);
     },
     get retryRequest() {
       return retryRequest;

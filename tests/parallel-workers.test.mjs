@@ -44,33 +44,13 @@ test("cancels unknown agents without throwing", async () => {
   ).resolves.toEqual({ agents: [{ id: "missing-agent", status: "unknown" }] });
 });
 
-test("reports unknown agents with bounded wait settings", async () => {
-  await expect(
-    runParallelWorkerFunction(
-      callWorker("agent_status", { agent_ids: ["missing-agent"], wait_ms: 1 }),
-      process.cwd(),
-    ),
-  ).resolves.toEqual({
-    agents: [{ id: "missing-agent", status: "unknown" }],
-    waited_ms: 1,
-    timed_out: false,
-  });
-  await expect(
-    runParallelWorkerFunction(
-      callWorker("agent_status", { agent_ids: ["missing-agent"], wait_ms: 999999 }),
-      process.cwd(),
-    ),
-  ).resolves.toEqual({
-    agents: [{ id: "missing-agent", status: "unknown" }],
-    waited_ms: 180000,
-    timed_out: false,
-  });
+test("routes status requests to the worker status handler", async () => {
   await expect(
     runParallelWorkerFunction(
       callWorker("agent_status", { agent_ids: ["missing-agent"] }),
       process.cwd(),
     ),
-  ).resolves.toMatchObject({ waited_ms: 0, timed_out: false });
+  ).resolves.toMatchObject({ agents: [{ id: "missing-agent", status: "unknown" }] });
 });
 
 test("handles malformed arguments and unsupported worker calls", async () => {

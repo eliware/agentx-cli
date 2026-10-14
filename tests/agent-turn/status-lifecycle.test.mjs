@@ -30,6 +30,52 @@ test("coordinates phase changes and pause state", () => {
   expect(phase.state).toBeNull();
 });
 
+test("holds paused phases and honors transitions that skip rendering", () => {
+  const pausedPhase = {
+    state: null,
+    setState(next) {
+      this.state = next;
+    },
+    reset() {
+      this.state = null;
+    },
+  };
+  const pausedDisplay = { clear: jest.fn(), render: jest.fn(), prepareOutput: jest.fn() };
+  const paused = createStatusLifecycle({
+    phase: pausedPhase,
+    display: pausedDisplay,
+    quiet: false,
+    transitionOnly: false,
+    state: { paused: true },
+  });
+  paused.showReasoning();
+  expect(pausedPhase.state).toBe("reasoning");
+  expect(pausedDisplay.render).not.toHaveBeenCalled();
+  paused.stop();
+
+  const phase = {
+    state: null,
+    setState(next) {
+      this.state = next;
+    },
+    reset() {
+      this.state = null;
+    },
+  };
+  const display = { clear: jest.fn(), render: jest.fn(), prepareOutput: jest.fn() };
+  const controller = createStatusLifecycle({
+    phase,
+    display,
+    quiet: false,
+    transitionOnly: false,
+    state: { paused: false },
+  });
+  controller.showReasoning({ renderNow: false });
+  expect(phase.state).toBe("reasoning");
+  expect(display.render).not.toHaveBeenCalled();
+  controller.stop();
+});
+
 test("starts status timers and resumes after output suppression", () => {
   jest.useFakeTimers();
   try {
@@ -55,16 +101,20 @@ test("starts status timers and resumes after output suppression", () => {
     });
     controller.resume();
     controller.showReasoning();
+    controller.showReasoning();
     jest.advanceTimersByTime(250);
-    expect(display.render).toHaveBeenCalledTimes(2);
+    expect(display.render).toHaveBeenCalledTimes(3);
     controller.showExecuting();
     controller.updateExecuting();
     controller.beginWriting();
+    controller.beginWriting();
     controller.showReasoning();
     controller.showReasoning({ allowStatusAfterOutput: true });
+    controller.showExecuting({ allowStatusAfterOutput: true });
     expect(controller.isWriting()).toBe(false);
-    expect(controller.snapshot()).toEqual({ state: "reasoning" });
+    expect(controller.snapshot()).toEqual({ state: "executing" });
     controller.pause();
+    controller.showReasoning();
     controller.updateExecuting();
     controller.resume({ renderNow: false });
     controller.refresh();

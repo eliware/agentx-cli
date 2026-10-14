@@ -43,6 +43,9 @@ test("renders colored status once and clears the previous line", () => {
     display.render();
     display.render();
     expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith(
+      '\u001b[38;5;255m{"time":"1s","reasoning":"1s/1s",\u001b[32m"writing":"1s/1s"\u001b[38;5;255m,"executing":"0s/0s"}\u001b[0m',
+    );
     display.clear();
     expect(write).toHaveBeenLastCalledWith("\r\x1b[2K\r");
     display.clear();

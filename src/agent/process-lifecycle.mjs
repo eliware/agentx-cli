@@ -1,5 +1,5 @@
 import { log, registerHandlers, registerSignals } from "@eliware/common";
-import { terminateWorkers } from "../parallel-workers.mjs";
+import { terminateWorkers } from "../worker-process.mjs";
 
 export function createAgentProcessLifecycle({
   logger = log,

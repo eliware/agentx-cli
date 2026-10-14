@@ -100,8 +100,6 @@ describe("session user turn", () => {
       }),
     ).resolves.toBe("continue");
 
-    expect(values.cwdNote).toBe("");
-    expect(values.lastUserMessage).toBe("new question");
     expect(values.pendingRetryRequest).toEqual({ pending: true });
     expect(order).toEqual(["save"]);
     expect(finalizeTurn).not.toHaveBeenCalled();

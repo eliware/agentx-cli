@@ -36,18 +36,36 @@ function setup(options = {}) {
 describe("response event handler", () => {
   test("handles reasoning, web search, and MCP events", () => {
     const state = setup();
+    state.onEvent({ type: "response.completed" });
     state.onEvent({ type: "response.reasoning_summary_text.delta", delta: "think" });
+    state.onEvent({ type: "response.reasoning_summary_text.delta", text: "fallback" });
+    state.onEvent({ type: "response.reasoning_summary_part.delta", summary_text: "summary" });
+    state.onEvent({ type: "response.reasoning_summary_text.done" });
+    state.onEvent({ type: "response.reasoning_summary_part.added" });
     state.onEvent({ type: "response.web_search_call.searching" });
+    state.onEvent({ type: "response.web_search_call.in_progress" });
+    state.onEvent({ type: "response.web_search_call.completed" });
     state.onEvent({ type: "response.mcp_call_arguments.delta" });
+    state.onEvent({ type: "response.mcp_call.progress" });
+    state.onEvent({ type: "response.other" });
     expect(state.reasoningRenderer.writeDelta).toHaveBeenCalledWith("think");
+    expect(state.reasoningRenderer.writeDelta).toHaveBeenCalledWith("fallback");
+    expect(state.reasoningRenderer.writeDelta).toHaveBeenCalledWith("summary");
+    expect(state.reasoningRenderer.finish).toHaveBeenCalled();
+    expect(state.webSearchRenderer.start).toHaveBeenCalled();
     expect(state.webSearchRenderer.searching).toHaveBeenCalled();
     expect(state.mcpRenderer.writeArguments).toHaveBeenCalled();
+    expect(state.mcpRenderer.handleEvent).toHaveBeenCalled();
   });
 
   test("streams tool deltas and honors suppression flags", () => {
     const state = setup();
     state.onEvent({ type: "response.function_call_arguments.delta", delta: "x" });
+    state.onEvent({ type: "response.function_call_arguments.delta", delta: "" });
+    state.onEvent({ type: "response.shell_call_command.delta", delta: "x" });
+    state.onEvent({ type: "response.shell_call_command.delta" });
     expect(state.appendStreamedText).toHaveBeenCalledWith("tool");
+    expect(state.appendStreamedText).toHaveBeenCalledTimes(2);
     const hidden = setup({ noToolCalls: true });
     hidden.onEvent({ type: "response.function_call_arguments.delta", delta: "x" });
     expect(hidden.markOutput).not.toHaveBeenCalled();
@@ -80,5 +98,14 @@ describe("response event handler", () => {
     const state = setup({ [flag]: true });
     state.onEvent(event);
     expect(state.markOutput).not.toHaveBeenCalled();
+  });
+
+  test("suppresses debug and MCP event output", () => {
+    const debug = setup({ debug: true });
+    debug.onEvent({ type: "response.mcp_call_arguments.delta" });
+    expect(debug.mcpRenderer.writeArguments).not.toHaveBeenCalled();
+    const hidden = setup({ noMcpOutput: true });
+    hidden.onEvent({ type: "response.mcp_call.progress" });
+    expect(hidden.mcpRenderer.handleEvent).not.toHaveBeenCalled();
   });
 });

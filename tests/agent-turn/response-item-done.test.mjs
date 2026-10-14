@@ -31,6 +31,7 @@ describe("response item completion", () => {
     const state = setup();
     state.onItemDone({ type: "web_search_call" });
     state.onItemDone({ type: "function_call", name: "custom" });
+    state.onItemDone({ type: "mcp_call" });
     expect(state.webSearchRenderer.finish).toHaveBeenCalled();
     expect(state.markOutput).toHaveBeenCalled();
     expect(state.appendStreamedText).toHaveBeenCalledWith("tool");

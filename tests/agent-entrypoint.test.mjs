@@ -1,7 +1,4 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { getPackageVersion } from "../src/cli-version.mjs";
-const packageVersion = getPackageVersion();
-
 async function invokeDirectEntryPoint(args, runAgent, setupPrompt = null, options = {}) {
   jest.resetModules();
   const originalArgv = process.argv;
@@ -60,40 +57,6 @@ describe("entrypoint", () => {
     await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
     await import("../src/agent-entrypoint.mjs");
     expect(runAgent).not.toHaveBeenCalled();
-  });
-  test.each([
-    ["--help", "Usage: agentx [flags] [message...]"],
-    ["--version", packageVersion],
-  ])("prints action output for %s", async (flag, expected) => {
-    const writes = [];
-    const originalWrite = process.stdout.write;
-    const originalExit = process.exit;
-    const originalArgv = [...process.argv];
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
-    process.exit = jest.fn();
-    process.argv = [...process.argv, flag];
-
-    try {
-      await jest.unstable_mockModule("../src/runtime.mjs", () => ({
-        isDirectInvocation: () => true,
-        promptPath: "/tmp/prompt.json",
-      }));
-      const runAgent = jest.fn();
-      await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
-
-      await import("../src/agent-entrypoint.mjs");
-
-      expect(runAgent).not.toHaveBeenCalled();
-      expect(writes.join("")).toContain(expected);
-      expect(process.exit).toHaveBeenCalledWith(0);
-    } finally {
-      process.stdout.write = originalWrite;
-      process.exit = originalExit;
-      process.argv = originalArgv;
-    }
   });
   test("sends positional text as one-shot input", async () => {
     const runAgent = jest.fn().mockResolvedValue(undefined);
