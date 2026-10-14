@@ -11,6 +11,9 @@ export async function runSessionUserTurn({ message, session, deps }) {
   session.setCwdNote("");
   session.setLastUserMessage(message);
   session.setPendingRetryRequest(null);
+  session.setPendingTransaction(null);
+  session.setPendingToolCalls([]);
+  session.setFailedResponse(false);
   await session.saveState();
 
   const result = await deps.runRequestCycle({

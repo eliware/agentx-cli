@@ -68,10 +68,13 @@ describe("session user turn", () => {
       expect(state.retryRequest).toBeNull();
       state.retryRequest = { retry: true };
       expect(state.pendingRetryRequest).toBeNull();
+      expect(state.pendingTransaction).toBeNull();
+      expect(state.pendingToolCalls).toEqual([]);
+      expect(state.failedResponse).toBe(false);
       state.pendingRetryRequest = { pending: true };
-      expect(state.pendingTransaction).toEqual({ request: { old: true } });
+      expect(state.pendingTransaction).toBeNull();
       state.pendingTransaction = { request: { next: true } };
-      expect(state.pendingToolCalls).toEqual([{ id: "call" }]);
+      expect(state.pendingToolCalls).toEqual([]);
       state.pendingToolCalls = [];
       expect(state.failedResponse).toBe(false);
       state.failedResponse = true;

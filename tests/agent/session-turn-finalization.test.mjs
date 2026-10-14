@@ -46,6 +46,7 @@ describe("session turn finalization", () => {
       pending_cli_transcript: "",
       pending_tool_calls: [],
       pending_retry_request: null,
+      pending_transaction: null,
       failed_response: false,
       rollback_backup: [],
       history: [

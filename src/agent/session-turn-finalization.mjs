@@ -23,6 +23,7 @@ export async function finalizeAgentTurn({
     last_assistant_message: assistantText,
     pending_tool_calls: [],
     pending_retry_request: null,
+    pending_transaction: null,
     pending_cli_transcript: "",
     failed_response: false,
     rollback_backup: [],

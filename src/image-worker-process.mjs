@@ -6,12 +6,17 @@ export function runImageInspectionProcess(
   { cwd, responseId, previousResponseId, model, onUsage } = {},
 ) {
   return new Promise((resolve) => {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) =>
+        ["path", "systemroot", "windir", "temp", "tmp"].includes(key.toLowerCase()),
+      ),
+    );
+    if (process.env.agentx_api_key) env.agentx_api_key = process.env.agentx_api_key;
+    if (process.env.AGENTX_API_KEY) env.AGENTX_API_KEY = process.env.AGENTX_API_KEY;
+    env.AGENTX_IMAGE_REQUEST = JSON.stringify({ args, cwd, responseId, previousResponseId, model });
     const child = spawn(process.execPath, [path(import.meta, "./image-worker.mjs")], {
       cwd,
-      env: {
-        ...process.env,
-        AGENTX_IMAGE_REQUEST: JSON.stringify({ args, cwd, responseId, previousResponseId, model }),
-      },
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";

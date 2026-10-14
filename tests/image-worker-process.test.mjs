@@ -37,6 +37,40 @@ describe("image worker process", () => {
     );
   });
 
+  test("passes only runtime variables and AgentX credentials to the worker", async () => {
+    queueWorker({ stdout: JSON.stringify({ text: "ok" }) });
+    const previousSecret = process.env.CODEX_SECRET_TEST;
+    const previousKey = process.env.AGENTX_API_KEY;
+    process.env.CODEX_SECRET_TEST = "private";
+    process.env.AGENTX_API_KEY = "agentx-key";
+    try {
+      await runImageInspectionProcess({ prompt: "look" }, {});
+      const childEnv = spawn.mock.calls[0][2].env;
+      expect(childEnv.AGENTX_API_KEY).toBe("agentx-key");
+      expect(childEnv.AGENTX_IMAGE_REQUEST).toContain('"prompt":"look"');
+      expect(childEnv).not.toHaveProperty("CODEX_SECRET_TEST");
+      expect(
+        Object.keys(childEnv).every((key) =>
+          [
+            "path",
+            "systemroot",
+            "windir",
+            "temp",
+            "tmp",
+            "agentx_api_key",
+            "agentx_api_key",
+            "agentx_image_request",
+          ].includes(key.toLowerCase()),
+        ),
+      ).toBe(true);
+    } finally {
+      if (previousSecret === undefined) delete process.env.CODEX_SECRET_TEST;
+      else process.env.CODEX_SECRET_TEST = previousSecret;
+      if (previousKey === undefined) delete process.env.AGENTX_API_KEY;
+      else process.env.AGENTX_API_KEY = previousKey;
+    }
+  });
+
   test("uses an empty options object when options are undefined", async () => {
     queueWorker({ stdout: JSON.stringify({ text: "default options" }) });
     await expect(runImageInspectionProcess({}, undefined)).resolves.toBe("default options");
