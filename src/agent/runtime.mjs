@@ -7,6 +7,7 @@ import { runAgentPromptSession } from "./runtime-prompt-session.mjs";
 import { startAgentRuntime } from "./runtime-startup.mjs";
 import { createAgentRuntimeTurnContext } from "./runtime-turn-context.mjs";
 import { setupAgentRuntimeRecovery } from "./runtime-recovery-setup.mjs";
+import { createRuntimePromptContext } from "./runtime-prompt-context.mjs";
 
 export async function runAgent({
   promptPath,
@@ -76,25 +77,19 @@ export async function runAgent({
     },
   });
 
-  return runAgentPromptSession({
+  const promptContext = createRuntimePromptContext({
+    runtimeState,
     oneShot,
     initialMessage,
     terminalInput,
     cwd,
     repl,
-    getActiveGoal: () => runtimeState.activeGoal,
-    setActiveGoal: (goal) => {
-      runtimeState.activeGoal = goal;
-    },
     saveState,
     exitWithSummary,
-    getPendingCliTranscript: () => runtimeState.pendingCliTranscript,
-    setPendingCliTranscript: (value) => {
-      runtimeState.pendingCliTranscript = value;
-    },
     dispatchCommand,
     userTurnSession,
     openai: runtimeState.openai,
     signalRegistration: agentProcessLifecycle.signalRegistration,
   });
+  return runAgentPromptSession(promptContext);
 }

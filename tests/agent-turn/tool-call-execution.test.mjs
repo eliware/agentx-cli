@@ -63,4 +63,42 @@ describe("single tool call execution", () => {
     expect(result).toEqual({ cancelled: true });
     expect(onToolExecutionState).toHaveBeenCalledTimes(1);
   });
+
+  test("parses image arguments and uses the unavailable result when no handler exists", async () => {
+    const onViewImage = jest.fn(async () => "image details");
+    const result = await executeOneToolCall({
+      call: { type: "function_call", name: "view_image", arguments: "{bad" },
+      calls: [{}],
+      cwd: process.cwd(),
+      streamOptions: { onViewImage },
+      goalMode: false,
+    });
+    expect(onViewImage).toHaveBeenCalledWith(expect.objectContaining({ args: {} }));
+    expect(result.output.output).toBe("image details");
+
+    const missing = await executeOneToolCall({
+      call: { type: "function_call", name: "view_image", input: '{"path":"image.png"}' },
+      calls: [{}],
+      cwd: process.cwd(),
+      streamOptions: {},
+      goalMode: false,
+    });
+    expect(missing.output.output).toBe("ERROR: image inspection is unavailable");
+    const fallback = await executeOneToolCall({
+      call: { type: "function_call", name: "view_image", arguments: null, input: '{"path":"x"}' },
+      calls: [{}],
+      cwd: "/repo",
+      streamOptions: { onViewImage: jest.fn(async () => "") },
+      goalMode: false,
+    });
+    expect(fallback.output.output).toBe("ERROR: image inspection is unavailable");
+    const emptyInput = await executeOneToolCall({
+      call: { type: "function_call", name: "view_image" },
+      calls: [{}],
+      cwd: "/repo",
+      streamOptions: { onViewImage: jest.fn(async ({ args }) => JSON.stringify(args)) },
+      goalMode: false,
+    });
+    expect(emptyInput.output.output).toBe("{}");
+  });
 });

@@ -23,4 +23,12 @@ test("binds recovery actions to the active runtime", () => {
   expect(result.terminalInput).toEqual({});
   expect(result.preserveReplHistory).toBe(repl.preserveHistory);
   expect(result.persistCheckpoint).toBe(callbacks.persistCheckpoint);
+  const stdout = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+  result.writeSystem("ready");
+  expect(stdout).toHaveBeenCalled();
+  stdout.mockRestore();
+  const write = jest.spyOn(process.stderr, "write").mockImplementation(() => true);
+  result.writeDebugEnabled();
+  expect(write).toHaveBeenCalledWith("[agentx:debug] enabled for retry\n");
+  write.mockRestore();
 });

@@ -1,6 +1,5 @@
-process.env.AGENTX_RUNTIME_CASES = "12";
-await import("../../test-fixtures/agent/runtime-suite.mjs");
 import { expect, jest, test } from "@jest/globals";
+import { agentProcessLifecycle } from "../../src/agent/process-lifecycle.mjs";
 import { shutdownAgentPromptSession } from "../../src/agent/runtime-session-shutdown.mjs";
 
 test("passes session resources to shutdown", async () => {
@@ -20,4 +19,24 @@ test("passes session resources to shutdown", async () => {
     }),
   );
   shutdownOptions.deps.restoreTerminalOutput();
+});
+
+test("uses the default runtime shutdown service", async () => {
+  const oldTerminate = agentProcessLifecycle.terminateWorkers;
+  const terminateWorkers = jest.fn(async () => {});
+  const close = jest.fn(async () => {});
+  const removeHandlers = jest.fn();
+  agentProcessLifecycle.terminateWorkers = terminateWorkers;
+  try {
+    await shutdownAgentPromptSession({
+      repl: { getReadline: () => ({ close: jest.fn() }) },
+      openai: { responses: { close } },
+      signalRegistration: { removeHandlers },
+    });
+    expect(close).toHaveBeenCalled();
+    expect(terminateWorkers).toHaveBeenCalled();
+    expect(removeHandlers).toHaveBeenCalled();
+  } finally {
+    agentProcessLifecycle.terminateWorkers = oldTerminate;
+  }
 });

@@ -11,7 +11,6 @@ import { mkdtempSync, symlinkSync, rmSync, unlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 function resolveCommonPath(base, ...parts) {
   const directory =
     base && typeof base === "object" && base.url
@@ -19,7 +18,6 @@ function resolveCommonPath(base, ...parts) {
       : String(base || "");
   return path.resolve(directory, ...parts);
 }
-
 describe("runtime helpers", () => {
   test("hits ENOENT handling through a mocked module import", async () => {
     await jest.isolateModulesAsync(async () => {
@@ -44,15 +42,12 @@ describe("runtime helpers", () => {
       await expect(deleteMissing("/tmp/anything")).resolves.toBeUndefined();
     });
   });
-
   test("isDirectInvocation returns a boolean", () => {
     expect(typeof isDirectInvocation()).toBe("boolean");
   });
-
   test("isDirectInvocation recognizes the entrypoint real path on every platform", () => {
     const originalArgv1 = process.argv[1];
     const entrypoint = new URL("../src/agent-entrypoint.mjs", import.meta.url);
-
     try {
       process.argv[1] = fileURLToPath(entrypoint);
       expect(isDirectInvocation(entrypoint.href)).toBe(true);
@@ -60,12 +55,10 @@ describe("runtime helpers", () => {
       process.argv[1] = originalArgv1;
     }
   });
-
   test("isDirectInvocation recognizes the matching package bin launcher", () => {
     const originalArgv1 = process.argv[1];
     const moduleUrl = new URL("../src/agent-entrypoint.mjs", import.meta.url).href;
     const launcher = new URL("../bin/agentx.mjs", import.meta.url);
-
     try {
       process.argv[1] = fileURLToPath(launcher);
       expect(isDirectInvocation(moduleUrl)).toBe(true);
@@ -73,7 +66,6 @@ describe("runtime helpers", () => {
       process.argv[1] = originalArgv1;
     }
   });
-
   test("isDirectInvocation resolves symlinks to the real launcher", () => {
     if (process.platform === "win32") return;
     const tmp = mkdtempSync(path.join(os.tmpdir(), "agentx-link-"));
@@ -81,7 +73,6 @@ describe("runtime helpers", () => {
     const moduleUrl = new URL("../src/agent-entrypoint.mjs", import.meta.url).href;
     symlinkSync(new URL(moduleUrl), link);
     const originalArgv1 = process.argv[1];
-
     try {
       process.argv[1] = link;
       expect(isDirectInvocation(moduleUrl)).toBe(true);
@@ -90,10 +81,8 @@ describe("runtime helpers", () => {
       rmSync(tmp, { recursive: true, force: true });
     }
   });
-
   test("isDirectInvocation returns false for missing launcher paths", () => {
     const originalArgv1 = process.argv[1];
-
     try {
       process.argv[1] = undefined;
       expect(isDirectInvocation()).toBe(false);
@@ -105,7 +94,6 @@ describe("runtime helpers", () => {
       process.argv[1] = originalArgv1;
     }
   });
-
   test("readOptionalText and deleteOptional propagate mocked non-ENOENT errors", async () => {
     jest.resetModules();
     await jest.unstable_mockModule("@eliware/common", () => ({
@@ -128,7 +116,6 @@ describe("runtime helpers", () => {
     await expect(readOptionalTextMock("/tmp/locked")).rejects.toThrow("boom");
     await expect(deleteOptionalMock("/tmp/locked")).rejects.toThrow("boom");
   });
-
   test("readOptionalText and deleteOptional tolerate ENOENT errors", async () => {
     const originalReadFile = commonFs.promises.readFile;
     const originalUnlink = commonFs.promises.unlink;
@@ -146,7 +133,6 @@ describe("runtime helpers", () => {
       commonFs.promises.unlink = originalUnlink;
     }
   });
-
   test("readOptionalText propagates non-ENOENT errors", async () => {
     const originalReadFile = commonFs.promises.readFile;
     commonFs.promises.readFile = async () => {
@@ -158,19 +144,16 @@ describe("runtime helpers", () => {
       commonFs.promises.readFile = originalReadFile;
     }
   });
-
   test("readJson, readOptionalText and deleteOptional handle success and failure cases", async () => {
     const tmp = mkdtempSync(path.join(os.tmpdir(), "agentx-runtime-"));
     const jsonFile = path.join(tmp, "value.json");
     const textFile = path.join(tmp, "value.txt");
     await writeText(jsonFile, JSON.stringify({ ok: true }));
     await writeText(textFile, "hello");
-
     expect(await readJson(jsonFile)).toEqual({ ok: true });
     expect(await readOptionalText(textFile)).toBe("hello");
     await deleteOptional(textFile);
     expect(() => unlinkSync(textFile)).toThrow();
-
     const originalUnlink = commonFs.promises.unlink;
     commonFs.promises.unlink = async () => {
       throw Object.assign(new Error("boom"), { code: "EACCES" });

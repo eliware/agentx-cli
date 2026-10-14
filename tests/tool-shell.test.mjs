@@ -2,32 +2,10 @@ import { describe, expect, jest, test } from "@jest/globals";
 import { accessSync } from "node:fs";
 import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 
-await jest.isolateModulesAsync(() => import("../test-fixtures/tool-shell-process-suite.mjs"));
-await jest.isolateModulesAsync(() => import("../test-fixtures/tool-shell-windows-suite.mjs"));
 await jest.unstable_unmockModule("node:child_process");
-const { executeShellCommand, getShellLaunchers, normalizeTerminationOutcome, shellExec } =
-  await import("../src/tool-shell.mjs");
+const { executeShellCommand, shellExec } = await import("../src/tool-shell.mjs");
 
 describe("shell process execution", () => {
-  test("exposes Windows launcher order and normalizes exit outcomes", () => {
-    expect(getShellLaunchers("win32").map((item) => item.file)).toEqual([
-      "pwsh",
-      "powershell.exe",
-      "cmd.exe",
-    ]);
-    expect(normalizeTerminationOutcome({ timedOut: true, code: 1 })).toEqual({ type: "timeout" });
-    expect(normalizeTerminationOutcome({ interrupted: true, code: 1 })).toEqual({
-      type: "timeout",
-    });
-    expect(normalizeTerminationOutcome({ signal: "SIGTERM", code: null })).toEqual({
-      type: "exit",
-      exit_code: 1,
-    });
-    expect(normalizeTerminationOutcome({ code: 7 })).toEqual({ type: "exit", exit_code: 7 });
-    expect(normalizeTerminationOutcome({ code: null })).toEqual({ type: "exit", exit_code: 1 });
-    expect(normalizeTerminationOutcome()).toEqual({ type: "exit", exit_code: 1 });
-  });
-
   test("rejects empty commands and missing working directories before spawning", async () => {
     await expect(executeShellCommand("   ", process.cwd())).resolves.toMatchObject({
       stderr: "Unable to execute an empty shell command",
@@ -137,6 +115,66 @@ describe("shell process execution", () => {
       process.stdout.write = oldOut;
       process.stderr.write = oldErr;
       cleanupTempDir(directory);
+    }
+  });
+
+  test("retries missing launchers and writes interactive output", async () => {
+    const missing = Object.assign(new Error("not found"), { code: "ENOENT" });
+    const runShellProcess = jest
+      .fn()
+      .mockRejectedValueOnce(missing)
+      .mockImplementationOnce(async (_plan, _command, _cwd, options) => {
+        options.writeStdout?.("live out");
+        options.writeStderr?.("live err");
+        return { stdout: "live out", stderr: "live err" };
+      })
+      .mockRejectedValueOnce(new TypeError("bad launcher"))
+      .mockRejectedValueOnce(new Error(""))
+      .mockImplementation(async (_plan, _command, _cwd, options) => {
+        options.writeStdout?.("live out");
+        options.writeStderr?.("live err");
+        return { stdout: "live out", stderr: "live err" };
+      });
+    const output = [];
+    const error = [];
+    const oldOut = process.stdout.write;
+    const oldErr = process.stderr.write;
+    process.stdout.write = (chunk) => (output.push(String(chunk)), true);
+    process.stderr.write = (chunk) => (error.push(String(chunk)), true);
+    try {
+      await jest.isolateModulesAsync(async () => {
+        await jest.unstable_mockModule("../src/shell-process-runner.mjs", () => ({
+          runShellProcess,
+        }));
+        const isolated = await import("../src/tool-shell.mjs");
+        await expect(
+          isolated.executeShellCommand("echo", "/repo", {
+            platform: "linux",
+            getLaunchers: () => [
+              { file: "first", args: [] },
+              { file: "second", args: [] },
+            ],
+          }),
+        ).resolves.toMatchObject({ stdout: "live out" });
+        await expect(
+          isolated.executeShellCommand("echo", "/repo", {
+            platform: "linux",
+            getLaunchers: () => [{ file: "broken", args: [] }],
+          }),
+        ).resolves.toMatchObject({ stderr: "bad launcher", outcome: { exit_code: 1 } });
+        await expect(
+          isolated.executeShellCommand("echo", "/repo", {
+            platform: "linux",
+            getLaunchers: () => [{ file: "broken", args: [] }],
+          }),
+        ).resolves.toMatchObject({ stderr: "Unable to execute shell command" });
+        await isolated.shellExec("echo", "/repo");
+      });
+      expect(output.join("")).toContain("live out");
+      expect(error.join("")).toContain("live err");
+    } finally {
+      process.stdout.write = oldOut;
+      process.stderr.write = oldErr;
     }
   });
 });

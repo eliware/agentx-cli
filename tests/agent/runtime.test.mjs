@@ -129,6 +129,8 @@ test("wires default and supplied runtime options into prompt context", async () 
   expect(turnOptions.getCwd()).toBe("C:/next");
 
   const promptOptions = runAgentPromptSession.mock.calls.at(-1)[0];
+  expect(promptOptions.getActiveGoal()).toBeNull();
+  expect(promptOptions.getPendingCliTranscript()).toBe("");
   expect(promptOptions).toMatchObject({
     oneShot: true,
     initialMessage: "hello",

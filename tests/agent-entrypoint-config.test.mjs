@@ -23,4 +23,13 @@ describe("agent entrypoint configuration", () => {
       ),
     ).rejects.toThrow("--cwd requires a path");
   });
+
+  test("keeps the current directory when no cwd option exists", async () => {
+    await expect(
+      prepareAgentStartup(
+        { flags: {}, messageArgs: [] },
+        { readEnvState: jest.fn(), env: {}, cwd: "/work" },
+      ),
+    ).resolves.toEqual({ cwd: "/work", messageArgs: [] });
+  });
 });

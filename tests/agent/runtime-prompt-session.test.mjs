@@ -1,45 +1,107 @@
 import { expect, jest, test } from "@jest/globals";
-import { runAgentPromptSession } from "../../src/agent/runtime-prompt-session.mjs";
 
-test("shuts down the session when the prompt loop fails", async () => {
-  const failure = new Error("loop failed");
-  const shutdown = jest.fn();
+const prepareSessionInput = jest.fn();
+const dispatchSessionInput = jest.fn(async () => "dispatched");
+const handleSessionPromptError = jest.fn(async () => {});
+const runSessionPromptLoop = jest.fn(async () => "loop result");
+const runSessionUserTurn = jest.fn(async () => "turn result");
+const shutdownAgentPromptSession = jest.fn(async () => {});
+await jest.unstable_mockModule("../../src/terminal-output.mjs", () => ({
+  writeTerminal: jest.fn(),
+}));
+await jest.unstable_mockModule("../../src/shell-display.mjs", () => ({
+  formatPromptForCwd: jest.fn(() => "prompt"),
+  formatSystemMessage: jest.fn(() => "system"),
+}));
+await jest.unstable_mockModule("../../src/request-context.mjs", () => ({
+  appendCliTranscript: jest.fn(),
+}));
+await jest.unstable_mockModule("../../src/response.mjs", () => ({
+  extractTextFromResponse: jest.fn(),
+}));
+await jest.unstable_mockModule("../../src/agent/repl.mjs", () => ({ printAgentText: jest.fn() }));
+await jest.unstable_mockModule("../../src/agent/session-input.mjs", () => ({
+  prepareSessionInput,
+}));
+await jest.unstable_mockModule("../../src/agent/session-input-dispatch.mjs", () => ({
+  dispatchSessionInput,
+}));
+await jest.unstable_mockModule("../../src/agent/session-prompt-errors.mjs", () => ({
+  handleSessionPromptError,
+}));
+await jest.unstable_mockModule("../../src/agent/session-prompt-loop.mjs", () => ({
+  runSessionPromptLoop,
+}));
+await jest.unstable_mockModule("../../src/agent/session-user-turn.mjs", () => ({
+  runSessionUserTurn,
+}));
+await jest.unstable_mockModule("../../src/agent/session-request-cycle.mjs", () => ({
+  runSessionRequestCycle: jest.fn(),
+}));
+await jest.unstable_mockModule("../../src/agent/session-turn-finalization.mjs", () => ({
+  finalizeAgentTurn: jest.fn(),
+}));
+await jest.unstable_mockModule("../../src/agent/runtime-session-shutdown.mjs", () => ({
+  shutdownAgentPromptSession,
+}));
+await jest.unstable_mockModule("../../src/agent/local-shell.mjs", () => ({
+  executeLocalShellCommand: jest.fn(),
+}));
+const { runAgentPromptSession } = await import("../../src/agent/runtime-prompt-session.mjs");
+
+test("connects prompt callbacks to runtime session services", async () => {
+  const readline = { question: jest.fn(async () => "hello") };
+  const repl = { getReadline: () => readline, preserveHistory: jest.fn(), replace: jest.fn() };
+  dispatchSessionInput.mockImplementationOnce(async ({ state, deps }) => {
+    expect(state.pendingCliTranscript).toBe("before");
+    state.pendingCliTranscript = "after";
+    deps.writeSystem("message");
+    return "dispatched";
+  });
+  const runLoop = jest.fn(async (callbacks) => {
+    await expect(callbacks.readPrompt()).resolves.toBe("hello");
+    await expect(callbacks.dispatchInput("line")).resolves.toBe("dispatched");
+    await expect(callbacks.processMessage("message")).resolves.toBe("turn result");
+    await callbacks.handlePromptError(new Error("prompt error"));
+  });
   const terminalInput = { isTTY: true, setRawMode: jest.fn() };
+  const context = {
+    oneShot: false,
+    initialMessage: null,
+    terminalInput,
+    cwd: "/repo",
+    repl,
+    getActiveGoal: jest.fn(),
+    setActiveGoal: jest.fn(),
+    saveState: jest.fn(),
+    exitWithSummary: jest.fn(),
+    getPendingCliTranscript: jest.fn(() => "before"),
+    setPendingCliTranscript: jest.fn(),
+    dispatchCommand: jest.fn(),
+    userTurnSession: {},
+    openai: {},
+    signalRegistration: null,
+  };
   await expect(
-    runAgentPromptSession(
-      { repl: { getReadline: () => null }, openai: {}, terminalInput, signalRegistration: null },
-      {
-        runLoop: async () => {
-          throw failure;
-        },
-        shutdown,
-      },
-    ),
-  ).rejects.toBe(failure);
-  expect(shutdown).toHaveBeenCalledTimes(1);
+    runAgentPromptSession(context, { runLoop, shutdown: jest.fn() }),
+  ).resolves.toBeUndefined();
+  expect(prepareSessionInput).toHaveBeenCalledWith({ oneShot: false, terminalInput });
+  expect(dispatchSessionInput).toHaveBeenCalledWith(
+    expect.objectContaining({ message: "line", cwd: "/repo" }),
+  );
+  expect(context.setPendingCliTranscript).toHaveBeenCalledWith("after");
+  expect(runSessionUserTurn).toHaveBeenCalledWith(expect.objectContaining({ message: "message" }));
+  expect(handleSessionPromptError).toHaveBeenCalledWith(expect.any(Error), expect.any(Object));
   expect(terminalInput.setRawMode).toHaveBeenCalledWith(false);
 });
 
-test("reads the current goal when the prompt aborts", async () => {
-  let goal = { status: "active" };
-  const exitWithSummary = jest.fn(async () => {});
-  const context = {
-    repl: { getReadline: () => null },
-    openai: {},
-    getActiveGoal: () => goal,
-    setActiveGoal: (value) => {
-      goal = value;
-    },
-    exitWithSummary,
-  };
-  const abort = Object.assign(new Error("abort"), { name: "AbortError" });
-  await runAgentPromptSession(context, {
-    runLoop: async ({ handlePromptError }) => {
-      context.setActiveGoal({ status: "cancelled" });
-      await handlePromptError(abort);
-    },
-    shutdown: jest.fn(),
-  });
-  expect(goal).toEqual({ status: "cancelled" });
-  expect(exitWithSummary).toHaveBeenCalledWith({ leadingNewline: true });
+test("uses the default prompt loop and shutdown services", async () => {
+  const context = { repl: {}, terminalInput: null };
+  await runAgentPromptSession(context);
+  expect(runSessionPromptLoop).toHaveBeenCalledWith(
+    expect.objectContaining({ oneShot: undefined }),
+  );
+  expect(shutdownAgentPromptSession).toHaveBeenCalledWith(
+    expect.objectContaining({ repl: context.repl, openai: undefined }),
+  );
 });

@@ -38,4 +38,14 @@ describe("session exit action", () => {
     expect(printUsageReport).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
   });
+
+  test("uses the process exit function when no exit callback is supplied", () => {
+    const exit = jest.spyOn(process, "exit").mockImplementation(() => undefined);
+    try {
+      exitSessionWithSummary({ noUsage: true, printUsageReport: jest.fn() });
+      expect(exit).toHaveBeenCalledWith(0);
+    } finally {
+      exit.mockRestore();
+    }
+  });
 });

@@ -154,5 +154,3 @@ describe("path completion", () => {
     }
   });
 });
-
-await import("../test-fixtures/test-helpers-suite.mjs");

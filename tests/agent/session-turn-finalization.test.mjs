@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { finalizeAgentTurn } from "../../src/agent/session-turn-finalization.mjs";
-
 function createState(overrides = {}) {
   let state = {
     response_id: "old-response",
@@ -18,7 +17,6 @@ function createState(overrides = {}) {
   };
   return { getState: () => state, setState: (next) => (state = next) };
 }
-
 describe("session turn finalization", () => {
   test("keeps the completed tool continuation checkpoint once with its saved usage", async () => {
     const checkpoint = {
@@ -53,7 +51,6 @@ describe("session turn finalization", () => {
       expect.objectContaining({ response_id: "response-next", usage: checkpoint.usage }),
     );
   });
-
   test("persists completed response state and a successful checkpoint", async () => {
     const session = createState();
     const saveState = jest.fn();
@@ -71,7 +68,6 @@ describe("session turn finalization", () => {
       clearSession,
       statePath: "session.json",
     });
-
     expect(result).toMatchObject({ status: "completed", responseId: "response-next" });
     expect(session.getState()).toMatchObject({
       response_id: "response-next",
@@ -101,7 +97,6 @@ describe("session turn finalization", () => {
     );
     expect(clearSession).not.toHaveBeenCalled();
   });
-
   test("preserves the previous response identity and omits history when the response has no ID", async () => {
     const session = createState();
     const persistCheckpoint = jest.fn();
@@ -124,7 +119,6 @@ describe("session turn finalization", () => {
       expect.objectContaining({ response_id: undefined }),
     );
   });
-
   test("clears one-shot state and delegates the normal usage-summary exit", async () => {
     const session = createState();
     const order = [];
@@ -146,7 +140,6 @@ describe("session turn finalization", () => {
     expect(order).toEqual(["save", "clear:one-shot-state.json", "exit-summary"]);
     expect(persistCheckpoint).not.toHaveBeenCalled();
   });
-
   test("uses the default completion callback when one-shot response has no id", async () => {
     const session = createState();
     const clearSession = jest.fn();
@@ -163,7 +156,6 @@ describe("session turn finalization", () => {
     });
     expect(clearSession).toHaveBeenCalledWith("state.json");
   });
-
   test("creates history when prior history is absent", async () => {
     const session = createState({ history: undefined });
     await finalizeAgentTurn({

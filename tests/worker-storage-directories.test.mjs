@@ -2,7 +2,10 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@jest/globals";
-import { ensureWorkerStorage } from "../src/worker-storage-directories.mjs";
+import {
+  ensureWorkerStorage,
+  workerStorageDirectoryInternals,
+} from "../src/worker-storage-directories.mjs";
 import { workerDirectory, workerStateDirectory } from "../src/worker-paths.mjs";
 
 test("creates private worker storage directories", async () => {
@@ -12,6 +15,8 @@ test("creates private worker storage directories", async () => {
   process.env[key] = root;
   try {
     await ensureWorkerStorage(root);
+    await workerStorageDirectoryInternals.secureDirectory(join(root, "windows"), "win32");
+    await workerStorageDirectoryInternals.secureDirectory(join(root, "posix"), "linux");
     const directories = [
       workerStateDirectory(),
       join(workerStateDirectory(), "workers"),
@@ -22,6 +27,8 @@ test("creates private worker storage directories", async () => {
       expect(info.isDirectory()).toBe(true);
       if (process.platform !== "win32") expect(info.mode & 0o777).toBe(0o700);
     }
+    expect((await stat(join(root, "windows"))).isDirectory()).toBe(true);
+    expect((await stat(join(root, "posix"))).isDirectory()).toBe(true);
   } finally {
     if (old === undefined) delete process.env[key];
     else process.env[key] = old;

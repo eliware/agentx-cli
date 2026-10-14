@@ -1,5 +1,6 @@
 import { applyResponseSnapshot, resetSessionState } from "./conversation-transitions.mjs";
 import { applyRollbackSelection } from "./rollback-transition.mjs";
+import { updateExecutionJournal } from "./execution-journal.mjs";
 
 export function createSessionPersistence({
   statePath,
@@ -23,27 +24,8 @@ export function createSessionPersistence({
     if (transition.checkpoint) await persistCheckpoint(checkpointPath, transition.checkpoint);
   };
 
-  const persistToolExecutionState = async ({
-    call,
-    response,
-    status,
-    identity: suppliedIdentity,
-  }) => {
-    const state = getState();
-    const identity = suppliedIdentity || `id:${String(call?.call_id || call?.id || "")}`;
-    const record = {
-      identity,
-      status,
-      response_id: String(response?.id || ""),
-      updated_at: new Date().toISOString(),
-    };
-    setState({
-      ...state,
-      execution_journal: [
-        ...(state.execution_journal || []).filter((entry) => entry.identity !== identity),
-        record,
-      ].slice(-100),
-    });
+  const persistToolExecutionState = async ({ call, response, status, identity }) => {
+    setState(updateExecutionJournal(getState(), { call, response, status, identity }));
     await saveState();
   };
 

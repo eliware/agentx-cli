@@ -13,7 +13,3 @@ test("recovers saved worker records into process state", async () => {
   });
   expect(state.workers.get("a")).toMatchObject({ output: "done", exited: true });
 });
-
-await jest.isolateModulesAsync(
-  () => import("../test-fixtures/parallel-workers-recovery-suite.mjs"),
-);

@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prepareAgentSession } from "../../src/agent/session-bootstrap.mjs";
-
 function dependencies(overrides = {}) {
   return {
     resolvePath: (cwd, name) => `${cwd}/${name}`,
@@ -23,7 +22,6 @@ function dependencies(overrides = {}) {
     ...overrides,
   };
 }
-
 describe("agent session bootstrap", () => {
   test("prepares an interactive session from flags, settings, saved state, and env", async () => {
     const savedState = { response_id: "resp-saved" };
@@ -32,7 +30,6 @@ describe("agent session bootstrap", () => {
       readSessionState: jest.fn(async () => savedState),
     });
     const env = { agentx_api_key: "local-key", AGENTX_MODEL: "gpt-6-luna" };
-
     const session = await prepareAgentSession(
       {
         promptPath: "prompt.json",
@@ -45,7 +42,6 @@ describe("agent session bootstrap", () => {
       },
       deps,
     );
-
     expect(session).toMatchObject({
       outputFlags: { quiet: true, noMcp: true },
       statePath: "C:/project/.agentx_responseid",
@@ -64,11 +60,9 @@ describe("agent session bootstrap", () => {
     expect(deps.restoreSessionState).toHaveBeenCalledWith(savedState, deps.createUsageTotals);
     expect(deps.resolveAgentApiKey).not.toHaveBeenCalled();
   });
-
   test("uses the checkpoint and isolates one-shot state with a deterministic suffix", async () => {
     const checkpoint = { response_id: "resp-checkpoint" };
     const deps = dependencies({ readLatestCheckpoint: jest.fn(async () => checkpoint) });
-
     const session = await prepareAgentSession(
       {
         promptPath: "prompt.json",
@@ -80,7 +74,6 @@ describe("agent session bootstrap", () => {
       },
       deps,
     );
-
     expect(session.statePath).toBe("/workspace/.agentx_responseid.oneshot-52-987");
     expect(session.savedState).toBe(checkpoint);
     expect(session.savedResponseId).toBe("resp-checkpoint");
@@ -98,7 +91,6 @@ describe("agent session bootstrap", () => {
       },
       { loadMcp: true },
     );
-
     const noCheckpoint = await prepareAgentSession(
       {
         promptPath: "prompt.json",
@@ -110,7 +102,6 @@ describe("agent session bootstrap", () => {
     );
     expect(noCheckpoint.savedState).toBeNull();
   });
-
   test.each([
     [{ JEST_WORKER_ID: "1" }, "test-key", false],
     [{}, "resolved-key", true],
@@ -120,36 +111,30 @@ describe("agent session bootstrap", () => {
       { promptPath: "prompt.json", cwd: "/project", env },
       deps,
     );
-
     expect(session.apiKey).toBe(expectedKey);
     expect(deps.resolveAgentApiKey).toHaveBeenCalledTimes(Number(shouldResolve));
   });
-
   test("adds the working directory to AGENTS.md load failures", async () => {
     const deps = dependencies({
       readAgentsFromCwdAndParents: jest.fn(async () => {
         throw new Error("permission denied");
       }),
     });
-
     await expect(
       prepareAgentSession({ promptPath: "prompt.json", cwd: "/private/project", env: {} }, deps),
     ).rejects.toThrow("Unable to read AGENTS.md files under /private/project: permission denied");
     expect(deps.readSessionState).not.toHaveBeenCalled();
   });
-
   test("stringifies AGENTS.md failures without a message", async () => {
     const deps = dependencies({
       readAgentsFromCwdAndParents: jest.fn(async () => {
         throw {};
       }),
     });
-
     await expect(
       prepareAgentSession({ promptPath: "prompt.json", cwd: "/project", env: {} }, deps),
     ).rejects.toThrow("Unable to read AGENTS.md files under /project: [object Object]");
   });
-
   test("uses the default dependencies and runtime inputs in a temporary directory", async () => {
     const directory = await mkdtemp(join(tmpdir(), "agentx-session-bootstrap-"));
     const previous = {
@@ -168,7 +153,6 @@ describe("agent session bootstrap", () => {
         flags: { noMcp: true },
         argv: [],
       });
-
       expect(session.apiKey).toBe("test-key");
       expect(session.statePath).toMatch(/\.agentx_responseid\.oneshot-\d+-\d+$/u);
       expect(session.savedState).toBeNull();

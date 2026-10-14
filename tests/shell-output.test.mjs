@@ -8,3 +8,14 @@ test("truncates shell output and appends a marker", () => {
     outcome: { type: "exit" },
   });
 });
+
+test("handles normal output and limits shorter than the truncation note", () => {
+  expect(truncateShellText("short", 5)).toBe("short");
+  expect(truncateShellText("long", 3)).toBe("lon");
+  expect(truncateShellText("x".repeat(40), 30)).toBe(`${"x".repeat(11)}\n[output truncated]`);
+  expect(truncateShellText("long", 20)).toBe("long");
+  expect(makeShellCommandOutput({ stderr: "", outcome: { type: "exit" } })).toMatchObject({
+    stdout: "",
+    stderr: "",
+  });
+});

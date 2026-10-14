@@ -129,4 +129,37 @@ describe("tool-result continuation requests", () => {
       response: currentResponse,
     });
   });
+
+  test("uses the default response creator and tolerates an absent retry callback", async () => {
+    const create = jest.fn().mockResolvedValue({ id: "next" });
+    const openai = { responses: { create } };
+    await requestToolContinuation({
+      openai,
+      baseRequest: {},
+      currentResponse: { id: "prior" },
+      outputs: [],
+    });
+    expect(create.mock.calls[0][0]).toMatchObject({ previous_response_id: "prior" });
+
+    await expect(
+      requestToolContinuation({
+        openai,
+        baseRequest: {},
+        currentResponse: { id: "prior" },
+        outputs: [],
+        createResponse: jest.fn().mockRejectedValue(new Error("request failed")),
+      }),
+    ).rejects.toThrow("request failed");
+  });
+
+  test("uses an empty predecessor when the response has no id", async () => {
+    const result = await requestToolContinuation({
+      openai: {},
+      baseRequest: {},
+      currentResponse: {},
+      outputs: [],
+      createResponse: jest.fn().mockResolvedValue({ id: "next" }),
+    });
+    expect(result.previousResponseId).toBe("");
+  });
 });

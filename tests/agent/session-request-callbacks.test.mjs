@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { createSessionRequestCallbacks } from "../../src/agent/session-request-callbacks.mjs";
-
 function makeCallbacks(overrides = {}) {
   const usage = { inputTokens: 1, cachedTokens: 0, outputTokens: 2, turns: 0 };
   const values = {
@@ -60,7 +59,6 @@ function makeCallbacks(overrides = {}) {
     goalCallbacksFactory,
   };
 }
-
 describe("session request callbacks", () => {
   test("accounts normal response usage and honors retry skip-increment", () => {
     const { callbacks, usage, addUsageTotals } = makeCallbacks();
@@ -69,7 +67,6 @@ describe("session request callbacks", () => {
     expect(addUsageTotals).toHaveBeenCalledTimes(1);
     expect(usage).toMatchObject({ inputTokens: 3, turns: 1 });
   });
-
   test("persists retry request and transaction context", async () => {
     const state = makeCallbacks();
     await state.callbacks.onRetryState({
@@ -87,7 +84,6 @@ describe("session request callbacks", () => {
     });
     expect(state.saveState).toHaveBeenCalledTimes(1);
   });
-
   test("inspects images with caller response identity and accounts branch usage", async () => {
     const state = makeCallbacks();
     await expect(
@@ -118,7 +114,6 @@ describe("session request callbacks", () => {
       turns: 2,
     });
   });
-
   test("accounts image and worker usage and creates goal callbacks with live state accessors", () => {
     const state = makeCallbacks();
     state.callbacks.onWorkerUsage({ inputTokens: 5, cachedTokens: 2, outputTokens: 7, turns: 3 });
@@ -142,7 +137,6 @@ describe("session request callbacks", () => {
     goalCallbacks.setGoal({ status: "completed" });
     expect(state.values.goal).toEqual({ status: "completed" });
   });
-
   test("uses default usage and goal callback services", () => {
     const state = makeCallbacks({
       addUsageTotals: undefined,
@@ -155,7 +149,6 @@ describe("session request callbacks", () => {
       expect.objectContaining({ onGoalIteration: expect.any(Function) }),
     );
   });
-
   test("uses empty retry defaults and zero-or-missing usage turn fallbacks", async () => {
     const state = makeCallbacks({
       inspectImage: jest.fn(async (_client, _args, options) => {
@@ -173,7 +166,6 @@ describe("session request callbacks", () => {
       execution_journal: [{ identity: "shell:test" }],
       attempt_count: 1,
     });
-
     await state.callbacks.onViewImage({ args: {}, response: null, baseRequest: null, cwd: "." });
     expect(state.usage.turns).toBe(1);
     state.callbacks.onWorkerUsage({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });

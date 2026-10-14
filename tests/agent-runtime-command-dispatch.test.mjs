@@ -59,8 +59,18 @@ test("adapts runtime state and context for the command dispatcher", () => {
   });
   expect(createDispatcher).toHaveBeenCalled();
   expect(result.state.getActiveGoal()).toBe("goal");
+  result.state.setActiveGoal("next goal");
+  expect(runtimeState.activeGoal).toBe("next goal");
   expect(result.state.getTemplate()).toEqual({ model: "m" });
+  result.state.setTemplate({ model: "new" });
+  expect(runtimeState.template).toEqual({ model: "new" });
   expect(result.state.getPreviousCwd()).toBe("old");
+  result.state.setPreviousCwd("older");
+  result.state.setCwdNote("note");
+  expect(runtimeState).toMatchObject({ previousCwd: "older", cwdNote: "note" });
+  expect(result.state.getCwd()).toBe("cwd");
+  expect(result.state.getSessionUsage()).toBe(runtimeState.sessionUsage);
+  expect(result.state.getHistory()).toBe(runtimeState.history);
   expect(result.context).toMatchObject({ promptPath: "prompt", statePath: "state" });
   expect(result.repl.getReadline).toBe(repl.getReadline);
   result.services.persistCheckpoint("snapshot");
@@ -68,4 +78,25 @@ test("adapts runtime state and context for the command dispatcher", () => {
   result.services.writeSystem("status");
   expect(formatSystemMessage).toHaveBeenCalledWith("status");
   expect(writeTerminal).toHaveBeenCalledWith("formatted:status\n");
+});
+
+test("uses the default session command dispatcher", () => {
+  const dispatcher = createAgentRuntimeCommandDispatcher({
+    runtimeState: {},
+    getCwd: () => ".",
+    setCwd: jest.fn(),
+    promptPath: "prompt",
+    outputFlags: {},
+    input: {},
+    output: {},
+    statePath: "state",
+    checkpointPath: "checkpoint",
+    repl: {},
+    saveState: jest.fn(),
+    exitWithSummary: jest.fn(),
+    resetState: jest.fn(),
+    applyRollback: jest.fn(),
+    persistCheckpoint: jest.fn(),
+  });
+  expect(typeof dispatcher).toBe("function");
 });

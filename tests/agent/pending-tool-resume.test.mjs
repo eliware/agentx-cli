@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { resumePendingToolExecution } from "../../src/agent/pending-tool-resume.mjs";
+import { baseState } from "../../test-fixtures/session-pending-recovery-helpers.mjs";
 
 describe("pending tool resume coordinator", () => {
   test.each([
@@ -9,6 +10,7 @@ describe("pending tool resume coordinator", () => {
     const createRunner = jest.fn(() => "resume-runner");
     const execute = jest.fn(async () => ({ id: "response-next" }));
     const savedState = {
+      ...baseState(),
       pending_tool_calls: [{ id: "call-1" }, { call_id: "call-2" }],
       execution_journal: [
         { identity: "tool-1", status: "started" },

@@ -40,4 +40,22 @@ describe("agent entrypoint actions", () => {
     expect(processRef.exit).toHaveBeenCalledWith(1);
     expect(runEntrypointAction({ flags: {} }, { stdout, processRef, dependencies })).toBe(false);
   });
+
+  test("uses the process directory and exits successfully for a valid MCP file", () => {
+    const stdout = { write: jest.fn() };
+    const processRef = { cwd: () => "/work", exit: jest.fn() };
+    const dependencies = {
+      formatQuickHelp: jest.fn(),
+      getPackageVersion: jest.fn(),
+      formatMcpConfigValidation: () => "valid",
+      validateMcpConfigFile: jest.fn(() => ({ valid: true })),
+    };
+    expect(
+      runEntrypointAction({ flags: { checkMcp: true } }, { stdout, processRef, dependencies }),
+    ).toBe(true);
+    expect(dependencies.validateMcpConfigFile).toHaveBeenCalledWith(
+      expect.stringMatching(/[\\/]work[\\/].agentx.mcp.json$/),
+    );
+    expect(processRef.exit).toHaveBeenCalledWith(0);
+  });
 });

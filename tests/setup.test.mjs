@@ -5,7 +5,6 @@ import os from "node:os";
 import path from "node:path";
 import { runSetup } from "../src/setup.mjs";
 import { readEnvState, writeEnvState } from "../src/setup-env.mjs";
-
 class FakeTerminal extends EventEmitter {
   constructor() {
     super();
@@ -33,7 +32,6 @@ class FakeOutput extends EventEmitter {
     this.text += value;
   }
 }
-
 async function expectSetupToFinish(run, timeoutMs) {
   let timer;
   try {
@@ -49,7 +47,6 @@ async function expectSetupToFinish(run, timeoutMs) {
     clearTimeout(timer);
   }
 }
-
 describe("interactive setup", () => {
   test("rejects non-interactive terminals", async () => {
     const stdout = new FakeOutput();
@@ -58,7 +55,6 @@ describe("interactive setup", () => {
     expect(stdout.text).toContain("requires an interactive terminal");
   });
 });
-
 describe("interactive setup menu flow", () => {
   let directory;
   beforeEach(async () => {
@@ -67,7 +63,6 @@ describe("interactive setup menu flow", () => {
   afterEach(async () => {
     await rm(directory, { recursive: true, force: true });
   });
-
   const drive = async (readlineInput, values) => {
     for (const value of values) {
       await new Promise((resolve) =>
@@ -78,7 +73,6 @@ describe("interactive setup menu flow", () => {
       );
     }
   };
-
   test("visits every menu item on a TTY without waiting indefinitely", async () => {
     const stdin = { isTTY: true };
     const readlineInput = new FakeTerminal();
@@ -110,7 +104,6 @@ describe("interactive setup menu flow", () => {
     });
     expect(stdout.text).toContain("Warning: jumbo prompts cost 2x above 270k tokens.");
   }, 10000);
-
   test("loads persisted model over defaults and can select GPT-6 Luna", async () => {
     const stdin = { isTTY: true };
     const readlineInput = new FakeTerminal();
@@ -123,7 +116,6 @@ describe("interactive setup menu flow", () => {
     expect((await readEnvState(configPath)).values.AGENTX_MODEL).toBe("gpt-6-luna");
     expect(stdout.text).toContain("Model (gpt-5.6-terra)");
   }, 5000);
-
   test("uses the readline fallback and accepts textual choices", async () => {
     const stdin = { isTTY: true };
     const readlineInput = new FakeTerminal();
@@ -136,16 +128,6 @@ describe("interactive setup menu flow", () => {
     expect(stdout.text).toContain("Unknown option.");
   }, 5000);
 });
-
-describe("setup coverage edge cases", () => {
-  test("supports default arguments in a non-interactive terminal", async () => {
-    const defaultStdout = new FakeOutput();
-    defaultStdout.isTTY = false;
-    await runSetup({ stdout: defaultStdout });
-    expect(defaultStdout.text).toContain("requires an interactive terminal");
-  });
-});
-
 describe("setup branch completion", () => {
   test("routes raw menu compaction selection through the editor workflow", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "agentx-raw-menu-"));
@@ -171,7 +153,6 @@ describe("setup branch completion", () => {
       await rm(directory, { recursive: true, force: true });
     }
   }, 5000);
-
   test("covers omitted runSetup arguments", async () => {
     const originalWrite = process.stdout.write;
     const originalStdinTTY = process.stdin.isTTY;

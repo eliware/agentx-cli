@@ -8,6 +8,17 @@ describe("tool call approval", () => {
     );
   });
 
+  test("executes a destructive call when no confirmation handler exists", async () => {
+    await expect(
+      approveToolCall(
+        { type: "shell_call", action: { commands: ["rm -rf data"] } },
+        process.cwd(),
+        {},
+        null,
+      ),
+    ).resolves.toBe(true);
+  });
+
   test("pauses status while the confirmer handles a destructive call", async () => {
     const status = { pause: jest.fn(), resume: jest.fn() };
     const streamOptions = { confirmToolCall: jest.fn().mockResolvedValue(false) };
@@ -29,5 +40,7 @@ describe("tool call approval", () => {
       call_id: "c1",
       status: "incomplete",
     });
+    expect(declinedToolOutput({ type: "shell_call", id: "fallback" }).call_id).toBe("fallback");
+    expect(declinedToolOutput({ type: "shell_call" }).call_id).toBe("");
   });
 });

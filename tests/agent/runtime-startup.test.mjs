@@ -62,6 +62,7 @@ test("starts a runtime and selects startup settings from quiet mode", async () =
 
   expect(started.runtimeState.openai).toBe("client");
   expect(started.createSessionClient()).toBe("client");
+  expect(createAgentClient.mock.calls.at(-1)[0].isDebugEnabled()).toBe(false);
   expect(started.repl).toBe("repl");
   expect(setTerminalOutputOptions).toHaveBeenCalledWith({ colors: false });
   expect(setActiveClient).toHaveBeenCalledWith("client");
@@ -72,6 +73,7 @@ test("starts a runtime and selects startup settings from quiet mode", async () =
   expect(createSessionRepl).toHaveBeenCalledWith(
     expect.objectContaining({ oneShot: false, input: "input", output: "output" }),
   );
+  expect(createSessionRepl.mock.calls.at(-1)[0].getCwd()).toBe("C:/work");
   started.onWorkerComplete("worker");
   expect(reportSessionWorkerUsage).toHaveBeenCalledWith({
     worker: "worker",

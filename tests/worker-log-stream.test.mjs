@@ -1,8 +1,14 @@
-import { expect, jest, test } from "@jest/globals";
+import { afterEach, expect, jest, test } from "@jest/globals";
 
 const appendWorkerLog = jest.fn(async () => {});
 await jest.unstable_mockModule("../src/worker-registry.mjs", () => ({ appendWorkerLog }));
 const { createWorkerLogStream } = await import("../src/worker-log-stream.mjs");
+
+afterEach(() => {
+  jest.useRealTimers();
+  appendWorkerLog.mockReset();
+  appendWorkerLog.mockResolvedValue(undefined);
+});
 
 test("buffers output, parses usage, redacts secrets, and persists the final record", async () => {
   const previousKey = process.env.AGENTX_API_KEY;
@@ -29,4 +35,20 @@ test("buffers output, parses usage, redacts secrets, and persists the final reco
     expect.not.stringContaining("worker-secret"),
   );
   expect(persist).toHaveBeenCalledWith(worker);
+});
+
+test("flushes a timed buffer and ignores storage failures", async () => {
+  jest.useFakeTimers();
+  const worker = { id: "agent-empty", cwd: "/repo", output: "", lines: 0, usage: null };
+  const persist = jest.fn(async () => {});
+  const stream = createWorkerLogStream(worker, persist);
+  stream.append("plain output\n");
+  stream.append("");
+  await jest.advanceTimersByTimeAsync(50);
+  expect(appendWorkerLog).toHaveBeenCalledWith("/repo", "agent-empty", "plain output\n");
+  await stream.close();
+  appendWorkerLog.mockRejectedValueOnce(new Error("disk unavailable"));
+  stream.append("next output\n");
+  await expect(stream.close()).resolves.toBeUndefined();
+  expect(persist).toHaveBeenCalled();
 });
