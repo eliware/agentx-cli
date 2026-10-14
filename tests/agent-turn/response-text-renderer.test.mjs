@@ -22,6 +22,19 @@ describe("assistant response text renderer", () => {
     expect(writes.join("")).toContain("y\u001bZ");
   });
 
+  test("emits an incomplete CSI fragment once at flush", () => {
+    const writes = [];
+    const renderer = createResponseTextRenderer((text) => writes.push(text));
+    renderer.writeTextDelta("text\u001b[31");
+    renderer.flushTextDelta();
+    expect(writes.join("")).toBe("\u001b[38;5;255mtext\u001b[31");
+    const initialWrites = [];
+    const initialRenderer = createResponseTextRenderer((text) => initialWrites.push(text));
+    initialRenderer.writeTextDelta("\u001b[32");
+    initialRenderer.flushTextDelta();
+    expect(initialWrites.join("")).toBe("\u001b[38;5;255m\u001b[32");
+  });
+
   test("adds the initial text color once and ignores empty deltas", () => {
     const writes = [];
     const renderer = createResponseTextRenderer((text) => writes.push(text));

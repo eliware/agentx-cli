@@ -45,10 +45,10 @@ export function createResponseTextRenderer(write = writeTerminal) {
   return {
     writeTextDelta,
     flushTextDelta() {
-      if (pendingAnsi) {
-        writeTextDelta(pendingAnsi);
-        pendingAnsi = "";
-      }
+      if (!pendingAnsi) return;
+      write(`${textOutputStarted ? "" : WHITE}${pendingAnsi}`);
+      textOutputStarted = true;
+      pendingAnsi = "";
     },
   };
 }
