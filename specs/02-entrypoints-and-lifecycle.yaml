@@ -6,7 +6,7 @@ body: |
 
   ## Invocation
 
-  The package exposes `agentx` and `agentx-setup` through `bin/agentx.mjs` and `bin/agentx-setup.mjs`. The setup launcher imports `src/setup-entrypoint.mjs`. `agentx-setup --help` (`-h`) prints setup usage without entering the interactive flow; `agentx-setup --version` (`-v`) prints the package version and exits successfully. Direct invocation must be detected by comparing the real path of `process.argv[1]` with the supported root or package launcher path; importing the launcher must not start a REPL. This must continue to work when npm or the operating system invokes the package through a symlink.
+  The package exposes `agentx` and `agentx-setup` through `bin/agentx.mjs` and `bin/agentx-setup.mjs`. The launchers import `src/agent-entrypoint.mjs` and `src/setup-entrypoint.mjs`. `agentx-setup --help` (`-h`) prints setup usage without entering the interactive flow; `agentx-setup --version` (`-v`) prints the package version and exits successfully. Direct invocation must use the real path of `process.argv[1]` and must work through npm or operating-system symlinks. Importing an entrypoint must not start a REPL.
 
   Setup entrypoint invocation and setup workflow behavior are covered by the mirrored `tests/setup.test.mjs` suite, which owns the setup module boundary and its root launcher integration.
 

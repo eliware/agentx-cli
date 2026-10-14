@@ -6,7 +6,7 @@ import {
   persistResponseState,
   readSessionState,
 } from "../src/conversation-state.mjs";
-import { cleanupTempDir, makeTempDir, makeFile } from "../test-helpers.mjs";
+import { cleanupTempDir, makeTempDir, makeFile } from "./test-helpers.mjs";
 
 describe("session state", () => {
   test("preserves durable pending transactions", async () => {

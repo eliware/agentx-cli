@@ -1,7 +1,32 @@
-import { afterEach, beforeEach, describe, expect, jest as testMocks, test } from "@jest/globals";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  jest as testMocks,
+  test as jestTest,
+} from "@jest/globals";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { API_PRICING, calculateUsageCostBreakdown } from "@eliware/openai";
+const selectedCases = new Set((process.env.AGENTX_RUNTIME_CASES || "").split(",").filter(Boolean));
+let caseIndex = 0;
+function test(name, callback, timeout) {
+  caseIndex += 1;
+  if (!selectedCases.size || selectedCases.has(String(caseIndex)))
+    jestTest(name, callback, timeout);
+  else jestTest.skip(name, () => {});
+}
+test.each = (rows) => (name, callback, timeout) => {
+  for (const row of rows) {
+    caseIndex += 1;
+    const rowName = name.replace("$label", row.label);
+    if (!selectedCases.size || selectedCases.has(String(caseIndex))) {
+      jestTest(rowName, () => callback(row), timeout);
+    } else jestTest.skip(rowName, () => {});
+  }
+};
 
 function makeShellMock() {
   return {
@@ -54,6 +79,8 @@ describe("agent loop", () => {
     testMocks.resetModules();
     testMocks.unstable_mockModule("@eliware/openai", () => ({
       createOpenAI: () => ({ responses: { close: testMocks.fn() } }),
+      API_PRICING,
+      calculateUsageCostBreakdown,
     }));
     cwd = mkdtempSync(path.join(os.tmpdir(), "agentx-loop-"));
     promptPath = path.join(cwd, "prompt.json");
@@ -1530,5 +1557,3 @@ describe("agent loop", () => {
     expect(persistedState.pending_cli_transcript).toBe("transcript");
   });
 });
-
-await import("../agentx-smoke-suite.mjs");

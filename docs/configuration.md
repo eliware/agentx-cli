@@ -1,43 +1,37 @@
 # Configuration
 
-AgentX reads configuration from the process environment and the user-owned `~/.agentx` file. Never commit either file.
+AgentX reads runtime settings from the process environment and the user file `~/.agentx`. Keep both private.
 
 ## API key
 
-| Name                                | Required | Default | Format                | Sensitive | Effect                                                                     |
-| ----------------------------------- | -------- | ------- | --------------------- | --------- | -------------------------------------------------------------------------- |
-| `agentx_api_key` / `AGENTX_API_KEY` | Yes      | None    | OpenAI API key string | Yes       | Authenticates Responses API requests. The lowercase name is checked first. |
+AgentX needs an OpenAI API key before it can send a request. Set `agentx_api_key` or `AGENTX_API_KEY`, or enter the key with `agentx-setup`.
 
-`agentx-setup` can write the key and runtime settings to `~/.agentx`. Environment values remain available for shell and CI use.
+The lowercase variable takes priority when both variables have values. The setup tool stores the key in `~/.agentx`.
 
 ## Runtime settings
 
-The `/setup` flow edits the supported settings stored in `~/.agentx`:
+Set these values in `~/.agentx`, through `agentx-setup`, or in the process environment.
 
-- model: model identifier sent to the Responses API;
-- reasoning: reasoning effort setting;
-- output: output verbosity setting;
-- compaction: server-side compaction configuration.
+| Name                          | Default      | Allowed values or effect                                 |
+| ----------------------------- | ------------ | -------------------------------------------------------- |
+| `AGENTX_MODEL`                | `gpt-6-luna` | Model ID from the OpenAI client catalog.                 |
+| `AGENTX_REASONING_MODE`       | `standard`   | `standard` or `pro`.                                     |
+| `AGENTX_REASONING_EFFORT`     | `low`        | `none`, `low`, `medium`, `high`, `xhigh`, or `max`.      |
+| `AGENTX_REASONING_SUMMARY`    | `auto`       | `concise`, `detailed`, `auto`, or `null`.                |
+| `AGENTX_OUTPUT_VERBOSITY`     | `low`        | `low`, `medium`, or `high`.                              |
+| `AGENTX_COMPACTION_THRESHOLD` | `200000`     | Positive token count.                                    |
+| `AGENTX_PERMISSION`           | `execute`    | Default shell permission: `read`, `write`, or `execute`. |
 
-Values are validated by the setup flow before they are saved. Defaults and accepted values are shown by `/setup`; keep the generated file user-owned and do not paste credentials into issue reports or logs.
+Use `agentx-setup` to view and change supported settings. Do not set a model ID that the OpenAI client does not support.
 
 ## MCP servers
 
-Optional MCP entries are read from `~/.agentx.mcp.json`. Each entry can include `"enabled": false` to keep a server configured without loading it into requests; enabled entries have the local control field removed before being sent to the Responses API. Use `--no-mcp` (`-m`) to disable all MCP loading for one invocation, or `--no-mcp-output` (`-M`) to keep MCP available while suppressing MCP call rendering. `--quiet` also suppresses MCP output but does not disable MCP execution. Run `--check-mcp` (`-K`) to validate the local configuration without contacting servers.
+Optional MCP server settings go in `~/.agentx.mcp.json`. Copy [the example](../.agentx.mcp.json.example), then set a server URL and any required authorization. Keep credentials out of shared files.
 
-## Local state
+Set `"enabled": false` to keep a server entry but omit its tools. Use `agentx --check-mcp` to check the file without contacting a server. Use `--no-mcp` (`-m`) to disable all MCP tools for one run. Use `--no-mcp-output` (`-M`) to hide MCP output while keeping the tools available.
 
-AgentX stores session state in `.agentx_responseid` and successful checkpoints in `.agentx_checkpoint` in the launch directory. One-shot pending state uses temporary `.agentx_responseid.oneshot-*` files. These files may contain conversation metadata and must not be committed.
+## Session files
 
-## Release validation
+AgentX stores the active session in `.agentx_responseid` and successful checkpoints in `.agentx_checkpoint` in the current directory. One-shot requests use temporary `.agentx_responseid.oneshot-*` files. These files can contain conversation data. Do not commit them.
 
-Before publishing, run:
-
-```bash
-npm test
-npm run lint
-npm run audit
-npm run pack
-```
-
-The audit checks production dependencies only and fails on moderate-or-higher advisories. Package validation checks the dry-run artifact for required runtime files and excludes tests, state, credentials, and build artifacts. CI runs the same checks before the publish step.
+See [session state](conversation-state.md) for resume and rollback details. Command options apply to one run. Package data does not set runtime options.

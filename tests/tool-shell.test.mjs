@@ -1,4 +1,4 @@
-import { describe, expect, test } from "@jest/globals";
+import { describe, expect, jest, test } from "@jest/globals";
 import { accessSync } from "node:fs";
 import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 

@@ -24,82 +24,83 @@ A lightweight terminal chat agent built on the OpenAI Responses API through the 
 
 ## Features
 
-AgentX is a lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client. It waits for your first message before contacting OpenAI, supports shell-like navigation and tab completion, runs explicitly prefixed local shell commands, and offers optional MCP tools and independent worker agents. Session state and successful checkpoints support recovery and resume workflows. The package description is “A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.” Package author: Eliware (Eli Sterling) <eli@eliware.org>.
+- Send messages to the OpenAI Responses API from a terminal.
+- Use local shell commands with the `!` prefix.
+- Use optional MCP tools and worker agents.
+- Resume saved sessions and restore successful checkpoints.
 
 ## Requirements
 
-- Node.js 26.x.
-- An OpenAI API key supplied through the environment or user-local configuration.
-- Windows, Linux, or macOS terminal. Platform-specific shell commands follow the host shell.
+- Node.js 26 or later.
+- An OpenAI API key.
+- Windows or Linux terminal.
 
 ## Setup
 
-Install the published package and configure it interactively:
+Install AgentX and run its setup command:
 
 ```sh
 npm install --global @eliware/agentx-cli@latest
 agentx-setup
 ```
 
-The setup command stores configuration in the user's home directory. To update, install `@latest` again. Remove the package with `npm uninstall --global @eliware/agentx-cli`; remove local configuration separately through the setup tool or by explicitly deleting the intended user-owned files.
+Setup stores the API key and settings in user-local files. See [configuration](docs/configuration.md).
 
 ## Usage
 
-Install the published `@eliware/agentx-cli` package globally with `npm install --global @eliware/agentx-cli@latest`. The package entrypoints are `agentx` (`bin/agentx.mjs`) and `agentx-setup` (`bin/agentx-setup.mjs`): run `agentx-setup` to configure user-local settings, then run `agentx` to start an interactive session. Use `agentx-setup --help` for setup options and `agentx-setup --version` to print the package version. For a single request that exits after responding, run `agentx "summarize this project"`. One-shot tool execution is approved by default; pass `--confirm` to request confirmation. In an interactive session, type a normal message to contact the model, use `cd PATH` to change the local working directory without a model request, and prefix a local shell command with `!` (for example, `!git status`).
+Read the [release notes](RELEASE_NOTES.md) for version changes. Start an interactive session:
 
-The published package version is maintained in `package.json` and exposed by `agentx --version`; the version available through `@latest` is the latest published release and may differ from the checkout. See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for versioned changes.
+```sh
+agentx
+```
 
-Interactive commands include `clear` or `/clear` to start a fresh conversation, `/usage` to show token and cost totals, `/rollback` to restore a successful response checkpoint, `/setup` to edit settings, and `quit`, `exit`, `/quit`, or `/exit` to leave. `!clear` clears only the terminal display. WebSocket recovery uses bounded reconnect attempts; other recoverable API failures offer retry, new-chain, rollback, or clear actions.
+Send one request and exit:
+
+```sh
+agentx "summarize this project"
+```
+
+Type a message and press Enter. AgentX contacts OpenAI after your first message. See the [quickstart](docs/quickstart.md) and [command reference](docs/commands.md).
 
 ## Development
 
-The application entrypoint is [`agentx.mjs`](./agentx.mjs). Setup code is in `src/setup-entrypoint.mjs`. npm launchers are in `bin/`. Implementation modules are under `src/`. Behavioral specifications are indexed in [`specs/README.md`](./specs/README.md). Read [docs](docs/README.md) and [examples](examples/README.md).
-
-This project follows Spec Driven Development: update the applicable specification before tests and implementation. Package metadata and package contents are defined in `package.json`; versioned release notes are in [`RELEASE_NOTES.md`](./RELEASE_NOTES.md). The package is `@eliware/agentx-cli`, published versions are available from [npm](https://www.npmjs.com/package/@eliware/agentx-cli), and the repository version is the source for release tags.
+Read the [specification index](specs/README.md) before you change behavior. Read the [documentation index](docs/README.md) for user guides. Read [release notes](RELEASE_NOTES.md) for version changes.
 
 ## Testing
 
-Run aggregate validation with `npm test` (`eliware-test`), or focused stages with `npm run lint`, `npm run audit`, and `npm run pack`. Formatting uses `npm run format` and `npm run format:check`. Application tests run through the shared harness and enforce 100% statements, branches, functions, and lines for in-scope production code.
+Run the shared validation command:
+
+```sh
+npm test
+```
+
+Run `npm run lint`, `npm run audit`, or `npm run pack` for one check.
 
 ## Troubleshooting
 
-- If startup reports a missing API key, run `agentx-setup` or configure `agentx_api_key` / `AGENTX_API_KEY` in the environment.
-- Run `agentx --check-mcp` to validate optional MCP configuration without making an API request.
-- Use `agentx --help` for option details. See [Troubleshooting](./docs/troubleshooting.md) and [Quickstart](./docs/quickstart.md) for more.
+- Run `agentx-setup` if AgentX reports a missing API key.
+- Run `agentx --help` to view command options.
+- Read the [troubleshooting guide](docs/troubleshooting.md) for other issues.
 
 ## Security
 
-Tool permission classifications are advisory, not a sandbox. Shell wrappers, scripts, aliases, substitutions, and encoded commands may bypass name-based classification. Use `--confirm` when human review is needed; do not treat AgentX as an isolation boundary for untrusted prompts or workspaces. Output redacts sensitive values where supported; avoid sharing logs containing private data. Never commit API keys, MCP credentials, tokens, user conversations, or runtime state. Keep user-local settings private.
+Tool permission labels do not create a security boundary. Use `--confirm` when you need to review tool calls. Do not send untrusted work to AgentX as if it were isolated. Keep API keys and user data private.
 
 ## Configuration
 
-Runtime settings are stored in user-local AgentX configuration and can be managed with `agentx-setup` or the interactive `/setup` command. The API key can also be supplied through `agentx_api_key` or `AGENTX_API_KEY`. `AGENTX_MODEL` selects the model (default `gpt-6-luna`) and `AGENTX_PERMISSION` selects the default tool permission (default `execute`). The [`.env.example`](./.env.example) lists environment names, including internal worker/test variables that normally should not be set manually. Optional MCP server definitions are loaded from `~/.agentx.mcp.json`; use [`.agentx.mcp.json.example`](./.agentx.mcp.json.example) as a shape reference. CLI arguments control an invocation and are not persistent runtime settings. `package.json` and `package.json.eliware.apply` are package/repository metadata, not runtime configuration.
+AgentX reads settings from user-local files and supported environment variables. The `/setup` command edits runtime settings. See the [configuration guide](docs/configuration.md) for names, defaults, and file paths.
 
 ## Operations
 
-Startup: `agentx` validates configuration before contacting OpenAI and waits for the first user message. Shutdown: use `quit`, `exit`, `/quit`, or `/exit`; shutdown is graceful and repeatable. User-visible workflows include interactive and one-shot requests, local `cd` and `!` commands, MCP calls, and worker spawn/status/cancel operations. Session state is persisted in the current working directory; successful checkpoints support recovery and one-shot invocations use isolated pending state. Worker records and logs are kept in private per-user state, isolated by canonical working directory. Operational boundary: review paths before destructive local commands; advisory tool permissions are not a sandbox. See [session state](./docs/conversation-state.md), [commands](./docs/commands.md), and [configuration](./docs/configuration.md) for operational details.
+AgentX checks settings before network access. It waits for your first message before it contacts OpenAI. Use `quit`, `exit`, `/quit`, or `/exit` to close the session. See the [session guide](docs/conversation-state.md) for saved data and recovery.
 
 ## Commands
 
-| Command or option                                                                                                                                           | Behavior                                                                                 |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `agentx`                                                                                                                                                    | Start an interactive session.                                                            |
-| `agentx-setup`                                                                                                                                              | Configure user-local settings.                                                           |
-| `agentx --help` (`-h`, `-?`)                                                                                                                                | Print help.                                                                              |
-| `agentx --version` (`-v`)                                                                                                                                   | Print package version.                                                                   |
-| `agentx --cwd PATH` (`-C PATH`)                                                                                                                             | Run from a selected working directory; relative paths resolve from launch directory.     |
-| `agentx --confirm`                                                                                                                                          | Require confirmation for tool execution.                                                 |
-| `agentx --check-mcp` (`-K`)                                                                                                                                 | Validate MCP settings without an API request.                                            |
-| `agentx --debug`                                                                                                                                            | Enable diagnostic WebSocket logs; do not share output without reviewing it.              |
-| `agentx --quiet` (`-q`)                                                                                                                                     | Suppress usage, timers, and tool/status output.                                          |
-| `agentx --no-usage`, `--no-colors`, `--no-timers`, `--no-reasoning`, `--no-shell-calls`, `--no-tool-calls`, `--no-mcp-output`, `--no-websearch`, `--no-mcp` | Suppress selected output or disable MCP loading.                                         |
-| `agentx "message"`                                                                                                                                          | Send one request, perform permitted tool calls, print the response and usage, then exit. |
-
-Short output flags are stackable (`-u`, `-c`, `-t`, `-r`, `-s`, `-o`, `-M`, `-w`, `-q`); `-m` disables MCP loading (for example, `-qur`). Use paths and shell syntax appropriate for the current platform. Destructive local shell operations are user-issued commands; review their target and use confirmation before running them. Direct `!` commands have no automatic timeout; Ctrl-C terminates them. Ctrl-T interrupts model-requested shell tools.
+Use `cd PATH` to change the working directory. Prefix a local shell command with `!`. Use `/usage`, `/rollback`, `/setup`, or `/clear` in a session. See the [command reference](docs/commands.md) for all commands and options.
 
 ## Exit codes
 
-Exit code `0` indicates successful command completion. A nonzero exit code indicates invalid arguments, configuration or runtime failure, or an unsuccessful operation. Errors should be reported without exposing credentials. For command-specific details, use `agentx --help` and the relevant documentation.
+Code `0` means success. A nonzero code means command failure. Errors must not show credentials.
 
 ## Support
 

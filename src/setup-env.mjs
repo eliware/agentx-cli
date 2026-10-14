@@ -1,5 +1,5 @@
 import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { snowflake } from "@eliware/common";
 import nodePath from "node:path";
 import { getSetupPaths } from "./setup-paths.mjs";
 import {
@@ -52,7 +52,7 @@ export async function writeEnvState(filePath, values, baseText = null) {
   const directory = nodePath.dirname(filePath);
   const temporaryPath = nodePath.join(
     directory,
-    `.${nodePath.basename(filePath)}.${randomUUID()}.tmp`,
+    `.${nodePath.basename(filePath)}.${snowflake()}.tmp`,
   );
   await mkdir(directory, { recursive: true });
   try {

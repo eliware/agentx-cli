@@ -2,12 +2,22 @@ import { EventEmitter } from "node:events";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, jest, test as jestTest } from "@jest/globals";
+const selectedCases = new Set(
+  (process.env.AGENTX_WORKER_SPAWN_CASES || "").split(",").filter(Boolean),
+);
+let caseIndex = 0;
+function test(name, callback, timeout) {
+  caseIndex += 1;
+  if (!selectedCases.size || selectedCases.has(String(caseIndex)))
+    jestTest(name, callback, timeout);
+  else jestTest.skip(name, () => {});
+}
 
 const spawnMock = jest.fn();
 jest.unstable_mockModule("node:child_process", () => ({ spawn: spawnMock }));
 
-const { runParallelWorkerFunction } = await import("../src/parallel-workers.mjs");
+const { runParallelWorkerFunction, terminateWorkers } = await import("../src/parallel-workers.mjs");
 const { readWorkerRecord } = await import("../src/worker-registry.mjs");
 
 function createChild() {
@@ -260,7 +270,6 @@ test("terminates active workers during parent shutdown", async () => {
       { name: "spawn_agent", arguments: JSON.stringify({ task: "shutdown test" }) },
       cwd,
     );
-    const { terminateWorkers } = await import("../src/parallel-workers.mjs");
     await terminateWorkers();
     expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
@@ -291,7 +300,6 @@ test("handles failed state persistence through log flush and shutdown", async ()
     );
     child.stdout.emit("data", "cannot persist this output");
     await jest.advanceTimersByTimeAsync(50);
-    const { terminateWorkers } = await import("../src/parallel-workers.mjs");
     const termination = terminateWorkers();
     await termSent;
     await jest.advanceTimersByTimeAsync(2000);
@@ -317,7 +325,6 @@ test("does not force-kill a worker already marked killed", async () => {
     { name: "spawn_agent", arguments: JSON.stringify({ task: "already killed test" }) },
     cwd,
   );
-  const { terminateWorkers } = await import("../src/parallel-workers.mjs");
   await terminateWorkers();
   expect(child.kill).toHaveBeenCalledTimes(1);
   child.emit("close", null, "SIGTERM");

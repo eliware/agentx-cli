@@ -1,17 +1,9 @@
 import { setActiveStatusController } from "../terminal-output.mjs";
 import { runToolCall } from "../tool-dispatch.mjs";
-import { dedupeToolCalls, dedupeToolOutputs } from "../tool-call-identity.mjs";
 import { createStatusLineController } from "./status-controller.mjs";
-import { requestToolContinuation } from "./tool-continuation.mjs";
-import { isShellToolCall } from "./response-format.mjs";
-import { executeToolCallSequence } from "./tool-call-runner.mjs";
-import { isGoalToolCall } from "./goal-tools.mjs";
-import { collectToolLoopUsage, writeToolLoopUsage } from "./tool-loop-usage.mjs";
-import { requestGoalContinuation } from "./goal-continuation.mjs";
-import { finalizeToolLoopResponse } from "./tool-loop-completion.mjs";
-
-const IMAGE_TOOL = "view_image";
-const IMAGE_GENERATION_OUTPUT = "image_generation_call";
+import { prepareToolLoopCycle } from "./tool-loop-cycle.mjs";
+import { handleEmptyToolLoopCycle } from "./tool-loop-empty-cycle.mjs";
+import { executeToolLoopCycle } from "./tool-loop-tool-cycle.mjs";
 
 export async function handleToolCalls(
   openai,
@@ -49,120 +41,60 @@ export async function handleToolCalls(
       statusController?.clear();
       return current;
     }
-    const shouldReportUsage = !(skipInitialUsageAccounting && isFirstResponse);
-    const { usage, cumulativeUsage } = collectToolLoopUsage(current, {
-      shouldReport: shouldReportUsage,
-      onResponseUsage,
-      callbackOptions: shouldReportUsage ? { skipIncrement: false } : undefined,
-    });
-    for (const item of current?.output ?? []) {
-      if (item?.type === IMAGE_GENERATION_OUTPUT && item?.result)
-        await streamOptions?.onImageGeneration?.({ item, response: current, cwd });
-    }
-    const calls = dedupeToolCalls(
-      (current?.output ?? []).filter(
-        (item) =>
-          isShellToolCall(item) ||
-          (item?.type === "function_call" &&
-            (["spawn_agent", "agent_status", "cancel_agent"].includes(item?.name) ||
-              (goalMode && isGoalToolCall(item)) ||
-              item?.name === IMAGE_TOOL)),
-      ),
+    const { calls } = await prepareToolLoopCycle({
+      current,
       cwd,
-    );
-    if (onResponseState) {
-      await onResponseState({
-        response: current,
-        pendingToolCalls: calls,
-        isInitialResponse: isFirstResponse,
-        cumulativeUsage,
-      });
-    }
-    writeToolLoopUsage({
-      usage,
-      cumulativeUsage,
-      model: baseRequest?.model,
-      suppressOutput: !shouldReportUsage || Boolean(streamOptions?.suppressUsageOutput),
+      streamOptions,
+      isFirstResponse,
+      skipInitialUsageAccounting,
+      goalMode,
+      onResponseState,
+      onResponseUsage,
+      baseRequest,
     });
+    isFirstResponse = false;
     if (calls.length === 0) {
-      if (goalState.finished || !goalMode) {
-        return finalizeToolLoopResponse({
-          response: current,
-          completionSnapshot: goalState.completionSnapshot,
-          statusController,
-          sessionStartedAt,
-          baseRequest,
-          streamOptions,
-        });
-      }
-      {
-        const continuation = await requestGoalContinuation({
-          openai,
-          baseRequest,
-          currentResponse: current,
-          goalText: streamOptions?.goalText,
-          goalIterations,
-          goalMaxIterations,
-          onGoalIteration: streamOptions?.onGoalIteration,
-          onGoalLimit: streamOptions?.onGoalLimit,
-          statusController,
-          streamOptions: {
-            ...streamOptions,
-            liveStreaming,
-          },
-        });
-        goalIterations = continuation.goalIterations;
-        if (continuation.limited) return current;
-        current = continuation.response;
-        currentPreviousResponseId = continuation.previousResponseId;
-        isFirstResponse = false;
-        continue;
-      }
+      const result = await handleEmptyToolLoopCycle({
+        openai,
+        current,
+        goalMode,
+        goalState,
+        goalIterations,
+        goalMaxIterations,
+        streamOptions,
+        statusController,
+        sessionStartedAt,
+        baseRequest,
+        liveStreaming,
+      });
+      if (result.done) return result.response;
+      goalIterations = result.goalIterations;
+      current = result.response;
+      currentPreviousResponseId = result.previousResponseId;
+      continue;
     }
 
-    isFirstResponse = false;
-    const execution = await executeToolCallSequence({
+    const result = await executeToolLoopCycle({
+      openai,
       calls,
       cwd,
       currentResponse: current,
       previousResponseId: currentPreviousResponseId,
       baseRequest,
-      isFirstResponse,
       executeToolCall,
       streamOptions,
       statusController,
       goalMode,
-      goalState,
       goalIterations,
+      goalState,
+      liveStreaming,
+      sessionStartedAt,
+      onResponseState,
+      onResponseUsage,
     });
-    if (execution.cancelled) return current;
-    const { outputs } = execution;
-
-    const continuation = await requestToolContinuation({
-      openai,
-      baseRequest,
-      currentResponse: current,
-      outputs: dedupeToolOutputs(outputs),
-      goalMode,
-      goalFinished: goalState.finished,
-      streamOptions: { ...streamOptions, liveStreaming },
-      statusController,
-      onRetryState: streamOptions?.onRetryState,
-    });
-    current = continuation.response;
-    currentPreviousResponseId = continuation.previousResponseId;
-    if (goalState.finished) {
-      return finalizeToolLoopResponse({
-        response: current,
-        completionSnapshot: goalState.completionSnapshot,
-        statusController,
-        sessionStartedAt,
-        baseRequest,
-        streamOptions,
-        onResponseState,
-        onResponseUsage,
-        reportFinalUsage: true,
-      });
-    }
+    if (result.cancelled) return current;
+    if (result.done) return result.response;
+    current = result.response;
+    currentPreviousResponseId = result.previousResponseId;
   }
 }

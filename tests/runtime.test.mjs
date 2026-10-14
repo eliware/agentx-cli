@@ -12,10 +12,19 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+function resolveCommonPath(base, ...parts) {
+  const directory =
+    base && typeof base === "object" && base.url
+      ? path.dirname(fileURLToPath(base.url))
+      : String(base || "");
+  return path.resolve(directory, ...parts);
+}
+
 describe("runtime helpers", () => {
   test("hits ENOENT handling through a mocked module import", async () => {
     await jest.isolateModulesAsync(async () => {
       await jest.unstable_mockModule("@eliware/common", () => ({
+        snowflake: () => "test-id",
         fs: {
           promises: {
             readFile: async () => {
@@ -27,7 +36,7 @@ describe("runtime helpers", () => {
             writeFile: async () => {},
           },
         },
-        path: () => "",
+        path: resolveCommonPath,
       }));
       const { readOptionalText: readMissing, deleteOptional: deleteMissing } =
         await import("../src/runtime.mjs");
@@ -42,7 +51,7 @@ describe("runtime helpers", () => {
 
   test("isDirectInvocation recognizes the entrypoint real path on every platform", () => {
     const originalArgv1 = process.argv[1];
-    const entrypoint = new URL("../agentx.mjs", import.meta.url);
+    const entrypoint = new URL("../src/agent-entrypoint.mjs", import.meta.url);
 
     try {
       process.argv[1] = fileURLToPath(entrypoint);
@@ -54,7 +63,7 @@ describe("runtime helpers", () => {
 
   test("isDirectInvocation recognizes the matching package bin launcher", () => {
     const originalArgv1 = process.argv[1];
-    const moduleUrl = new URL("../agentx.mjs", import.meta.url).href;
+    const moduleUrl = new URL("../src/agent-entrypoint.mjs", import.meta.url).href;
     const launcher = new URL("../bin/agentx.mjs", import.meta.url);
 
     try {
@@ -69,7 +78,7 @@ describe("runtime helpers", () => {
     if (process.platform === "win32") return;
     const tmp = mkdtempSync(path.join(os.tmpdir(), "agentx-link-"));
     const link = path.join(tmp, "agentx");
-    const moduleUrl = new URL("../agentx.mjs", import.meta.url).href;
+    const moduleUrl = new URL("../src/agent-entrypoint.mjs", import.meta.url).href;
     symlinkSync(new URL(moduleUrl), link);
     const originalArgv1 = process.argv[1];
 
@@ -89,7 +98,9 @@ describe("runtime helpers", () => {
       process.argv[1] = undefined;
       expect(isDirectInvocation()).toBe(false);
       process.argv[1] = "/tmp/definitely-not-real-agentx";
-      expect(isDirectInvocation(new URL("../agentx.mjs", import.meta.url).href)).toBe(false);
+      expect(isDirectInvocation(new URL("../src/agent-entrypoint.mjs", import.meta.url).href)).toBe(
+        false,
+      );
     } finally {
       process.argv[1] = originalArgv1;
     }
@@ -98,6 +109,7 @@ describe("runtime helpers", () => {
   test("readOptionalText and deleteOptional propagate mocked non-ENOENT errors", async () => {
     jest.resetModules();
     await jest.unstable_mockModule("@eliware/common", () => ({
+      snowflake: () => "test-id",
       fs: {
         promises: {
           readFile: async () => {
@@ -109,7 +121,7 @@ describe("runtime helpers", () => {
           writeFile: async () => {},
         },
       },
-      path: () => "",
+      path: resolveCommonPath,
     }));
     const { readOptionalText: readOptionalTextMock, deleteOptional: deleteOptionalMock } =
       await import("../src/runtime.mjs");

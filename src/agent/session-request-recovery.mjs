@@ -1,4 +1,5 @@
 import { handleRecoveryMenuAbort } from "./recovery-menu-abort.mjs";
+import { isWebsocketRetryAvailable } from "./session-websocket-recovery.mjs";
 
 export async function resolveSessionRequestFailure({
   error,
@@ -13,15 +14,7 @@ export async function resolveSessionRequestFailure({
   now = Date.now,
   deps,
 }) {
-  const websocketExpired = deps.isWebsocketRecoveryError(error);
-  let websocketRetryAvailable = false;
-  if (websocketExpired) {
-    state.websocketRecoveryStartedAt ??= now();
-    websocketRetryAvailable = await deps.waitForWebsocketRetry(
-      state.websocketRecoveryStartedAt,
-      state.websocketRecoveryAttempts,
-    );
-  }
+  const websocketRetryAvailable = await isWebsocketRetryAvailable(error, state, now, deps);
   const recovery = deps.decideRequestFailure(error, {
     oneShot,
     recoveryAttempts: state.recoveryAttempts,

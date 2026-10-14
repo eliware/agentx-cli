@@ -12,8 +12,14 @@ export function isDirectInvocation(moduleUrl = import.meta.url) {
   const realPath = realpathSync(process.argv[1]);
   if (pathToFileURL(realPath).href === moduleUrl) return true;
   const modulePath = fileURLToPath(moduleUrl);
-  const launcherPath = resolve(dirname(modulePath), "bin", basename(modulePath));
-  return existsSync(launcherPath) && realpathSync(launcherPath) === realPath;
+  const moduleDirectory = dirname(modulePath);
+  const launchers = [
+    resolve(moduleDirectory, "bin", basename(modulePath)),
+    resolve(moduleDirectory, "..", "bin", "agentx.mjs"),
+  ];
+  return launchers.some(
+    (launcherPath) => existsSync(launcherPath) && realpathSync(launcherPath) === realPath,
+  );
 }
 
 export async function readJson(filePath) {

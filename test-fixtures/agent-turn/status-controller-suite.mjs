@@ -7,10 +7,18 @@ import {
 describe("agent session modules", () => {
   let originalStdoutWrite;
   let stdoutWrites;
+  let controllers;
+
+  function createController(...args) {
+    const controller = createStatusLineController(...args);
+    controllers.push(controller);
+    return controller;
+  }
 
   beforeEach(() => {
     originalStdoutWrite = process.stdout.write;
     stdoutWrites = [];
+    controllers = [];
     process.stdout.write = (chunk) => {
       stdoutWrites.push(String(chunk));
       return true;
@@ -18,6 +26,7 @@ describe("agent session modules", () => {
   });
 
   afterEach(() => {
+    for (const controller of controllers) controller.stop();
     process.stdout.write = originalStdoutWrite;
   });
 
@@ -27,16 +36,17 @@ describe("agent session modules", () => {
   test("status line controller uses the default session start time when omitted", () => {
     jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
     try {
-      const controller = createStatusLineController();
+      const controller = createController();
       controller.showReasoning();
       expect(stdoutWrites.join("")).toContain('{"time":"0s"');
       expect(stdoutWrites.join("")).toContain('\u001b[32m"reasoning":"0s/0s"\u001b[38;5;255m');
     } finally {
+      for (const controller of controllers) controller.stop();
       jest.useRealTimers();
     }
   });
   test("status line controller accepts omitted transition options", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     expect(controller.snapshot()).toEqual(
       expect.objectContaining({ time: expect.any(String), reasoning: expect.any(Object) }),
     );
@@ -45,7 +55,7 @@ describe("agent session modules", () => {
     controller.clear();
   });
   test("status line controller can resume without immediately rendering", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     controller.showReasoning();
     stdoutWrites = [];
     controller.pause();
@@ -56,7 +66,7 @@ describe("agent session modules", () => {
     controller.clear();
   });
   test("unchanged transitions honor paused and renderNow states", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     controller.showReasoning();
     stdoutWrites = [];
     controller.pause();
@@ -70,7 +80,7 @@ describe("agent session modules", () => {
     controller.clear();
   });
   test("writing transitions suppress status until explicitly allowed", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     controller.beginWriting();
     stdoutWrites = [];
     controller.showReasoning();
@@ -82,7 +92,7 @@ describe("agent session modules", () => {
     controller.clear();
   });
   test("resuming a writing phase does not render a status frame", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     controller.beginWriting();
     controller.pause();
     stdoutWrites = [];
@@ -91,7 +101,7 @@ describe("agent session modules", () => {
     controller.clear();
   });
   test("paused phase transitions resume rendering only when requested", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     controller.showReasoning();
     controller.pause();
     stdoutWrites = [];
@@ -107,7 +117,7 @@ describe("agent session modules", () => {
   test("status line controller renders JSON stats and highlights the active state", () => {
     jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
     try {
-      const controller = createStatusLineController(Date.parse("2026-07-08T00:00:00Z"));
+      const controller = createController(Date.parse("2026-07-08T00:00:00Z"));
       controller.showReasoning();
       expect(stdoutWrites.join("")).toContain(
         '{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[38;5;255m',
@@ -127,7 +137,7 @@ describe("agent session modules", () => {
   test("status line controller prints transition lines without a refresh timer", () => {
     jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
     try {
-      const controller = createStatusLineController(Date.parse("2026-07-08T00:00:00Z"), {
+      const controller = createController(Date.parse("2026-07-08T00:00:00Z"), {
         transitionOnly: true,
       });
       controller.showReasoning();
@@ -141,7 +151,7 @@ describe("agent session modules", () => {
     }
   });
   test("status line controller suppresses live renders when quiet", () => {
-    const controller = createStatusLineController(Date.parse("2026-07-08T00:00:00Z"), {
+    const controller = createController(Date.parse("2026-07-08T00:00:00Z"), {
       quiet: true,
     });
     controller.showReasoning();
@@ -154,14 +164,14 @@ describe("agent session modules", () => {
     expect(stdoutWrites.join("")).toBe("");
   });
   test("status line controller renders and clears without ANSI when colors are disabled", () => {
-    const controller = createStatusLineController(Date.now(), { colors: false });
+    const controller = createController(Date.now(), { colors: false });
     controller.showReasoning();
     controller.showExecuting();
     controller.clear();
     expect(stdoutWrites.join("")).not.toContain("\u001b[");
   });
   test("reports whether the status controller is currently writing", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     expect(controller.isWriting()).toBe(false);
     controller.beginWriting();
     expect(controller.isWriting()).toBe(true);
@@ -169,7 +179,7 @@ describe("agent session modules", () => {
     expect(controller.isWriting()).toBe(false);
   });
   test("clearing after writing does not erase the final streamed response line", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     controller.showReasoning();
     controller.beginWriting();
     const writesAfterWriting = stdoutWrites.join("");
@@ -178,7 +188,7 @@ describe("agent session modules", () => {
     expect(stdoutWrites.join("")).toBe(writesAfterWriting);
   });
   test("cleanup remains safe if a later status transition happens after output starts", () => {
-    const controller = createStatusLineController(Date.now());
+    const controller = createController(Date.now());
     controller.showReasoning();
     controller.beginWriting();
     process.stdout.write("final response");
@@ -192,7 +202,7 @@ describe("agent session modules", () => {
   test("status line controller covers repeated transitions, refresh before start, and updateExecuting states", () => {
     jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
     try {
-      const controller = createStatusLineController(Date.parse("2026-07-08T00:00:00Z"));
+      const controller = createController(Date.parse("2026-07-08T00:00:00Z"));
       controller.refresh();
       controller.updateExecuting();
       controller.showReasoning();
@@ -216,7 +226,7 @@ describe("agent session modules", () => {
         writes.push(String(chunk));
         return true;
       };
-      const controller = createStatusLineController(Date.now());
+      const controller = createController(Date.now());
       controller.showReasoning();
       controller.stop();
       jest.advanceTimersByTime(1000);

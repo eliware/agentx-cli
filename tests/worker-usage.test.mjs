@@ -1,3 +1,6 @@
+process.env.AGENTX_WORKER_SPAWN_CASES = "9";
+import { jest } from "@jest/globals";
+await jest.isolateModulesAsync(() => import("../test-fixtures/parallel-workers-spawn-suite.mjs"));
 import { describe, expect, test } from "@jest/globals";
 import { parseWorkerUsage, reportWorkerUsage } from "../src/worker-usage.mjs";
 

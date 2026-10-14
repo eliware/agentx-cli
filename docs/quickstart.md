@@ -14,7 +14,7 @@ agentx
 If you are working from the repository root, use:
 
 ```bash
-node agentx.mjs
+node bin/agentx.mjs
 ```
 
 ## Optional: run the setup helper
@@ -91,9 +91,10 @@ npm -g install @eliware/agentx-cli@latest
 
 See [AGENTS.md behavior](../AGENTS.md) for how project instructions are discovered and loaded. Path handling and shell launchers support Linux, macOS, and Windows.
 
-## Remove AgentX
+## Uninstall AgentX
 
 ```bash
 npm -g uninstall @eliware/agentx-cli
-rm -f $HOME/.agentx*
 ```
+
+To remove local settings, review the files in your home directory and delete only the AgentX files that you own.

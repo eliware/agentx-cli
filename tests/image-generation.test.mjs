@@ -10,10 +10,10 @@ describe("image generation output", () => {
     try {
       const filePath = await saveGeneratedImage(
         { result: Buffer.from("png-data").toString("base64") },
-        { directory, now: 123, random: () => 0.5 },
+        { directory, id: () => "42" },
       );
       await expect(readFile(filePath, "utf8")).resolves.toBe("png-data");
-      expect(filePath).toBe(join(directory, "generated-123-500000000.png"));
+      expect(filePath).toBe(join(directory, "generated-42.png"));
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

@@ -1,137 +1,132 @@
-import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-await jest.isolateModulesAsync(() => import("./parallel-workers-race-suite.mjs"));
-await jest.isolateModulesAsync(() => import("./parallel-workers-recovery-suite.mjs"));
-await jest.isolateModulesAsync(() => import("./parallel-workers-spawn-suite.mjs"));
+import { beforeEach, expect, jest, test } from "@jest/globals";
 await jest.unstable_unmockModule("node:child_process");
 await jest.unstable_unmockModule("../src/worker-registry.mjs");
 const { runParallelWorkerFunction } = await import("../src/parallel-workers.mjs");
 
-describe("parallel workers", () => {
-  beforeEach(() => {
-    delete process.env.AGENTX_WORKER_ID;
+beforeEach(() => {
+  delete process.env.AGENTX_WORKER_ID;
+});
+test("validates worker calls before spawning or waiting", async () => {
+  await expect(runParallelWorkerFunction(null, process.cwd())).resolves.toEqual({
+    error: "invalid worker function call",
   });
-  test("validates worker calls before spawning or waiting", async () => {
-    await expect(runParallelWorkerFunction(null, process.cwd())).resolves.toEqual({
-      error: "invalid worker function call",
-    });
-    await expect(
-      runParallelWorkerFunction({ type: "function_call", name: "agent_status" }, ""),
-    ).resolves.toEqual({ error: "invalid working directory" });
-  });
+  await expect(
+    runParallelWorkerFunction({ type: "function_call", name: "agent_status" }, ""),
+  ).resolves.toEqual({ error: "invalid working directory" });
+});
 
-  test("rejects malformed spawn requests", async () => {
-    await expect(
-      runParallelWorkerFunction(
-        { type: "function_call", name: "spawn_agent", arguments: "{}" },
-        process.cwd(),
-      ),
-    ).resolves.toEqual({ error: "task must be a non-empty string" });
-  });
+test("rejects malformed spawn requests", async () => {
+  await expect(
+    runParallelWorkerFunction(
+      { type: "function_call", name: "spawn_agent", arguments: "{}" },
+      process.cwd(),
+    ),
+  ).resolves.toEqual({ error: "task must be a non-empty string" });
+});
 
-  test("rejects nested worker spawning", async () => {
-    const previous = process.env.AGENTX_WORKER_ID;
-    process.env.AGENTX_WORKER_ID = "parent";
-    await expect(
-      runParallelWorkerFunction(
-        {
-          type: "function_call",
-          name: "spawn_agent",
-          arguments: JSON.stringify({ tasks: ["task"] }),
-        },
-        process.cwd(),
-      ),
-    ).resolves.toEqual({ error: "nested worker spawning is disabled" });
-    if (previous === undefined) delete process.env.AGENTX_WORKER_ID;
-    else process.env.AGENTX_WORKER_ID = previous;
-  });
+test("rejects nested worker spawning", async () => {
+  const previous = process.env.AGENTX_WORKER_ID;
+  process.env.AGENTX_WORKER_ID = "parent";
+  await expect(
+    runParallelWorkerFunction(
+      {
+        type: "function_call",
+        name: "spawn_agent",
+        arguments: JSON.stringify({ tasks: ["task"] }),
+      },
+      process.cwd(),
+    ),
+  ).resolves.toEqual({ error: "nested worker spawning is disabled" });
+  if (previous === undefined) delete process.env.AGENTX_WORKER_ID;
+  else process.env.AGENTX_WORKER_ID = previous;
+});
 
-  test("cancels unknown agents without throwing", async () => {
-    await expect(
-      runParallelWorkerFunction(
-        {
-          type: "function_call",
-          name: "cancel_agent",
-          arguments: JSON.stringify({ agent_ids: ["missing-agent"] }),
-        },
-        process.cwd(),
-      ),
-    ).resolves.toEqual({ agents: [{ id: "missing-agent", status: "unknown" }] });
-  });
+test("cancels unknown agents without throwing", async () => {
+  await expect(
+    runParallelWorkerFunction(
+      {
+        type: "function_call",
+        name: "cancel_agent",
+        arguments: JSON.stringify({ agent_ids: ["missing-agent"] }),
+      },
+      process.cwd(),
+    ),
+  ).resolves.toEqual({ agents: [{ id: "missing-agent", status: "unknown" }] });
+});
 
-  test("reports unknown agents with bounded wait settings", async () => {
-    await expect(
-      runParallelWorkerFunction(
-        {
-          type: "function_call",
-          name: "agent_status",
-          arguments: JSON.stringify({ agent_ids: ["missing-agent"], wait_ms: 1 }),
-        },
-        process.cwd(),
-      ),
-    ).resolves.toEqual({
-      agents: [{ id: "missing-agent", status: "unknown" }],
-      waited_ms: 1,
-      timed_out: false,
-    });
-    await expect(
-      runParallelWorkerFunction(
-        {
-          type: "function_call",
-          name: "agent_status",
-          arguments: JSON.stringify({ agent_ids: ["missing-agent"], wait_ms: 999999 }),
-        },
-        process.cwd(),
-      ),
-    ).resolves.toEqual({
-      agents: [{ id: "missing-agent", status: "unknown" }],
-      waited_ms: 180000,
-      timed_out: false,
-    });
+test("reports unknown agents with bounded wait settings", async () => {
+  await expect(
+    runParallelWorkerFunction(
+      {
+        type: "function_call",
+        name: "agent_status",
+        arguments: JSON.stringify({ agent_ids: ["missing-agent"], wait_ms: 1 }),
+      },
+      process.cwd(),
+    ),
+  ).resolves.toEqual({
+    agents: [{ id: "missing-agent", status: "unknown" }],
+    waited_ms: 1,
+    timed_out: false,
   });
+  await expect(
+    runParallelWorkerFunction(
+      {
+        type: "function_call",
+        name: "agent_status",
+        arguments: JSON.stringify({ agent_ids: ["missing-agent"], wait_ms: 999999 }),
+      },
+      process.cwd(),
+    ),
+  ).resolves.toEqual({
+    agents: [{ id: "missing-agent", status: "unknown" }],
+    waited_ms: 180000,
+    timed_out: false,
+  });
+});
 
-  test("reports unknown agents", async () => {
-    await expect(
-      runParallelWorkerFunction(
-        {
-          type: "function_call",
-          name: "agent_status",
-          arguments: JSON.stringify({ agent_ids: ["missing-agent"] }),
-        },
-        process.cwd(),
-      ),
-    ).resolves.toEqual({
-      agents: [{ id: "missing-agent", status: "unknown" }],
-      waited_ms: 0,
-      timed_out: false,
-    });
+test("reports unknown agents", async () => {
+  await expect(
+    runParallelWorkerFunction(
+      {
+        type: "function_call",
+        name: "agent_status",
+        arguments: JSON.stringify({ agent_ids: ["missing-agent"] }),
+      },
+      process.cwd(),
+    ),
+  ).resolves.toEqual({
+    agents: [{ id: "missing-agent", status: "unknown" }],
+    waited_ms: 0,
+    timed_out: false,
   });
+});
 
-  test("handles malformed arguments and unsupported worker calls", async () => {
-    await expect(
-      runParallelWorkerFunction({ name: "other_tool", arguments: "{" }, process.cwd()),
-    ).resolves.toEqual({ error: "unsupported worker function other_tool" });
-    await expect(
-      runParallelWorkerFunction({ name: "other_tool", input: { unused: true } }, process.cwd()),
-    ).resolves.toEqual({ error: "unsupported worker function other_tool" });
-    await expect(runParallelWorkerFunction({ arguments: "{}" }, process.cwd())).resolves.toEqual({
-      error: "unsupported worker function ",
-    });
-    await expect(
-      runParallelWorkerFunction({ name: "agent_status" }, process.cwd()),
-    ).resolves.toMatchObject({ agents: [], waited_ms: 0, timed_out: false });
-    await expect(
-      runParallelWorkerFunction(
-        { name: "cancel_agent", arguments: JSON.stringify({ agent_ids: "not-an-array" }) },
-        process.cwd(),
-      ),
-    ).resolves.toEqual({ agents: [] });
-    await expect(
-      runParallelWorkerFunction(
-        { name: "agent_status", arguments: JSON.stringify({ agent_ids: [], wait_ms: "nope" }) },
-        process.cwd(),
-      ),
-    ).resolves.toMatchObject({ waited_ms: 0, timed_out: false });
+test("handles malformed arguments and unsupported worker calls", async () => {
+  await expect(
+    runParallelWorkerFunction({ name: "other_tool", arguments: "{" }, process.cwd()),
+  ).resolves.toEqual({ error: "unsupported worker function other_tool" });
+  await expect(
+    runParallelWorkerFunction({ name: "other_tool", input: { unused: true } }, process.cwd()),
+  ).resolves.toEqual({ error: "unsupported worker function other_tool" });
+  await expect(runParallelWorkerFunction({ arguments: "{}" }, process.cwd())).resolves.toEqual({
+    error: "unsupported worker function ",
   });
+  await expect(
+    runParallelWorkerFunction({ name: "agent_status" }, process.cwd()),
+  ).resolves.toMatchObject({ agents: [], waited_ms: 0, timed_out: false });
+  await expect(
+    runParallelWorkerFunction(
+      { name: "cancel_agent", arguments: JSON.stringify({ agent_ids: "not-an-array" }) },
+      process.cwd(),
+    ),
+  ).resolves.toEqual({ agents: [] });
+  await expect(
+    runParallelWorkerFunction(
+      { name: "agent_status", arguments: JSON.stringify({ agent_ids: [], wait_ms: "nope" }) },
+      process.cwd(),
+    ),
+  ).resolves.toMatchObject({ waited_ms: 0, timed_out: false });
 });
 
 test("does not re-announce usage for recovered workers", async () => {

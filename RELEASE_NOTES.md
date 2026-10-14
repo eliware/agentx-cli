@@ -1,10 +1,15 @@
 # Release Notes
 
-## 12.0.0 — 2026-10-13
+## 12.0.0 — 2026-10-14
 
 ### Changed
 
-- Updated repository metadata, documentation, validation scaffolding, and publication configuration for the v8 convention baseline.
+- Use the OpenAI client catalog for setup model choices and usage cost estimates.
+- Redact worker output with `@eliware/common` and create worker IDs with its Snowflake generator.
+- Split runtime, shell, tool, worker, response, and status code into focused modules.
+- Move the application entrypoint to `src/` and keep the `agentx` command.
+- Update the package, specifications, user guides, and validation setup for the v12 convention baseline.
+- Use the shared package check and remove the local package validator.
 
 ## 1.6.8 — 2026-08-11
 

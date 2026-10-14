@@ -1,5 +1,6 @@
 import { expect, test } from "@jest/globals";
-import "../../test-fixtures/agent/runtime-suite.mjs";
+process.env.AGENTX_RUNTIME_CASES = "1";
+await import("../../test-fixtures/agent/runtime-suite.mjs");
 
 test("the matching implementation exports its public function", async () => {
   const source = await import("../../src/agent/runtime.mjs");

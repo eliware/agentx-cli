@@ -1,0 +1,96 @@
+import { createAgentRequestContext } from "./runtime-request-context.mjs";
+import { createAgentUserTurnSession } from "./runtime-user-turn-session.mjs";
+import { createAgentRecoveryContext } from "./runtime-recovery-context.mjs";
+import { createAgentRuntimeCommandServices } from "./runtime-command-services.mjs";
+
+export function createAgentRuntimeTurnContext({
+  promptPath,
+  outputFlags,
+  terminalInput,
+  terminalOutput,
+  statePath,
+  checkpointPath,
+  repl,
+  runtimeState,
+  sessionPersistence,
+  saveState,
+  exitWithSummary,
+  resetState,
+  applyRollback,
+  persistCheckpoint,
+  clearSession,
+  oneShot,
+  yoloEnabled,
+  agentsText,
+  createSessionClient,
+  persistResponseSnapshot,
+  persistToolExecutionState,
+  confirmToolCall,
+  handleImageGeneration,
+  onWorkerComplete,
+  setActiveOpenAI,
+  getCwd,
+  setCwd,
+}) {
+  const { dispatchCommand, runInteractiveToolCall } = createAgentRuntimeCommandServices({
+    options: {
+      oneShot,
+      terminalInput,
+      repl,
+      runtimeState,
+      promptPath,
+      outputFlags,
+      terminalOutput,
+      statePath,
+      checkpointPath,
+      getCwd,
+      setCwd,
+      saveState,
+      exitWithSummary,
+      resetState,
+      applyRollback,
+    },
+    persistCheckpoint,
+  });
+  const recoveryDependencies = createAgentRecoveryContext({
+    input: terminalInput,
+    repl,
+    applyRollback,
+    resetState,
+    callbacks: { setActiveOpenAI, saveState, persistCheckpoint, clearSession },
+  });
+  const userTurnSession = createAgentUserTurnSession({
+    runtimeState,
+    sessionPersistence,
+    requestContext: createAgentRequestContext({
+      state: { runtime: runtimeState, agentsText },
+      cwd: getCwd,
+      oneShot,
+      input: terminalInput,
+      output: terminalOutput,
+      outputFlags,
+      yoloEnabled,
+      paths: { statePath, checkpointPath },
+      createClient: createSessionClient,
+      repl,
+      callbacks: {
+        saveState,
+        persistResponseSnapshot,
+        persistToolExecutionState,
+        confirmToolCall,
+        runInteractiveToolCall,
+        handleImageGeneration,
+        onWorkerComplete,
+      },
+      recovery: recoveryDependencies,
+    }),
+    oneShot,
+    checkpointPath,
+    statePath,
+    exitWithSummary,
+    saveState,
+    persistCheckpoint,
+    clearSession,
+  });
+  return { dispatchCommand, userTurnSession };
+}

@@ -1,12 +1,3 @@
-import { redactText } from "@eliware/redact";
-
-export function redactWorkerLogText(text, environment = process.env) {
-  const secrets = [environment.AGENTX_API_KEY, environment.agentx_api_key].filter(
-    (value) => typeof value === "string" && value.length > 0,
-  );
-  return redactText(text, { secrets });
-}
-
 export function selectWorkerOutput(text, options = {}) {
   const maxBytes = Math.min(Math.max(Number(options.output_bytes) || 2048, 1), 8192);
   const offsetBytes = Math.max(Number(options.output_offset) || 0, 0);

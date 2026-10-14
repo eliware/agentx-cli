@@ -16,7 +16,7 @@
     "access": "public",
     "provenance": true
   },
-  "main": "agentx.mjs",
+  "main": "src/agent-entrypoint.mjs",
   "bin": {
     "agentx": "./bin/agentx.mjs",
     "agentx-setup": "./bin/agentx-setup.mjs"
@@ -30,7 +30,6 @@
     "RELEASE_NOTES.md",
     "bin/",
     "specs/",
-    "agentx.mjs",
     "prompt.json",
     "LICENSE.md",
     ".agentx.mcp.json.example",
@@ -51,7 +50,6 @@
   "dependencies": {
     "@eliware/common": "^12.0.1",
     "@eliware/openai": "^12.0.0",
-    "@eliware/redact": "^12.0.0",
     "dotenv": "^18.0.7",
     "sharp": "^0.35.5",
     "string-width": "^8.3.0",

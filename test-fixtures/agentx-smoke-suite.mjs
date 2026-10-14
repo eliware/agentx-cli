@@ -52,6 +52,15 @@ describe("CLI smoke test", () => {
             close() {},
           };
         }
+        export const API_PRICING = { 'gpt-6-luna': {} };
+        export function calculateUsageCostBreakdown() {
+          return {
+            input_tokens: 0, uncached_input_cost_usd: 0, cached_tokens: 0,
+            cached_input_cost_usd: 0, cache_write_tokens: 0, cache_write_cost_usd: 0,
+            output_tokens: 0, output_cost_usd: 0, estimated_cost_usd: 0,
+            long_context: false,
+          };
+        }
       `,
       );
       writeFileSync(
@@ -73,7 +82,8 @@ describe("CLI smoke test", () => {
           "--no-warnings",
           "--experimental-loader",
           pathToFileURL(makeLoader(tmp, openaiStub, readlineStub)).href,
-          path.join(repoRoot, "agentx.mjs"),
+          path.join(repoRoot, "bin/agentx.mjs"),
+          "--no-timers",
         ],
         {
           cwd: tmp,

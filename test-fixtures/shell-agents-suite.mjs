@@ -1,7 +1,7 @@
 import { describe, expect, test, jest } from "@jest/globals";
 import { fs as commonFs } from "@eliware/common";
 import { readAgentsFromCwdAndParents } from "../src/shell-agents.mjs";
-import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from "../test-helpers.mjs";
+import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from "./test-helpers.mjs";
 
 describe("shell agents", () => {
   test("readAgentsFromCwdAndParents hits the ENOENT branch via a mocked module", async () => {

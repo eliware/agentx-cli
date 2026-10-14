@@ -155,4 +155,6 @@ describe("pending session tool executor", () => {
   });
 });
 
-await import("../../test-fixtures/session-pending-executor-defaults-suite.mjs");
+await jest.isolateModulesAsync(
+  () => import("../../test-fixtures/session-pending-executor-defaults-suite.mjs"),
+);

@@ -1,23 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
-import { redactWorkerLogText, selectWorkerOutput } from "../src/worker-output.mjs";
+import { selectWorkerOutput } from "../src/worker-output.mjs";
 
 describe("worker output policies", () => {
-  test("redacts inherited API keys from log text", () => {
-    expect(
-      redactWorkerLogText("key=secret and other=second", {
-        AGENTX_API_KEY: "secret",
-        agentx_api_key: "second",
-      }),
-    ).toBe("key=[REDACTED] and other=[REDACTED]");
-    expect(
-      redactWorkerLogText("Authorization: Bearer secret token=second api_key=third", {
-        AGENTX_API_KEY: "secret",
-        agentx_api_key: "second",
-      }),
-    ).toBe("Authorization: [REDACTED] [REDACTED] token=[REDACTED] api_key=[REDACTED]");
-    expect(redactWorkerLogText("ordinary output", {})).toBe("ordinary output");
-  });
-
   test("selects bounded log tails, offsets, and regex matches", () => {
     const log = Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join("\n");
     expect(selectWorkerOutput(log)).toBe(log);

@@ -3,8 +3,9 @@ import path from "node:path";
 import { writeFileSync } from "node:fs";
 import { buildInputMessage } from "../../src/prompt-builder.mjs";
 import { sendMessage } from "../../src/agent-turn/response-service.mjs";
+import { createStatusLineController } from "../../src/agent-turn/status-controller.mjs";
 import { loadPromptTemplate } from "../../src/prompt-loader.mjs";
-import { cleanupTempDir, makeTempDir } from "../../test-helpers.mjs";
+import { cleanupTempDir, makeTempDir } from "../test-helpers.mjs";
 
 describe("agent session modules", () => {
   let originalStdoutWrite;
@@ -188,6 +189,7 @@ describe("agent session modules", () => {
   });
   test("sendMessage pauses live status during web search events and resumes reasoning after completion", async () => {
     jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
+    const statusController = createStatusLineController(Date.now());
     try {
       const template = { model: "test-model", input: [], tools: [] };
       let handlers;
@@ -212,7 +214,7 @@ describe("agent session modules", () => {
         "/tmp/work",
         null,
         null,
-        { liveStreaming: true },
+        { liveStreaming: true, statusController },
       );
 
       expect(stdoutWrites.join("")).toContain('{"time":"0s"');
@@ -257,6 +259,7 @@ describe("agent session modules", () => {
       resolveResponse({ id: "resp-live", output: [] });
       await pending;
     } finally {
+      statusController.stop();
       jest.useRealTimers();
     }
   });
@@ -297,6 +300,7 @@ describe("agent session modules", () => {
   });
   test("sendMessage shows live stats until the first streamed delta and formats long waits as minutes", async () => {
     jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
+    const statusController = createStatusLineController(Date.now());
     try {
       const template = { model: "test-model", input: [], tools: [] };
       let handlers;
@@ -321,7 +325,7 @@ describe("agent session modules", () => {
         "/tmp/work",
         null,
         null,
-        { liveStreaming: true },
+        { liveStreaming: true, statusController },
       );
 
       expect(stdoutWrites.join("")).toContain(
@@ -339,6 +343,7 @@ describe("agent session modules", () => {
       expect(output).toContain("Hi");
       expect(output).toContain('\u001b[38;5;255m{"time":');
     } finally {
+      statusController.stop();
       jest.useRealTimers();
     }
   });

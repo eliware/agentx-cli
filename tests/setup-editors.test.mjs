@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "@jest/globals";
 import { EventEmitter } from "node:events";
+import { API_PRICING } from "@eliware/openai";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -48,7 +49,7 @@ const send = (input, value) => setImmediate(() => input.emit("data", Buffer.from
 
 describe("setup setting editors", () => {
   test("matches interactive, numeric, and textual choices and rejects invalid input", async () => {
-    expect(choices.model[0]).toBe("gpt-6-luna");
+    expect(choices.model).toEqual(Object.keys(API_PRICING));
     const input = new Terminal();
     const interactive = selectChoice(input, new Output(), {}, "Model", ["one", "two"], "two");
     send(input, "\r");

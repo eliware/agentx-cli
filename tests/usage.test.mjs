@@ -19,7 +19,7 @@ describe("usage reports", () => {
   test("formats cumulative and per-turn reports with optional fields", () => {
     expect(
       formatUsageReport({
-        inputTokens: 1,
+        inputTokens: 10,
         cachedTokens: 2,
         cacheWriteTokens: 3,
         outputTokens: 4,
@@ -27,11 +27,11 @@ describe("usage reports", () => {
         turns: 2,
       }),
     ).toContain('"write":"3 (');
-    expect(formatUsageReport({ inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 0 })).toBe(
-      '{"in":"1 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}',
+    expect(formatUsageReport({ inputTokens: 3, cachedTokens: 2, outputTokens: 3, turns: 0 })).toBe(
+      '{"in":"3 ($0.000)","cache":"2 ($0.000)","out":"3 ($0.000)","turns":"0","avg":"$0.000","total":"$0.000"}',
     );
     expect(formatUsageReport({ outputTokens: 2_000, turns: 2 })).toContain('"avg":"$0.001"');
-    expect(formatTurnUsage({ inputTokens: 1, cachedTokens: 2, outputTokens: 3 })).toContain(
+    expect(formatTurnUsage({ inputTokens: 3, cachedTokens: 2, outputTokens: 3 })).toContain(
       '"turns":"1"',
     );
     expect(formatTurnUsage()).toContain('"turns":"1"');
@@ -40,7 +40,12 @@ describe("usage reports", () => {
       '{"in":"0 ($0.000)","cache":"0 ($0.000)","out":"0 ($0.000)","total":"$0.000"}',
     );
     expect(
-      formatTurnUsageReport({ cacheWriteTokens: 3, reasoningTokens: 5, outputTokens: 4 }),
+      formatTurnUsageReport({
+        inputTokens: 3,
+        cacheWriteTokens: 3,
+        reasoningTokens: 5,
+        outputTokens: 4,
+      }),
     ).toContain('"reasoning":"5"');
   });
 

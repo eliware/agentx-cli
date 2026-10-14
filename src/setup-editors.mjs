@@ -1,3 +1,4 @@
+import { API_PRICING } from "@eliware/openai";
 import { getPackageVersion } from "./cli-version.mjs";
 import { writeEnvState } from "./setup-env.mjs";
 import { getSetupPaths } from "./setup-paths.mjs";
@@ -6,7 +7,7 @@ import { askMasked, selectSetupMenu } from "./setup-menu.mjs";
 const ask = async (rl, prompt) => String(await rl.question(prompt));
 
 export const choices = {
-  model: ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"],
+  model: Object.keys(API_PRICING),
   mode: ["standard", "pro"],
   effort: ["none", "low", "medium", "high", "xhigh", "max"],
   summary: ["concise", "detailed", "auto", "null"],

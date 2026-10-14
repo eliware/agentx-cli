@@ -2,43 +2,77 @@
 
 ## Project
 
-Repository identity and purpose: `@eliware/agentx-cli` is AgentX, a Node.js 26 native ESM terminal chat application using the OpenAI Responses API. Shared authority is in `eliware/docs`, `eliware/conventions`, `eliware/test`, and `eliware/operations`; local behavior and ownership are indexed by `specs/README.md`.
+`@eliware/agentx-cli` is AgentX, a Node.js 26 native ESM terminal application. It sends requests through the OpenAI Responses API.
 
 ## Scope and boundaries
 
-Repository scope and boundary: this root guidance applies repository-wide. A nearer, subdirectory-specific `AGENTS.md` applies only within that subdirectory and inherits these instructions; it may add project-specific requirements but must not weaken shared rules without authorization. This repository owns the CLI implementation and npm package metadata, not shared Eliware policy or external platform state.
+This repository owns the CLI and npm package. Shared policy belongs to Eliware. Follow the specifications in `specs/`.
 
 ## Layout
 
-- `agentx.mjs` is the application entrypoint. `bin/` contains npm executables.
-- `src/` contains implementation modules; `tests/` contains Jest tests.
-- `specs/` is the behavioral authority; `docs/` and `README.md` contain user guidance.
-- Required files and structure: `src/`, its mirrored `tests/` tree, `specs/`, `docs/`, and the documented package entrypoints. `package.json` defines package metadata, scripts, dependencies, and the publication allowlist.
+- `src/` contains application code. `bin/` contains CLI launchers.
+- `tests/` mirrors `src/`. `test-fixtures/` contains test support.
+- `specs/` defines behavior. `docs/` and `README.md` guide users.
+- `package.json` defines package data, scripts, dependencies, and files.
 
 ## Development
 
-Before changing files, read `README.md`, `AGENTS.md`, any applicable subdirectory `AGENTS.md`, and the applicable documentation and specifications. These instructions apply repository-wide; subdirectory-specific instructions apply only within their directory. Keep the project native ESM-only and make focused changes. Follow Spec Driven Development: update applicable specifications first, then tests, then implementation. Preserve interactive behavior and cross-platform support. Every source and test module must have a single responsibility: one cohesive purpose and one reason to change. Business-logic modules and coordinators are valid, including coordinators of coordinators, when each module does only its own responsibility. Add each distinct new responsibility as a focused submodule with a mirrored test and wire it through its owner; do not add the new responsibility to an existing module. During ordinary review, refactor any mixed responsibilities you notice. Line counts do not establish single responsibility or permit mixing responsibilities below any applicable blocking maxima. Do not add coverage-ignore directives or pure internal export barrels. Project-specific requirements supplement shared conventions and must not weaken them without authorization. No intentional deviation from shared conventions is currently recorded. Required repository structure includes `src/`, a mirrored `tests/` tree, `specs/`, `docs/`, and documented package entrypoints.
+- Read the README, specifications, and related docs before edits.
+- Keep native ESM. Give each source and test module one purpose.
+- Add each new purpose in a focused module with a mirrored test.
+- Update specifications first. Then update tests and source code.
+- Keep changes within this repository. Do not weaken shared rules.
+- Keep modules under 100 lines. Keep tests under 200 lines.
+- Do not add coverage-ignore rules or internal export barrels.
 
 ## Validation
 
-Run `npm test` for aggregate validation. Run `npm run lint` for lint checks. Run `npm run audit` for dependency checks. Run `npm run format` to format files. Run `npm run format:check` to check formatting. Run `eliware-test --pack` for package validation. Run focused tests during development. Maintain 100% statements, branches, functions, and lines for in-scope production code, with zero lint warnings. Validate Node.js 26 behavior and supported Windows, Linux, and GitHub Actions environments. Keep instructions actionable and concise; exclude credentials, secrets, and private machine-specific paths from tracked files.
+- Run `npm test` for aggregate checks.
+- Run `npm run lint` for lint checks.
+- Run `npm run audit` for dependency checks.
+- Run `npm run format` to format files.
+- Run `npm run format:check` to check formatting.
+- Run `eliware-test --pack` for package checks.
+- Require 100% statements, branches, functions, and lines. Require zero lint warnings.
+- Validate Node.js 26 on Windows, Linux, and GitHub Actions.
 
 ## Security
 
-Never commit credentials, API keys, tokens, `.env` files, private data, generated sessions, or runtime state. Keep secrets in user-local configuration or environment variables; redact sensitive output and do not copy secrets into logs, tests, docs, or package contents.
+- Keep credentials, API keys, tokens, private data, and runtime state out of Git.
+- Keep secrets in user settings or environment variables.
+- Review paths before shell commands that can delete or change files.
 
 ## Changes
 
-Keep changes within this repository's authority. Do not publish, push, alter external state, or claim release verification without explicit user authorization and the applicable Operations release handoff. Do not create policy exceptions without the required Eli approval and record. Report validation accurately.
+- Do not publish or push without Eli's authorization and the Operations handoff.
+- Do not change external systems without user authorization.
+- Report validation results accurately.
 
 ## Application
 
-The runtime entrypoints are `agentx.mjs` and `bin/agentx-setup.mjs`. npm exposes them as `agentx` and `agentx-setup`. Validate configuration before connecting. Wait for the user's first message before contacting OpenAI. Shut down through the documented quit commands. Runtime configuration comes from user-local AgentX settings and supported environment variables. Package metadata and CLI options are not runtime settings.
+- `src/agent-entrypoint.mjs` starts AgentX. `src/setup-entrypoint.mjs` starts setup.
+- Validate settings before network access. Wait for the first user message before API access.
+- Read runtime settings from user files and supported environment variables.
+- Keep package metadata and command options separate from runtime settings.
+- Use documented quit commands for shutdown.
 
 ## CLI
 
-CLI entrypoints: `bin/agentx.mjs` launches `agentx.mjs`; `bin/agentx-setup.mjs` launches `src/setup-entrypoint.mjs`. Preserve documented commands and options. Validate option values. Keep task text distinct from flags. Use the current working directory and user-local settings as defaults. Keep `--help` and `--version` supported. Exit code 0 indicates success. A nonzero exit code indicates failure. Keep errors free of secrets. Support Windows and POSIX behavior. Require explicit scope and confirmation for destructive operations. Run `npm test` and `eliware-test --pack`.
+- `bin/agentx.mjs` starts AgentX. `bin/agentx-setup.mjs` starts setup.
+- Preserve documented commands and options. Validate option values.
+- Keep task text separate from flags. Support `--help` and `--version`.
+- Use the current directory and user settings as defaults.
+- Return code 0 for success. Return a nonzero code for failure.
+- Keep errors free of secrets. Support Windows and POSIX paths.
+- Confirm the target before destructive operations.
+- Run `npm test` and `eliware-test --pack`.
 
 ## npm publication
 
-Package identity is `@eliware/agentx-cli`; the `version` field in `package.json` is the authoritative version source. The `package.json.files` field includes runtime files and excludes tests, state, credentials, and build output. Before a release, run `eliware-test --pack` and require its package validation and pack stages to pass. The publication workflow uses npm provenance as enabled by `publishConfig.provenance: true`. After an authorized release, perform exact-version registry verification with `npm view @eliware/agentx-cli@<version> version` and require the returned version to match the approved tag and `package.json`. Release authorization is provided by Eli; DevOps executes publication through the Operations release handoff. An agent must not publish or infer release authorization from these instructions.
+- Use `package.json.version` as the package version.
+- Keep `package.json.files` limited to required package files.
+- Run `eliware-test --pack` before an authorized release.
+- Keep `publishConfig.provenance` set to `true`.
+- Verify an approved release with `npm view @eliware/agentx-cli@<version> version`.
+- Eli authorizes releases. DevOps publishes through the Operations handoff.
+- Do not infer release approval from repository instructions.

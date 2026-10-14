@@ -11,7 +11,7 @@ body: |
   Known settings:
 
   - `AGENTX_API_KEY` (required unless supplied in process environment)
-  - `AGENTX_MODEL`, default `gpt-6-luna`; setup offers `gpt-6-luna`, `gpt-5.6-luna`, `gpt-5.6-terra`, and `gpt-5.6-sol`
+  - `AGENTX_MODEL`, default `gpt-6-luna`; setup offers every model in the OpenAI client pricing catalog.
   - `AGENTX_REASONING_MODE`, default `standard`; choices `standard`, `pro`
   - `AGENTX_REASONING_EFFORT`, default `low`; choices `none`, `low`, `medium`, `high`, `xhigh`, `max`
   - `AGENTX_REASONING_SUMMARY`, default `auto`; choices `concise`, `detailed`, `auto`, `null`

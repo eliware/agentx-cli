@@ -15,7 +15,8 @@ body: |
 
   ## Components
 
-  - `agentx.mjs`: executable bootstrap, dotenv loading, flags, setup prompt, and error boundary.
+  - `src/agent-entrypoint.mjs`: application bootstrap, dotenv loading, flags, setup prompt, and error boundary.
+  - `bin/agentx.mjs`: package launcher for the application entrypoint.
   - `src/setup-entrypoint.mjs`: executable setup implementation.
   - `src/agent.mjs`: public lifecycle/API re-export; runtime implementation lives under `src/agent/runtime.mjs`.
   - `src/agent-turn/`: separated session orchestration, response streaming/events/formatting, tool loop, and terminal status output.

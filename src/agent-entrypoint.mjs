@@ -3,21 +3,21 @@ import { path } from "@eliware/common";
 import { existsSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { getHomeDirectory } from "./src/platform.mjs";
-import { loadUserConfiguration } from "./src/env-loader.mjs";
+import { getHomeDirectory } from "./platform.mjs";
+import { loadUserConfiguration } from "./env-loader.mjs";
 
 const homeDirectory = getHomeDirectory();
 if (homeDirectory) {
   loadUserConfiguration(path(homeDirectory, ".agentx"));
 }
 
-const { isDirectInvocation, promptPath } = await import("./src/runtime.mjs");
-const { runAgent } = await import("./src/agent/runtime.mjs");
-const { formatQuickHelp } = await import("./src/cli-help.mjs");
-const { getPackageVersion } = await import("./src/cli-version.mjs");
-const { parseCliArgs } = await import("./src/cli-args.mjs");
-const { formatMcpConfigValidation } = await import("./src/mcp-config-format.mjs");
-const { validateMcpConfigFile } = await import("./src/mcp-config-file.mjs");
+const { isDirectInvocation, promptPath } = await import("./runtime.mjs");
+const { runAgent } = await import("./agent/runtime.mjs");
+const { formatQuickHelp } = await import("./cli-help.mjs");
+const { getPackageVersion } = await import("./cli-version.mjs");
+const { parseCliArgs } = await import("./cli-args.mjs");
+const { formatMcpConfigValidation } = await import("./mcp-config-format.mjs");
+const { validateMcpConfigFile } = await import("./mcp-config-file.mjs");
 
 function printAndExit(text, code = 0) {
   process.stdout.write(`${text}\n`);
@@ -41,8 +41,8 @@ async function confirmSetup() {
       .toLowerCase();
     if (answer && answer !== "y" && answer !== "yes") return false;
     rl.close();
-    const { runSetup } = await import("./src/setup.mjs");
-    const { setupPaths } = await import("./src/setup-paths.mjs");
+    const { runSetup } = await import("./setup.mjs");
+    const { setupPaths } = await import("./setup-paths.mjs");
     await runSetup({ stdin: process.stdin, stdout: process.stdout });
     loadUserConfiguration(setupPaths.envPath, { override: true });
     return Boolean(
@@ -70,7 +70,7 @@ if (isDirectInvocation(import.meta.url)) {
     printAndExit(formatMcpConfigValidation(result), result.valid ? 0 : 1);
   } else {
     try {
-      const { readEnvState } = await import("./src/setup-env.mjs");
+      const { readEnvState } = await import("./setup-env.mjs");
       await readEnvState();
       if (process.env.AGENTX_MODEL === "gpt-5.6-luna") process.env.AGENTX_MODEL = "gpt-6-luna";
       const messageArgs = parsed.messageArgs;

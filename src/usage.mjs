@@ -1,79 +1,64 @@
-import {
-  calculateUsageCostNanoDollars,
-  isJumboPrompt,
-  ratesForUsage,
-  usagePricingInternals,
-} from "./usage-pricing.mjs";
-import {
-  formatMoney,
-  formatTokenCost,
-  formatTokenCount,
-  formatUsageJson,
-} from "./usage-format.mjs";
+import { formatMoney, formatTokenCount, formatUsageJson } from "./usage-format.mjs";
+import { DEFAULT_MODEL, getUsageCostBreakdown } from "./usage-cost.mjs";
 
 export { formatMoney } from "./usage-format.mjs";
 
-const { DEFAULT_MODEL } = usagePricingInternals;
-
 const JUMBO_WARNING = "\u001b[91mLong-context pricing applied\u001b[0m";
 
-export function formatUsageReport({
-  inputTokens = 0,
-  cachedTokens = 0,
-  cacheWriteTokens = 0,
-  outputTokens = 0,
-  reasoningTokens = 0,
-  turns = 0,
-  model = DEFAULT_MODEL,
-} = {}) {
-  const rates = ratesForUsage({ inputTokens, cachedTokens, model });
-  const totalCost = calculateUsageCostNanoDollars({
-    inputTokens,
+function formatCost(tokens, cost) {
+  return `${formatTokenCount(tokens)} (${formatMoney(cost)})`;
+}
+
+function makeReport(
+  {
+    inputTokens = 0,
+    cachedTokens = 0,
+    cacheWriteTokens = 0,
+    outputTokens = 0,
+    reasoningTokens = 0,
+    model = DEFAULT_MODEL,
+  },
+  includeReasoning = true,
+) {
+  const pricing = getUsageCostBreakdown({
+    inputTokens: inputTokens + cachedTokens + cacheWriteTokens,
     cachedTokens,
     cacheWriteTokens,
     outputTokens,
     model,
   });
-  const avgCostPerTurn = turns > 0 ? totalCost / BigInt(turns) : 0n;
-  const report = {
-    in: formatTokenCost(inputTokens, rates.input),
-    cache: formatTokenCost(cachedTokens, rates.cached),
-    ...(cacheWriteTokens ? { write: formatTokenCost(cacheWriteTokens, rates.cacheWrite) } : {}),
-    out: formatTokenCost(outputTokens, rates.output),
-    ...(reasoningTokens ? { reasoning: formatTokenCount(reasoningTokens) } : {}),
-    turns: String(turns),
-    avg: formatMoney(avgCostPerTurn),
-    total: formatMoney(totalCost),
+  return {
+    pricing,
+    report: {
+      in: formatCost(inputTokens, pricing.uncached_input_cost_usd),
+      cache: formatCost(pricing.cached_tokens, pricing.cached_input_cost_usd),
+      ...(pricing.cache_write_tokens
+        ? { write: formatCost(pricing.cache_write_tokens, pricing.cache_write_cost_usd) }
+        : {}),
+      out: formatCost(pricing.output_tokens, pricing.output_cost_usd),
+      ...(includeReasoning && reasoningTokens
+        ? { reasoning: formatTokenCount(reasoningTokens) }
+        : {}),
+    },
   };
-  if (isJumboPrompt({ inputTokens, cachedTokens })) report.warning = JUMBO_WARNING;
+}
+
+export function formatUsageReport({ turns = 0, ...fields } = {}) {
+  const { pricing, report } = makeReport(fields);
+  const average = turns > 0 ? pricing.estimated_cost_usd / turns : 0;
+  Object.assign(report, {
+    turns: String(turns),
+    avg: formatMoney(average),
+    total: formatMoney(pricing.estimated_cost_usd),
+  });
+  if (pricing.long_context) report.warning = JUMBO_WARNING;
   return formatUsageJson(report);
 }
 
-export function formatTurnUsageReport({
-  inputTokens = 0,
-  cachedTokens = 0,
-  cacheWriteTokens = 0,
-  outputTokens = 0,
-  reasoningTokens = 0,
-  model = DEFAULT_MODEL,
-} = {}) {
-  const rates = ratesForUsage({ inputTokens, cachedTokens, model });
-  const totalCost = calculateUsageCostNanoDollars({
-    inputTokens,
-    cachedTokens,
-    cacheWriteTokens,
-    outputTokens,
-    model,
-  });
-  const report = {
-    in: formatTokenCost(inputTokens, rates.input),
-    cache: formatTokenCost(cachedTokens, rates.cached),
-    ...(cacheWriteTokens ? { write: formatTokenCost(cacheWriteTokens, rates.cacheWrite) } : {}),
-    out: formatTokenCost(outputTokens, rates.output),
-    ...(reasoningTokens ? { reasoning: formatTokenCount(reasoningTokens) } : {}),
-    total: formatMoney(totalCost),
-  };
-  if (isJumboPrompt({ inputTokens, cachedTokens })) report.warning = JUMBO_WARNING;
+export function formatTurnUsageReport(fields = {}) {
+  const { pricing, report } = makeReport(fields);
+  report.total = formatMoney(pricing.estimated_cost_usd);
+  if (pricing.long_context) report.warning = JUMBO_WARNING;
   return formatUsageJson(report);
 }
 
@@ -81,7 +66,4 @@ export function formatTurnUsage(fields = {}) {
   return formatUsageReport({ ...fields, turns: 1 });
 }
 
-export const usageInternals = {
-  JUMBO_WARNING,
-  ...usagePricingInternals,
-};
+export const usageInternals = { DEFAULT_MODEL, JUMBO_WARNING };

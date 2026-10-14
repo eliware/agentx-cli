@@ -123,7 +123,13 @@ describe("local shell interaction", () => {
   });
 
   test("uses the default shell executor when no executor is injected", async () => {
-    const result = await executeLocalShellCommand({ command: "echo local-shell-test", cwd: "." });
-    expect(result.stdout).toContain("local-shell-test");
+    const originalWrite = process.stdout.write;
+    process.stdout.write = () => true;
+    try {
+      const result = await executeLocalShellCommand({ command: "echo local-shell-test", cwd: "." });
+      expect(result.stdout).toContain("local-shell-test");
+    } finally {
+      process.stdout.write = originalWrite;
+    }
   });
 });
