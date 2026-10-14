@@ -35,11 +35,15 @@ export function decideRequestFailure(
   return { action: "prompt", recoveryAttempts: nextRecoveryAttempts };
 }
 
-export function decideRecoveryMenuChoice(choice, recoveryAttempts = 0) {
+export function decideRecoveryMenuChoice(
+  choice,
+  { recoveryAttempts = 0, newChainAttempts = 0 } = {},
+) {
   if (choice === "retry" || choice === "debug-retry")
-    return { action: choice, recoveryAttempts: recoveryAttempts + 1 };
-  if (choice === "new-chain" && recoveryAttempts < 2)
-    return { action: "new-chain", recoveryAttempts: recoveryAttempts + 1 };
-  if (choice === "rollback" || choice === "clear") return { action: choice, recoveryAttempts };
-  return { action: "dismiss", recoveryAttempts };
+    return { action: choice, recoveryAttempts, newChainAttempts };
+  if (choice === "new-chain" && newChainAttempts < 2)
+    return { action: "new-chain", recoveryAttempts, newChainAttempts: newChainAttempts + 1 };
+  if (choice === "rollback" || choice === "clear")
+    return { action: choice, recoveryAttempts, newChainAttempts };
+  return { action: "dismiss", recoveryAttempts, newChainAttempts };
 }

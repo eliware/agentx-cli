@@ -20,6 +20,40 @@ function createState(overrides = {}) {
 }
 
 describe("session turn finalization", () => {
+  test("keeps the completed tool continuation checkpoint once with its saved usage", async () => {
+    const checkpoint = {
+      response_id: "response-next",
+      timestamp: "saved-time",
+      user_preview: "new question",
+      assistant_preview: "tool continuation answer",
+      usage: { inputTokens: 99, cachedTokens: 4, outputTokens: 21, turns: 3 },
+      last_user_message: "new question",
+      last_assistant_message: "tool continuation answer",
+    };
+    const session = createState({
+      history: [{ response_id: "previous" }, checkpoint],
+      usage: { inputTokens: 1, cachedTokens: 0, outputTokens: 1, turns: 1 },
+    });
+    const persistCheckpoint = jest.fn();
+    await finalizeAgentTurn({
+      response: { id: "response-next" },
+      userMessage: "new question",
+      oneShot: false,
+      ...session,
+      extractAssistantText: () => "tool continuation answer",
+      saveState: jest.fn(),
+      persistCheckpoint,
+      checkpointPath: "checkpoint.json",
+      clearSession: jest.fn(),
+      statePath: "session.json",
+    });
+    expect(session.getState().history).toEqual([{ response_id: "previous" }, checkpoint]);
+    expect(persistCheckpoint).toHaveBeenCalledWith(
+      "checkpoint.json",
+      expect.objectContaining({ response_id: "response-next", usage: checkpoint.usage }),
+    );
+  });
+
   test("persists completed response state and a successful checkpoint", async () => {
     const session = createState();
     const saveState = jest.fn();

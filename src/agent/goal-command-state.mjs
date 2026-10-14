@@ -21,7 +21,7 @@ export function transitionGoalCommand(goal, command, timestamp) {
   if (command?.type === "goal_cancel") {
     return {
       handled: true,
-      goal: goal ? { ...goal, status: "cancelled" } : goal,
+      goal: null,
       message: goal ? "Goal cancelled" : "No active goal.",
       persist: Boolean(goal),
       continue: true,

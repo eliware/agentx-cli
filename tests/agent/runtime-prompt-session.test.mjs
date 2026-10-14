@@ -19,3 +19,27 @@ test("shuts down the session when the prompt loop fails", async () => {
   ).rejects.toBe(failure);
   expect(shutdown).toHaveBeenCalledTimes(1);
 });
+
+test("reads the current goal when the prompt aborts", async () => {
+  let goal = { status: "active" };
+  const exitWithSummary = jest.fn(async () => {});
+  const context = {
+    repl: { getReadline: () => null },
+    openai: {},
+    getActiveGoal: () => goal,
+    setActiveGoal: (value) => {
+      goal = value;
+    },
+    exitWithSummary,
+  };
+  const abort = Object.assign(new Error("abort"), { name: "AbortError" });
+  await runAgentPromptSession(context, {
+    runLoop: async ({ handlePromptError }) => {
+      context.setActiveGoal({ status: "cancelled" });
+      await handlePromptError(abort);
+    },
+    shutdown: jest.fn(),
+  });
+  expect(goal).toEqual({ status: "cancelled" });
+  expect(exitWithSummary).toHaveBeenCalledWith({ leadingNewline: true });
+});

@@ -23,7 +23,7 @@ export async function runAgentPromptSession(
     terminalInput,
     cwd,
     repl,
-    activeGoal,
+    getActiveGoal,
     setActiveGoal,
     saveState,
     exitWithSummary,
@@ -44,7 +44,7 @@ export async function runAgentPromptSession(
       },
       handlePromptError: (error) =>
         handleSessionPromptError(error, {
-          getGoal: () => activeGoal,
+          getGoal: getActiveGoal,
           setGoal: setActiveGoal,
           saveState,
           write: writeTerminal,

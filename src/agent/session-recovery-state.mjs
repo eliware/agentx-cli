@@ -1,6 +1,7 @@
 export function createRecoveryState(session) {
   let retryRequest = null;
   let recoveryAttempts = 0;
+  let newChainAttempts = 0;
   let websocketRecoveryAttempts = 0;
   let websocketRecoveryStartedAt = null;
   return {
@@ -51,6 +52,12 @@ export function createRecoveryState(session) {
     },
     set recoveryAttempts(value) {
       recoveryAttempts = value;
+    },
+    get newChainAttempts() {
+      return newChainAttempts;
+    },
+    set newChainAttempts(value) {
+      newChainAttempts = value;
     },
     get websocketRecoveryAttempts() {
       return websocketRecoveryAttempts;

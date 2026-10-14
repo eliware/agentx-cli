@@ -39,4 +39,28 @@ describe("single tool call execution", () => {
     expect(result).toEqual({ cancelled: true });
     expect(executeToolCall).not.toHaveBeenCalled();
   });
+
+  test("stops after a goal question is cancelled while waiting for an answer", async () => {
+    let cancelled = false;
+    const onToolExecutionState = jest.fn();
+    const result = await executeOneToolCall({
+      call: { type: "function_call", name: "goal_blocked", arguments: "{}" },
+      callIndex: 0,
+      calls: [{}],
+      cwd: process.cwd(),
+      currentResponse: { id: "goal-response" },
+      streamOptions: {
+        isGoalCancelled: () => cancelled,
+        onToolExecutionState,
+        onGoalBlocked: async () => {
+          cancelled = true;
+          return "answer";
+        },
+      },
+      goalMode: true,
+      goalState: { finished: false },
+    });
+    expect(result).toEqual({ cancelled: true });
+    expect(onToolExecutionState).toHaveBeenCalledTimes(1);
+  });
 });

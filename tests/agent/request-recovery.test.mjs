@@ -58,31 +58,57 @@ describe("request recovery decisions", () => {
   });
 
   test("maps recovery menu choices and enforces the new-chain bound", () => {
-    expect(decideRecoveryMenuChoice("cancel")).toEqual({ action: "dismiss", recoveryAttempts: 0 });
-    expect(decideRecoveryMenuChoice("retry", 0)).toEqual({ action: "retry", recoveryAttempts: 1 });
-    expect(decideRecoveryMenuChoice("debug-retry", 1)).toEqual({
-      action: "debug-retry",
-      recoveryAttempts: 2,
-    });
-    expect(decideRecoveryMenuChoice("new-chain", 1)).toEqual({
-      action: "new-chain",
-      recoveryAttempts: 2,
-    });
-    expect(decideRecoveryMenuChoice("new-chain", 2)).toEqual({
+    expect(decideRecoveryMenuChoice("cancel")).toEqual({
       action: "dismiss",
-      recoveryAttempts: 2,
+      recoveryAttempts: 0,
+      newChainAttempts: 0,
     });
-    expect(decideRecoveryMenuChoice("rollback", 2)).toEqual({
+    expect(decideRecoveryMenuChoice("retry")).toEqual({
+      action: "retry",
+      recoveryAttempts: 0,
+      newChainAttempts: 0,
+    });
+    expect(decideRecoveryMenuChoice("debug-retry", { recoveryAttempts: 1 })).toEqual({
+      action: "debug-retry",
+      recoveryAttempts: 1,
+      newChainAttempts: 0,
+    });
+    expect(
+      decideRecoveryMenuChoice("new-chain", { recoveryAttempts: 4, newChainAttempts: 1 }),
+    ).toEqual({
+      action: "new-chain",
+      recoveryAttempts: 4,
+      newChainAttempts: 2,
+    });
+    expect(decideRecoveryMenuChoice("new-chain", { newChainAttempts: 2 })).toEqual({
+      action: "dismiss",
+      recoveryAttempts: 0,
+      newChainAttempts: 2,
+    });
+    expect(
+      decideRecoveryMenuChoice("rollback", { recoveryAttempts: 2, newChainAttempts: 2 }),
+    ).toEqual({
       action: "rollback",
       recoveryAttempts: 2,
+      newChainAttempts: 2,
     });
-    expect(decideRecoveryMenuChoice("clear", 2)).toEqual({
-      action: "clear",
-      recoveryAttempts: 2,
-    });
-    expect(decideRecoveryMenuChoice("cancel", 2)).toEqual({
+    expect(decideRecoveryMenuChoice("clear", { recoveryAttempts: 2, newChainAttempts: 2 })).toEqual(
+      {
+        action: "clear",
+        recoveryAttempts: 2,
+        newChainAttempts: 2,
+      },
+    );
+    expect(
+      decideRecoveryMenuChoice("cancel", { recoveryAttempts: 2, newChainAttempts: 2 }),
+    ).toEqual({
       action: "dismiss",
       recoveryAttempts: 2,
+      newChainAttempts: 2,
+    });
+    expect(decideRecoveryMenuChoice("retry", { recoveryAttempts: 20 })).toMatchObject({
+      action: "retry",
+      recoveryAttempts: 20,
     });
   });
 });

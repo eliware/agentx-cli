@@ -25,11 +25,11 @@ describe("goal CLI state transitions", () => {
     ).toBe("Paused goal: finish (iteration 0); use /goal resume");
   });
 
-  test("cancels an active goal and handles cancellation when none exists", () => {
+  test("discards an active goal and handles cancellation when none exists", () => {
     const goal = { text: "finish", status: "active" };
     expect(transitionGoalCommand(goal, { type: "goal_cancel" })).toEqual({
       handled: true,
-      goal: { ...goal, status: "cancelled" },
+      goal: null,
       message: "Goal cancelled",
       persist: true,
       continue: true,

@@ -67,6 +67,8 @@ export async function executeOneToolCall({
             onWorkerComplete: streamOptions.onWorkerComplete,
             debug: Boolean(streamOptions.debug),
           });
+  if (goalMode && !goalState?.finished && streamOptions.isGoalCancelled?.())
+    return { cancelled: true };
   await streamOptions.onToolExecutionState?.({
     call,
     response: currentResponse,

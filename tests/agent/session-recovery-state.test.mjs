@@ -34,13 +34,15 @@ describe("session recovery state", () => {
     }
     state.retryRequest = "retry";
     state.recoveryAttempts = 1;
+    state.newChainAttempts = 2;
     state.websocketRecoveryAttempts = 2;
     state.websocketRecoveryStartedAt = 3;
     expect([
       state.retryRequest,
       state.recoveryAttempts,
+      state.newChainAttempts,
       state.websocketRecoveryAttempts,
       state.websocketRecoveryStartedAt,
-    ]).toEqual(["retry", 1, 2, 3]);
+    ]).toEqual(["retry", 1, 2, 2, 3]);
   });
 });

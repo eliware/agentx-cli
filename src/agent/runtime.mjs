@@ -82,7 +82,7 @@ export async function runAgent({
     terminalInput,
     cwd,
     repl,
-    activeGoal: runtimeState.activeGoal,
+    getActiveGoal: () => runtimeState.activeGoal,
     setActiveGoal: (goal) => {
       runtimeState.activeGoal = goal;
     },

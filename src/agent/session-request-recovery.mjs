@@ -58,8 +58,12 @@ export async function resolveSessionRequestFailure({
     throw menuError;
   }
 
-  const menuRecovery = deps.decideRecoveryMenuChoice(choice, state.recoveryAttempts);
+  const menuRecovery = deps.decideRecoveryMenuChoice(choice, {
+    recoveryAttempts: state.recoveryAttempts,
+    newChainAttempts: state.newChainAttempts,
+  });
   state.recoveryAttempts = menuRecovery.recoveryAttempts;
+  state.newChainAttempts = menuRecovery.newChainAttempts ?? state.newChainAttempts;
   if (menuRecovery.action === "retry" || menuRecovery.action === "debug-retry") {
     state.openai = await deps.recreateOpenAIClient(state.openai, createSessionClient);
     deps.setActiveOpenAI(state.openai);
