@@ -1,6 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
 import { mkdtempSync, rmSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -62,6 +62,7 @@ describe("confirmation policy", () => {
       await expect(loadGlobalConfirmations(file)).resolves.toEqual(new Set());
       await saveGlobalConfirmations(new Set(["b", "a"]), file);
       expect(JSON.parse(await readFile(file, "utf8"))).toEqual(["a", "b"]);
+      if (process.platform !== "win32") expect((await stat(file)).mode & 0o777).toBe(0o600);
       await expect(loadGlobalConfirmations(file)).resolves.toEqual(new Set(["a", "b"]));
       await expect(loadGlobalConfirmations(dir)).rejects.toBeTruthy();
       await saveGlobalConfirmations(new Set(), "");

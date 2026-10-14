@@ -24,7 +24,11 @@ export async function runSessionUserTurn({ message, session, deps }) {
     context: session.requestContext,
     deps: { printAgentText: deps.printAgentText, ...deps.requestCycleDependencies },
   });
-  if (!result.response) return "continue";
+  if (!result.response) {
+    if (session.oneShot)
+      throw result.error || new Error("One-shot request ended without a response.");
+    return "continue";
+  }
 
   await deps.finalizeTurn({
     response: result.response,

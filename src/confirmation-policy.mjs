@@ -1,5 +1,7 @@
 import { path } from "@eliware/common";
-import { readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { snowflake } from "@eliware/common";
+import nodePath from "node:path";
 import { getHomeDirectory } from "./platform.mjs";
 
 export function confirmationFilePath(env = process.env) {
@@ -37,5 +39,22 @@ export async function loadGlobalConfirmations(filePath = confirmationFilePath())
 
 export async function saveGlobalConfirmations(confirmations, filePath = confirmationFilePath()) {
   if (!filePath) return;
-  await writeFile(filePath, `${JSON.stringify([...confirmations].sort(), null, 2)}\n`, "utf8");
+  const directory = nodePath.dirname(filePath);
+  const temporaryPath = nodePath.join(
+    directory,
+    `.${nodePath.basename(filePath)}.${snowflake()}.tmp`,
+  );
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify([...confirmations].sort(), null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+      flag: "wx",
+    });
+    await chmod(temporaryPath, 0o600);
+    await rename(temporaryPath, filePath);
+    await chmod(filePath, 0o600);
+  } finally {
+    await unlink(temporaryPath).catch(() => {});
+  }
 }

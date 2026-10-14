@@ -138,4 +138,16 @@ describe("session user turn", () => {
       }),
     );
   });
+
+  test("fails a one-shot turn that ends without a response", async () => {
+    const { session } = createSession();
+    session.oneShot = true;
+    await expect(
+      runSessionUserTurn({
+        message: "task",
+        session,
+        deps: { now: () => 1, runRequestCycle: async () => ({ control: "end" }) },
+      }),
+    ).rejects.toThrow("One-shot request ended without a response.");
+  });
 });

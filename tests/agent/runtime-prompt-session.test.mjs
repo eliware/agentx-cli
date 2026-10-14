@@ -6,9 +6,10 @@ import { runAgentPromptSession } from "../../src/agent/runtime-prompt-session.mj
 test("shuts down the session when the prompt loop fails", async () => {
   const failure = new Error("loop failed");
   const shutdown = jest.fn();
+  const terminalInput = { isTTY: true, setRawMode: jest.fn() };
   await expect(
     runAgentPromptSession(
-      { repl: { getReadline: () => null }, openai: {}, signalRegistration: null },
+      { repl: { getReadline: () => null }, openai: {}, terminalInput, signalRegistration: null },
       {
         runLoop: async () => {
           throw failure;
@@ -18,6 +19,7 @@ test("shuts down the session when the prompt loop fails", async () => {
     ),
   ).rejects.toBe(failure);
   expect(shutdown).toHaveBeenCalledTimes(1);
+  expect(terminalInput.setRawMode).toHaveBeenCalledWith(false);
 });
 
 test("reads the current goal when the prompt aborts", async () => {

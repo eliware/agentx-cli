@@ -90,6 +90,10 @@ export async function runAgentPromptSession(
         }),
     });
   } finally {
-    await services.shutdown({ repl, openai, signalRegistration });
+    try {
+      await services.shutdown({ repl, openai, signalRegistration });
+    } finally {
+      if (terminalInput?.isTTY) terminalInput.setRawMode?.(false);
+    }
   }
 }
