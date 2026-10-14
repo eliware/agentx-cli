@@ -1,3 +1,5 @@
+import { handleRecoveryMenuAbort } from "./recovery-menu-abort.mjs";
+
 export async function resolveSessionRequestFailure({
   error,
   state,
@@ -58,14 +60,9 @@ export async function resolveSessionRequestFailure({
   try {
     choice = await deps.promptRecoveryMenu(error, { input, output });
   } catch (menuError) {
-    if (menuError?.name !== "AbortError") throw menuError;
-    deps.terminalInput.setRawMode?.(false);
-    deps.terminalInput.resume?.();
-    deps.preserveReplHistory();
-    deps.closeReadline();
-    deps.setReadline(deps.createReadline());
-    deps.writeSystem("Recovery cancelled; session preserved.");
-    return { control: "end" };
+    const recovery = handleRecoveryMenuAbort(menuError, deps);
+    if (recovery) return recovery;
+    throw menuError;
   }
 
   const menuRecovery = deps.decideRecoveryMenuChoice(choice, state.recoveryAttempts);

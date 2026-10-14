@@ -3,6 +3,7 @@ import { buildRequestOverride, withGoalTools, WORKER_ROLE_MESSAGE } from "../req
 import { createSessionRequestCallbacks } from "./session-request-callbacks.mjs";
 import { attachGoalInterruptListener } from "./session-input.mjs";
 import { resolveSessionRequestFailure } from "./session-request-recovery.mjs";
+import { createSessionRequestOptions } from "./session-request-options.mjs";
 
 export async function runSessionRequestCycle({
   message,
@@ -62,40 +63,7 @@ export async function runSessionRequestCycle({
         context.getCwd(),
         callbacks.onResponseUsage,
         state.retryRequest || activeOverride,
-        {
-          liveStreaming: true,
-          sessionStartedAt,
-          onResponseState: context.persistResponseSnapshot,
-          onRetryState: callbacks.onRetryState,
-          onToolExecutionState: context.persistToolExecutionState,
-          confirmToolCall: context.confirmToolCall,
-          suppressStatusOutput: context.getDebugEnabled() || context.outputFlags.quiet,
-          suppressUsageOutput: context.outputFlags.noUsage,
-          noTimers: context.outputFlags.noTimers,
-          colors: !context.outputFlags.noColors,
-          noReasoning: context.outputFlags.noReasoning,
-          noShellCalls: context.outputFlags.noShellCalls,
-          noToolCalls: context.outputFlags.noToolCalls,
-          noMcpOutput: context.outputFlags.noMcpOutput,
-          noWebsearch: context.outputFlags.noWebsearch,
-          debug: context.getDebugEnabled(),
-          transitionOnlyStatus: context.oneShot || !context.terminalInput?.isTTY,
-          runToolCall: context.runInteractiveToolCall,
-          onImageGeneration: context.handleImageGeneration,
-          onViewImage: callbacks.onViewImage,
-          yolo: context.yoloEnabled,
-          onWorkerUsage: callbacks.onWorkerUsage,
-          onWorkerComplete: context.onWorkerComplete,
-          goalMode: context.getGoal()?.status === "active",
-          goalText: context.getGoal()?.text || message,
-          goalIterations: context.getGoal()?.iterations || 0,
-          onGoalIteration: callbacks.goalCallbacks.onGoalIteration,
-          isGoalCancelled: () => context.getGoal()?.status !== "active",
-          onGoalComplete: callbacks.goalCallbacks.onGoalComplete,
-          onGoalFinalResponse: callbacks.goalCallbacks.onGoalFinalResponse,
-          onGoalBlocked: callbacks.goalCallbacks.onGoalBlocked,
-          onGoalLimit: callbacks.goalCallbacks.onGoalLimit,
-        },
+        createSessionRequestOptions({ context, sessionStartedAt, callbacks, message }),
       );
     } catch (error) {
       const recovery = await services.resolveRequestFailure({

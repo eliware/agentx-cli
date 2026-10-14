@@ -72,3 +72,5 @@ describe("response helpers", () => {
     );
   });
 });
+
+await import("../test-fixtures/responses-contract-suite.mjs");

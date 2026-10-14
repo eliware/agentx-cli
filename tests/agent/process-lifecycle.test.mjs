@@ -33,7 +33,13 @@ describe("agent process lifecycle", () => {
 
   test("still terminates workers if the client is already closed", async () => {
     const { lifecycle, order, getShutdownHook } = createLifecycle();
-    lifecycle.setActiveClient({ responses: { close: async () => { throw new Error("closed"); } } });
+    lifecycle.setActiveClient({
+      responses: {
+        close: async () => {
+          throw new Error("closed");
+        },
+      },
+    });
     await expect(getShutdownHook()()).resolves.toBeUndefined();
     expect(order.at(-1)).toEqual(["workers"]);
   });

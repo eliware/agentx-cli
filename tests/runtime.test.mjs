@@ -171,3 +171,5 @@ describe("runtime helpers", () => {
     }
   });
 });
+
+await import("../test-fixtures/main-entrypoint-suite.mjs");

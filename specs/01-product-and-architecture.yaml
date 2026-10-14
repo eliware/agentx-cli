@@ -1,0 +1,29 @@
+title: "Product and architecture"
+body: |
+  # Product and architecture
+
+  AgentX is an ESM-only Node.js terminal chat agent. It sends user messages to the OpenAI Responses API through the official `@eliware/openai` client, streams assistant output, executes model-requested local tools, and preserves conversation state in the launch directory.
+
+  ## Goals
+
+  - Feel like a shell while remaining a conversational agent.
+  - Do not contact OpenAI until the user submits a normal message.
+  - Keep local shell commands, working-directory changes, and agent conversation distinct.
+  - Resume stored Responses API conversations after restart.
+  - Be cross-platform for path handling and shell launchers. ESM module-relative filesystem paths must be derived through the shared `@eliware/common` `path(import.meta, ...)` helper so Windows file URLs are converted correctly.
+  - Make interruptions around side-effecting tools explicit and safe.
+
+  ## Components
+
+  - `agentx.mjs`: executable bootstrap, dotenv loading, flags, setup prompt, and error boundary.
+  - `src/setup-entrypoint.mjs`: executable setup implementation.
+  - `src/agent.mjs`: public lifecycle/API re-export; runtime implementation lives under `src/agent/runtime.mjs`.
+  - `src/agent-turn/`: separated session orchestration, response streaming/events/formatting, tool loop, and terminal status output.
+  - `@eliware/openai`: official OpenAI Responses client, transport, streaming, errors, lifecycle, and test/mocking support.
+  - `src/tool-dispatch.mjs`, `tool-shell.mjs`: model tool execution.
+  - `src/conversation-state.mjs`: `.agentx_responseid` persistence.
+  - `src/setup.mjs`, `settings.mjs`: configuration.
+  - `shell*.mjs`, `path-completion.mjs`: commands, prompt display, cwd, AGENTS discovery, completion.
+  - `prompt.json`: request template.
+
+  The integration delegates Responses transport, connection lifecycle, streaming, event normalization, and API errors to `@eliware/openai`. AgentX owns session state, tool dispatch, user-facing recovery, and bounded recreation of the Responses client after recognized closed/lifetime failures. Tool calls execute sequentially by default; no parallel tool execution is allowed. Tool calls can cause multiple sequential Responses requests as outputs are returned to the model. Each assistant-turn tool call has one dispatch identity and must not be re-enqueued or executed more than once.

@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-import "../agentx-setup.mjs";
+import "../src/setup-entrypoint.mjs";

@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "@jest/globals";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { validateMcpConfigFile } from "../src/mcp-config-file.mjs";
-import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
+import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 
 describe("MCP config file loading", () => {
   test("loads and validates JSON from the file boundary", () => {

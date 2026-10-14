@@ -1,7 +1,12 @@
-﻿import { describe, expect, test } from "@jest/globals";
+import { describe, expect, test } from "@jest/globals";
 import path from "node:path";
 import { completePath, splitToken, tokenPrefix } from "../src/path-completion.mjs";
-import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from "./test-helpers.mjs";
+import {
+  cleanupTempDir,
+  makeDirectory,
+  makeFile,
+  makeTempDir,
+} from "../test-fixtures/test-helpers.mjs";
 
 describe("path completion", () => {
   const sep = process.platform === "win32" ? "\\" : "/";
@@ -148,3 +153,5 @@ describe("path completion", () => {
     }
   });
 });
+
+await import("../test-fixtures/test-helpers-suite.mjs");

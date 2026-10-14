@@ -1,0 +1,12 @@
+version: "12.0"
+description: Defines the repository rules for AgentX CLI.
+requires: []
+conflicts: []
+directives:
+  - id: E-1220.0
+    dos:
+      - Keep AgentX CLI behavior in the documented repository scope.
+      - Keep runtime configuration separate from package metadata.
+      - Use the shared validation process for repository changes.
+    donts:
+      - Do not publish or deploy without the approved handoff.

@@ -1,6 +1,8 @@
 # [![eliware.org](https://eliware.org/logos/brand.png)](https://discord.gg/M6aTR9eTwN)
 
-## @eliware/agentx-cli [![npm version](https://img.shields.io/npm/v/@eliware/agentx-cli.svg)](https://www.npmjs.com/package/@eliware/agentx-cli) [![license](https://img.shields.io/github/license/eliware/agentx-cli.svg)](LICENSE) [![CI](https://github.com/eliware/agentx-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/eliware/agentx-cli/actions/workflows/ci.yml)
+## @eliware/agentx-cli [![npm](https://img.shields.io/npm/v/@eliware/agentx-cli)](https://www.npmjs.com/package/@eliware/agentx-cli) [![License](https://img.shields.io/github/license/eliware/agentx-cli)](https://github.com/eliware/agentx-cli/blob/main/LICENSE) [![CI](https://github.com/eliware/agentx-cli/actions/workflows/ci.yaml/badge.svg)](https://github.com/eliware/agentx-cli/actions/workflows/ci.yaml)
+
+A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.
 
 ## Table of Contents
 
@@ -17,8 +19,8 @@
 - [Commands](#commands)
 - [Exit codes](#exit-codes)
 - [Support](#support)
-- [License](#license)
 - [Links](#links)
+- [License](#license)
 
 ## Features
 
@@ -51,9 +53,9 @@ Interactive commands include `clear` or `/clear` to start a fresh conversation, 
 
 ## Development
 
-The application entrypoint is [`agentx.mjs`](./agentx.mjs), setup entrypoint is [`agentx-setup.mjs`](./agentx-setup.mjs), npm launchers are `bin/agentx.mjs` and `bin/agentx-setup.mjs`, implementation modules are under `src/`, and behavioral specifications are indexed in [`specs/README.md`](./specs/README.md). Documentation: [docs](docs/README.md) · [specifications](specs/README.md) · [examples](examples/README.md).
+The application entrypoint is [`agentx.mjs`](./agentx.mjs). Setup code is in `src/setup-entrypoint.mjs`. npm launchers are in `bin/`. Implementation modules are under `src/`. Behavioral specifications are indexed in [`specs/README.md`](./specs/README.md). Read [docs](docs/README.md) and [examples](examples/README.md).
 
-This project follows Spec Driven Development: update the applicable specification before tests and implementation. Package metadata and the exact publication files allowlist are defined in `package.json`; versioned release notes are in [`RELEASE_NOTES.md`](./RELEASE_NOTES.md). The package is `@eliware/agentx-cli`, published versions are available from [npm](https://www.npmjs.com/package/@eliware/agentx-cli), and the repository version is the source for release tags.
+This project follows Spec Driven Development: update the applicable specification before tests and implementation. Package metadata and package contents are defined in `package.json`; versioned release notes are in [`RELEASE_NOTES.md`](./RELEASE_NOTES.md). The package is `@eliware/agentx-cli`, published versions are available from [npm](https://www.npmjs.com/package/@eliware/agentx-cli), and the repository version is the source for release tags.
 
 ## Testing
 
@@ -101,19 +103,21 @@ Exit code `0` indicates successful command completion. A nonzero exit code indic
 
 ## Support
 
-For help, questions, or community chat, visit [eliware.org on Discord](https://discord.gg/M6aTR9eTwN).
+For help, questions, or to chat with the author and community, visit:
 
-## License
+[![Discord](https://eliware.org/logos/discord_96.png)](https://discord.gg/M6aTR9eTwN)[![eliware.org](https://eliware.org/logos/eliware_96.png)](https://discord.gg/M6aTR9eTwN)
 
-MIT © Eli Sterling, eliware.org. See [license](LICENSE).
+**[eliware.org on Discord](https://discord.gg/M6aTR9eTwN)**
 
 ## Links
 
-- [Home page](https://eliware.org)
-- [Eliware GitHub organization](https://github.com/eliware)
-- [GitHub repository](https://github.com/eliware/agentx-cli)
-- [npm package](https://www.npmjs.com/package/@eliware/agentx-cli)
-- [Release notes](./RELEASE_NOTES.md)
-- [Documentation](./docs/README.md)
-- [Specifications](./specs/README.md)
+- [Home Page](https://eliware.org)
+- [GitHub Org](https://github.com/eliware)
+- [GitHub Repo](https://github.com/eliware/agentx-cli)
+- [Bug Reports](https://github.com/eliware/agentx-cli/issues)
+- [npm](https://www.npmjs.com/package/@eliware/agentx-cli)
 - [Discord](https://discord.gg/M6aTR9eTwN)
+
+## License
+
+[MIT © Eliware](LICENSE)

@@ -1,10 +1,10 @@
-import { createInterface } from "node:readline/promises";
 import { reloadSettings } from "./settings.mjs";
 import { readEnvState } from "./setup-env.mjs";
 import { getSetupPaths } from "./setup-paths.mjs";
 import { selectSetupMenu } from "./setup-menu.mjs";
 import { buildMenuEntries, DEFAULTS, renderScreen } from "./setup-presentation.mjs";
-import { choices, editApiKey, editCompaction, editValue, labels } from "./setup-editors.mjs";
+import { createInterface } from "node:readline/promises";
+import { applySetupAction } from "./setup-action.mjs";
 
 export { buildMenuEntries };
 
@@ -56,63 +56,14 @@ export async function runSetup({
         continue;
       }
       if (selected.id === "quit") break;
-      switch (selected.id) {
-        case "api":
-          rl.close();
-          message = await editApiKey(readlineInput, envState, stdout);
-          rl = createInterface({ input: readlineInput, output: stdout });
-          break;
-        case "model":
-          await editValue(stdin, stdout, rl, envState, "AGENTX_MODEL", labels.model, choices.model);
-          break;
-        case "mode":
-          await editValue(
-            stdin,
-            stdout,
-            rl,
-            envState,
-            "AGENTX_REASONING_MODE",
-            labels.mode,
-            choices.mode,
-          );
-          break;
-        case "effort":
-          await editValue(
-            stdin,
-            stdout,
-            rl,
-            envState,
-            "AGENTX_REASONING_EFFORT",
-            labels.effort,
-            choices.effort,
-          );
-          break;
-        case "summary":
-          await editValue(
-            stdin,
-            stdout,
-            rl,
-            envState,
-            "AGENTX_REASONING_SUMMARY",
-            labels.summary,
-            choices.summary,
-          );
-          break;
-        case "verbosity":
-          await editValue(
-            stdin,
-            stdout,
-            rl,
-            envState,
-            "AGENTX_OUTPUT_VERBOSITY",
-            labels.verbosity,
-            choices.verbosity,
-          );
-          break;
-        case "compaction":
-          await editCompaction(rl, envState, stdout);
-          break;
-      }
+      ({ readline: rl, message } = await applySetupAction(selected.id, {
+        stdin,
+        stdout,
+        readlineInput,
+        envState,
+        readline: rl,
+        message,
+      }));
     }
   } finally {
     rl.close();

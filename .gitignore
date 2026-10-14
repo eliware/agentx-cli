@@ -50,12 +50,8 @@ node_modules/
 *.tgz
 
 # dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-!.env.example
+.env*
+!.env*.example
 
 # Jest
 
@@ -75,5 +71,12 @@ Desktop.ini
 .cache
 
 # agentx
-.agentx*
-!.agentx.mcp.json.example
+.agentx_responseid*
+.agentx_checkpoint*
+.agentx_workers/
+
+# Shared generated output
+build/
+generated/
+artifacts/
+test-results/

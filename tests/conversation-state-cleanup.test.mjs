@@ -2,7 +2,7 @@ import { describe, expect, jest as testMocks, test } from "@jest/globals";
 import { fs as commonFs } from "@eliware/common";
 import { existsSync, mkdirSync, utimesSync } from "node:fs";
 import { cleanupStaleOneShotStates } from "../src/conversation-state-cleanup.mjs";
-import { cleanupTempDir, makeFile, makeTempDir } from "./test-helpers.mjs";
+import { cleanupTempDir, makeFile, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 
 describe("stale one-shot state cleanup", () => {
   test("removes stale state files but preserves recent files and directories", async () => {

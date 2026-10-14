@@ -1,2 +1,11 @@
-name: agentx-cli-validation
-validation: node .knit/validate.mjs
+version: 1
+on:
+  push:
+    deployments:
+      - target: dev
+        cwd: /eliware/agentx-cli
+        timeoutMs: 300000
+        commands:
+          - git pull --ff-only origin main
+          - npm ci
+          - npm test

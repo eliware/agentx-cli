@@ -5,7 +5,7 @@ const requiredFiles = [
   "README.md",
   "RELEASE_NOTES.md",
   "agentx.mjs",
-  "agentx-setup.mjs",
+  "bin/agentx-setup.mjs",
   "package.json",
   "prompt.json",
   "src/agent.mjs",

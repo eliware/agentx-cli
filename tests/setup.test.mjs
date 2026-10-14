@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { runSetup } from "../src/setup.mjs";
 import { readEnvState, writeEnvState } from "../src/setup-env.mjs";
+await import("../test-fixtures/agentx-setup-suite.mjs");
 
 class FakeTerminal extends EventEmitter {
   constructor() {

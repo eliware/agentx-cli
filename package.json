@@ -1,21 +1,8 @@
 {
   "name": "@eliware/agentx-cli",
+  "version": "12.0.0",
   "type": "module",
-  "version": "9.0.0",
   "description": "A lightweight terminal chat agent built on the OpenAI Responses API through the official @eliware/openai client.",
-  "main": "agentx.mjs",
-  "scripts": {
-    "lint": "eliware-test --lint",
-    "audit": "eliware-test --audit",
-    "test": "eliware-test",
-    "pack": "eliware-test --pack",
-    "format": "eliware-test --format",
-    "format:check": "eliware-test --format-check"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/eliware/agentx-cli"
-  },
   "keywords": [
     "agentx",
     "openai",
@@ -24,8 +11,73 @@
     "terminal",
     "websocket"
   ],
-  "author": "Eliware (Eli Sterling) <eli@eliware.org>",
-  "license": "MIT",
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "main": "agentx.mjs",
+  "bin": {
+    "agentx": "./bin/agentx.mjs",
+    "agentx-setup": "./bin/agentx-setup.mjs"
+  },
+  "files": [
+    "src/",
+    "docs/",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE",
+    "RELEASE_NOTES.md",
+    "bin/",
+    "specs/",
+    "agentx.mjs",
+    "prompt.json",
+    "LICENSE.md",
+    ".agentx.mcp.json.example",
+    "examples/",
+    ".env.example"
+  ],
+  "scripts": {
+    "test": "eliware-test",
+    "lint": "eliware-test --lint",
+    "audit": "eliware-test --audit",
+    "format": "eliware-test --format",
+    "format:check": "eliware-test --format-check",
+    "pack": "eliware-test --pack"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "dependencies": {
+    "@eliware/common": "^12.0.1",
+    "@eliware/openai": "^12.0.0",
+    "@eliware/redact": "^12.0.0",
+    "dotenv": "^18.0.7",
+    "sharp": "^0.35.5",
+    "string-width": "^8.3.0",
+    "strip-ansi": "^7.2.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.mjs"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.mjs"
+    ],
+    "coverageReporters": [
+      "text",
+      "json-summary"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      }
+    }
+  },
   "prettier": {
     "printWidth": 100,
     "tabWidth": 2,
@@ -41,55 +93,15 @@
     "proseWrap": "preserve",
     "endOfLine": "lf"
   },
-  "bugs": {
-    "url": "https://github.com/eliware/agentx-cli/issues"
+  "author": "Eliware <eliware@eliware.org>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eliware/agentx-cli.git"
   },
   "homepage": "https://github.com/eliware/agentx-cli#readme",
-  "private": false,
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
-  "jest": {
-    "collectCoverageFrom": [
-      "src/**/*.mjs"
-    ],
-    "coverageReporters": [
-      "text",
-      "json-summary"
-    ]
-  },
-  "dependencies": {
-    "@eliware/common": "^2.0.0",
-    "@eliware/openai": "^1.1.11",
-    "@eliware/redact": "^6.0.0",
-    "dotenv": "^18.0.5",
-    "sharp": "^0.35.5",
-    "string-width": "^8.3.0",
-    "strip-ansi": "^7.2.0"
-  },
-  "allowScripts": {
-    "unrs-resolver@1.12.2": true
-  },
-  "bin": {
-    "agentx": "./bin/agentx.mjs",
-    "agentx-setup": "./bin/agentx-setup.mjs"
-  },
-  "files": [
-    "agentx.mjs",
-    "agentx-setup.mjs",
-    "bin/",
-    "prompt.json",
-    "src/",
-    "docs/",
-    "README.md",
-    "LICENSE",
-    "LICENSE.md",
-    "RELEASE_NOTES.md",
-    "specs/"
-  ],
-  "engines": {
-    "node": ">=26 <27"
+  "bugs": {
+    "url": "https://github.com/eliware/agentx-cli/issues"
   },
   "eliware": {
     "id": "E-1220",
@@ -98,26 +110,9 @@
       "application",
       "cli",
       "npm-published"
-    ],
-    "authority": {
-      "authoritativeFor": [
-        "AgentX CLI repository implementation and npm publication metadata"
-      ],
-      "notAuthoritativeFor": [
-        "Eliware documentation, operations, deployment, and external platform state"
-      ]
-    },
-    "crosslinks": [
-      {
-        "path": "../docs/authority-map.json",
-        "relation": "relatedAuthority",
-        "authoritativeFor": "Cross-repository documentation authority"
-      },
-      {
-        "path": "../operations/authority-map.json",
-        "relation": "relatedAuthority",
-        "authoritativeFor": "Cross-cutting operational authority"
-      }
     ]
+  },
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true
   }
 }

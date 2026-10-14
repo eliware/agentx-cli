@@ -1,7 +1,5 @@
 # AgentX CLI documentation
 
-Return to the [repository README](../README.md).
-
 Scope: this directory is the complete index of user-facing documentation for the AgentX terminal chat agent and setup helper.
 
 ## Purpose
@@ -17,7 +15,6 @@ These documents explain how to install, configure, use, validate, and troublesho
 - [Troubleshooting](troubleshooting.md)
 - [Configuration](configuration.md)
 - [MCP smoke tests](mcp-smoke-tests.md)
-- [AGENTS.md behavior](agents.md)
 - [Usage](usage.md)
 
 Audience: CLI users. Prerequisites: a supported Node.js runtime and configured

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import { persistCheckpoint, readLatestCheckpoint } from "../src/conversation-checkpoint.mjs";
 import { persistResponseState } from "../src/conversation-state.mjs";
-import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
+import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 
 describe("successful session checkpoints", () => {
   test("falls back to the latest successful history entry and persists a shared checkpoint", async () => {

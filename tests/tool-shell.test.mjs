@@ -1,12 +1,12 @@
 import { describe, expect, test } from "@jest/globals";
 import { accessSync } from "node:fs";
-import {
-  executeShellCommand,
-  getShellLaunchers,
-  normalizeTerminationOutcome,
-  shellExec,
-} from "../src/tool-shell.mjs";
-import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
+import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
+
+await jest.isolateModulesAsync(() => import("../test-fixtures/tool-shell-process-suite.mjs"));
+await jest.isolateModulesAsync(() => import("../test-fixtures/tool-shell-windows-suite.mjs"));
+await jest.unstable_unmockModule("node:child_process");
+const { executeShellCommand, getShellLaunchers, normalizeTerminationOutcome, shellExec } =
+  await import("../src/tool-shell.mjs");
 
 describe("shell process execution", () => {
   test("exposes Windows launcher order and normalizes exit outcomes", () => {

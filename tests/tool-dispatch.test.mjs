@@ -1,6 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
 import { runToolCall } from "../src/tool-dispatch.mjs";
-import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
+import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 
 describe("tool dispatch", () => {
   test("passes goal-update payloads through without interpreting lifecycle policy", async () => {

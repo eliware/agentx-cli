@@ -154,3 +154,5 @@ describe("pending session tool executor", () => {
     expect(addUsageTotals).toHaveBeenCalledTimes(2);
   });
 });
+
+await import("../../test-fixtures/session-pending-executor-defaults-suite.mjs");

@@ -1,8 +1,13 @@
-﻿import { describe, expect, test } from "@jest/globals";
+import { describe, expect, test } from "@jest/globals";
 import path from "node:path";
 import { buildWorkingDirectoryNote, resolveCdTarget } from "../src/shell-paths.mjs";
 import { getHomeDirectory, resolveUserPath } from "../src/platform.mjs";
-import { cleanupTempDir, makeDirectory, makeFile, makeTempDir } from "./test-helpers.mjs";
+import {
+  cleanupTempDir,
+  makeDirectory,
+  makeFile,
+  makeTempDir,
+} from "../test-fixtures/test-helpers.mjs";
 
 describe("shell paths", () => {
   test("describes cwd changes", () => {

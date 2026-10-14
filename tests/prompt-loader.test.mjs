@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { writeFileSync } from "node:fs";
 import { loadPromptTemplate } from "../src/prompt-loader.mjs";
-import { cleanupTempDir, makeTempDir } from "./test-helpers.mjs";
+import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 
 describe("prompt loader", () => {
   test("uses the OS home fallback when the platform home is unavailable", async () => {
