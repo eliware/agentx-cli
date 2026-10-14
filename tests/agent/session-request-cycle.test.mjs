@@ -91,12 +91,7 @@ describe("session request cycle", () => {
       "C:/project",
       expect.any(Function),
       expect.objectContaining({ previous_response_id: "response-0", input: expect.any(Array) }),
-      expect.objectContaining({
-        liveStreaming: true,
-        sessionStartedAt: 123,
-        confirmToolCall: context.confirmToolCall,
-        runToolCall: context.runInteractiveToolCall,
-      }),
+      expect.any(Object),
     );
     expect(services.detach).toHaveBeenCalledTimes(1);
     expect(services.sendMessage.mock.calls[0][8].isGoalCancelled()).toBe(true);

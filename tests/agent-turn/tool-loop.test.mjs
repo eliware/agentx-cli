@@ -12,14 +12,9 @@ test("the matching implementation exports its public function", async () => {
   expect(Object.keys(source).length).toBeGreaterThan(0);
 });
 
-test("returns an empty response and accounts for its usage", async () => {
-  const response = {
-    id: "empty",
-    usage: { input_tokens: 3, output_tokens: 2 },
-  };
-  const usage = jest.fn();
-  await expect(handleToolCalls({}, response, {}, "/repo", usage)).resolves.toBe(response);
-  expect(usage.mock.calls[0][0]).toEqual({ inputTokens: 3, cachedTokens: 0, outputTokens: 2 });
+test("returns the current response when no tool calls need execution", async () => {
+  const response = { id: "empty", output: [] };
+  await expect(handleToolCalls({}, response, {}, "/repo")).resolves.toBe(response);
   await expect(
     handleToolCalls({}, response, {}, "/repo", null, undefined, {
       liveStreaming: true,

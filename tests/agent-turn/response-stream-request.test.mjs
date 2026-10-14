@@ -37,6 +37,7 @@ describe("response stream request", () => {
     const context = createResponseStreamContext({ suppressStatusOutput: true, noTimers: true });
     const openai = { responses: { create: jest.fn(async () => ({ id: "default" })) } };
     await expect(submitResponseStream(openai, {}, context)).resolves.toEqual({ id: "default" });
+    expect(openai.responses.create).toHaveBeenCalledWith({}, undefined);
     expect(context.sessionStartedAt).toEqual(expect.any(Number));
     expect(context.statusController).toBeDefined();
     expect(createResponseStreamContext().statusController).toBeDefined();

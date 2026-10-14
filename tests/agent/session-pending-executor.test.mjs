@@ -35,7 +35,7 @@ function createSession(overrides = {}) {
 }
 
 describe("pending session tool executor", () => {
-  test("builds the resumed tool loop and forwards session accounting callbacks", async () => {
+  test("builds the resumed tool loop and forwards session callbacks", async () => {
     const totals = { turns: 2 };
     const session = createSession({ getUsage: () => totals });
     const execute = jest.fn(async (...args) => {
@@ -43,22 +43,12 @@ describe("pending session tool executor", () => {
       expect(usage({ inputTokens: 1 })).toBe(totals);
       usage({ inputTokens: 2 }, { skipIncrement: true });
       expect(runner).toBe(runPendingToolCall);
-      await options.onViewImage({
-        args: { images: [] },
-        response: { id: "caller" },
-        previousResponseId: "parent",
-        baseRequest: { model: "vision-model" },
-        cwd: "C:/images",
-      });
       options.onWorkerUsage({ turns: 3 });
-      await options.onViewImage({ args: {}, response: null, baseRequest: null, cwd: "." });
+      expect(options.onViewImage).toEqual(expect.any(Function));
       expect(options.onWorkerComplete).toBe(session.onWorkerComplete);
       return "tool-loop-result";
     });
     const runPendingToolCall = jest.fn();
-    const inspectImage = jest.fn(async (_client, args, { onUsage }) => {
-      onUsage(args.images ? { turns: 2 } : {});
-    });
     const handleToolCalls = jest.fn(async (...args) => execute(...args));
     const addUsageTotals = jest.fn((target, usage) => {
       target.inputTokens = (target.inputTokens || 0) + (usage.inputTokens || 0);
@@ -68,7 +58,6 @@ describe("pending session tool executor", () => {
     await expect(
       executePendingSessionTools(runPendingToolCall, session, {
         handleToolCalls,
-        inspectImage,
         addUsageTotals,
         createPendingResponse,
       }),
@@ -93,20 +82,8 @@ describe("pending session tool executor", () => {
         yolo: false,
       }),
     );
-    expect(addUsageTotals).toHaveBeenCalledTimes(4);
-    expect(totals.turns).toBe(9);
-    expect(inspectImage).toHaveBeenCalledWith(
-      { name: "client" },
-      { images: [] },
-      expect.objectContaining({
-        cwd: "C:/images",
-        responseId: "caller",
-        previousResponseId: "parent",
-        callerResponse: { id: "caller" },
-        model: "vision-model",
-        processWorker: true,
-      }),
-    );
+    expect(addUsageTotals).toHaveBeenCalledTimes(2);
+    expect(totals.turns).toBe(6);
   });
 
   test("uses default tool-loop utilities when adapters are omitted", async () => {
@@ -139,15 +116,17 @@ describe("pending session tool executor", () => {
     await jest.isolateModulesAsync(async () => {
       const handleToolCalls = jest.fn(async (...args) => {
         args[6].onWorkerUsage({});
-        await args[6].onViewImage({ args: {}, cwd: "/images" });
+        expect(args[6].onViewImage).toEqual(expect.any(Function));
       });
-      const inspectImage = jest.fn(async (_client, _args, { onUsage }) => onUsage({}));
       const addUsageTotals = jest.fn();
       await jest.unstable_mockModule("../../src/agent-turn/tool-loop.mjs", () => ({
         handleToolCalls,
       }));
-      await jest.unstable_mockModule("../../src/image-inspector.mjs", () => ({ inspectImage }));
-      await jest.unstable_mockModule("../../src/response.mjs", () => ({ addUsageTotals }));
+      await jest.unstable_mockModule("../../src/response.mjs", () => ({
+        addUsageTotals,
+        extractTextFromResponse: () => "",
+        extractUsage: () => ({}),
+      }));
       await jest.unstable_mockModule("../../src/agent/pending-response.mjs", () => ({
         createPendingResponse: () => ({}),
       }));
@@ -155,13 +134,8 @@ describe("pending session tool executor", () => {
         await import("../../src/agent/session-pending-executor.mjs");
       const totals = { turns: 0 };
       await execute(jest.fn(), createSession({ getUsage: () => totals }));
-      expect(totals.turns).toBe(1);
-      expect(addUsageTotals).toHaveBeenCalledTimes(2);
-      expect(inspectImage).toHaveBeenCalledWith(
-        { name: "client" },
-        {},
-        expect.objectContaining({ cwd: "/images", processWorker: true }),
-      );
+      expect(totals.turns).toBe(0);
+      expect(addUsageTotals).toHaveBeenCalledTimes(1);
     });
   });
 });

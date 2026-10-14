@@ -1,9 +1,8 @@
 import { isWorkerTerminal, normalizeWorkerWait, snapshotWorker } from "./worker-status.mjs";
+import { parseWorkerIds } from "./parallel-worker-arguments.mjs";
 
 export async function getWorkerStatus(args, state) {
-  const ids = Array.isArray(args.agent_ids)
-    ? args.agent_ids.filter((id) => typeof id === "string" && id.trim()).slice(0, 10)
-    : [];
+  const ids = parseWorkerIds(args);
   const wait = normalizeWorkerWait(args.wait_ms);
   const deadline = Date.now() + wait;
   const read = () =>

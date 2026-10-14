@@ -22,7 +22,7 @@ body: |
 
   ## Usage accounting
 
-  Responses usage must preserve total input tokens, cached input tokens, cache-write tokens, total output tokens, and reasoning output tokens. Cost calculations must charge uncached input, cached input, and cache writes separately; reasoning output is a breakdown of total output and must not be charged twice. Aggregated session and worker usage must retain these fields.
+  Responses usage must preserve total input tokens, cached input tokens, cache-write tokens, total output tokens, and reasoning output tokens. Cost calculations must charge uncached input, cached input, and cache writes separately; reasoning output is a breakdown of total output and must not be charged twice. Aggregated session and worker usage must retain these fields. `usage-report-builder.mjs` owns token and cost field construction. `usage-report-policy.mjs` owns cumulative and per-turn report assembly, including long-context warnings. `usage.mjs` exposes the public formatting functions; `usage-format.mjs` owns money, token, and JSON formatting. Each boundary has a mirrored test suite.
 
   Before sending a normal user request, prepend optional local context in this order:
 

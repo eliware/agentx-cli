@@ -2,12 +2,19 @@ import { handleToolCalls as handleToolCallsDefault } from "../agent-turn/tool-lo
 import { inspectImage as inspectImageDefault } from "../image-inspector.mjs";
 import { addUsageTotals as addUsageTotalsDefault } from "../response.mjs";
 import { createPendingResponse as createPendingResponseDefault } from "./pending-response.mjs";
+import { createSessionImageInspection } from "./session-image-inspection.mjs";
 
 export async function executePendingSessionTools(runPendingToolCall, session, services = {}) {
   const handleToolCalls = services.handleToolCalls || handleToolCallsDefault;
   const inspectImage = services.inspectImage || inspectImageDefault;
   const addUsageTotals = services.addUsageTotals || addUsageTotalsDefault;
   const createPendingResponse = services.createPendingResponse || createPendingResponseDefault;
+  const onViewImage = createSessionImageInspection({
+    getOpenAI: session.getOpenAI,
+    getSessionUsage: session.getUsage,
+    addUsageTotals,
+    inspectImage,
+  });
   const options = session.outputFlags;
   const usage = (tokens, { skipIncrement = false } = {}) => {
     const totals = session.getUsage();
@@ -45,20 +52,7 @@ export async function executePendingSessionTools(runPendingToolCall, session, se
       transitionOnlyStatus: session.oneShot || !session.terminalInput?.isTTY,
       runToolCall: runPendingToolCall,
       onImageGeneration: session.handleImageGeneration,
-      onViewImage: ({ args, response, previousResponseId, baseRequest, cwd }) =>
-        inspectImage(session.getOpenAI(), args, {
-          cwd,
-          responseId: response?.id,
-          previousResponseId,
-          callerResponse: response,
-          model: baseRequest?.model,
-          processWorker: true,
-          onUsage: (imageUsage) => {
-            const totals = session.getUsage();
-            addUsageTotals(totals, imageUsage);
-            totals.turns += imageUsage.turns || 1;
-          },
-        }),
+      onViewImage,
       yolo: session.yoloEnabled,
       onWorkerUsage: (workerUsage) => {
         const totals = session.getUsage();

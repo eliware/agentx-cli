@@ -37,10 +37,7 @@ async function invokeDirectEntryPoint(args, runAgent, setupPrompt = null, option
     }));
   } else {
     await jest.unstable_mockModule("../src/agent-entrypoint-setup.mjs", () => ({
-      confirmSetup: jest.fn(async (options) => {
-        if (options.configured) options.hasApiKey();
-        return false;
-      }),
+      runEntrypointSetup: jest.fn(async () => false),
     }));
   }
   try {

@@ -18,22 +18,6 @@ describe("agent session modules", () => {
     process.stdout.write = originalStdoutWrite;
   });
 
-  test("createStreamedResponse uses default stream options when omitted", async () => {
-    const openai = {
-      responses: {
-        create: async (request, handlers) => {
-          expect(handlers).toBeUndefined();
-          expect(request).toEqual({ model: "test-model" });
-          return { id: "resp-default", output: [] };
-        },
-      },
-    };
-
-    await expect(createStreamedResponse(openai, { model: "test-model" })).resolves.toEqual({
-      id: "resp-default",
-      output: [],
-    });
-  });
   test.each([
     ["hello", `\x1b[38;5;255mhello\x1b[0m\n`],
     ["hello\n", `\x1b[38;5;255mhello\n\x1b[0m`],
@@ -57,6 +41,18 @@ describe("agent session modules", () => {
     expect(statusController.showReasoning).toHaveBeenCalled();
     expect(statusController.clear).toHaveBeenCalled();
     expect(stdoutWrites.join("")).toBe(expected);
+  });
+
+  test("uses default response options when the stream helper receives no options", async () => {
+    const openai = {
+      responses: {
+        create: async (_request, handlers) => {
+          expect(handlers).toBeUndefined();
+          return { id: "resp-default" };
+        },
+      },
+    };
+    await expect(createStreamedResponse(openai, {})).resolves.toEqual({ id: "resp-default" });
   });
 
   test("does not emit a color reset when colors are disabled", async () => {

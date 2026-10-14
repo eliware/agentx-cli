@@ -49,21 +49,10 @@ describe("usage reports", () => {
     ).toContain('"reasoning":"5"');
   });
 
-  test("includes the long-context warning and normalizes ANSI in JSON output", () => {
-    const report = formatUsageReport({
-      inputTokens: 272_001,
-      cachedTokens: 0,
-      outputTokens: 1,
-      turns: 1,
-    });
-    expect(report).toContain("Long-context pricing applied");
-    expect(report).toContain("\u001b[91m");
+  test("normalizes ANSI in JSON output", () => {
     expect(formatUsageReport({ inputTokens: "\u001b[32m1\u001b[0m" })).toContain('"in":"1');
     expect(
       formatTurnUsageReport({ inputTokens: null, cachedTokens: null, outputTokens: null }),
     ).toContain('"in":"0');
-    expect(formatTurnUsageReport({ inputTokens: 272_001 })).toContain(
-      "Long-context pricing applied",
-    );
   });
 });
