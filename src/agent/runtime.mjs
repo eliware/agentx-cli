@@ -1,6 +1,4 @@
 import { stdin as defaultInput, stdout as defaultOutput } from "node:process";
-import { clearSession } from "../conversation-state.mjs";
-import { persistCheckpoint } from "../conversation-checkpoint.mjs";
 import { prepareAgentSession } from "./session-bootstrap.mjs";
 import { agentProcessLifecycle } from "./process-lifecycle.mjs";
 import { runAgentPromptSession } from "./runtime-prompt-session.mjs";
@@ -38,11 +36,7 @@ export async function runAgent({
     oneShot,
     session,
     runtimeState,
-    runtimeServices: {
-      ...runtimeServices,
-      persistCheckpoint,
-      clearSession,
-    },
+    runtimeServices,
     createSessionClient,
     onWorkerComplete,
     repl,

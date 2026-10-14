@@ -73,7 +73,7 @@ test("wires runtime services into pending-session recovery", async () => {
       repl,
       onWorkerComplete,
     }),
-  ).resolves.toBe(services);
+  ).resolves.toEqual({ ...services, persistCheckpoint, clearSession });
 
   expect(createAgentRuntimeServices).toHaveBeenCalledWith({
     session,

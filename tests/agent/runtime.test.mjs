@@ -1,7 +1,5 @@
 import { expect, jest, test } from "@jest/globals";
 
-const clearSession = jest.fn();
-const persistCheckpoint = jest.fn();
 const prepareAgentSession = jest.fn();
 const setActiveClient = jest.fn();
 const runAgentPromptSession = jest.fn(async () => "prompt result");
@@ -10,10 +8,6 @@ const setupAgentRuntimeRecovery = jest.fn();
 const createAgentRuntimeSessionContext = jest.fn(() => ({ sessionContext: true }));
 const lifecycle = { setActiveClient, signalRegistration: "signals" };
 
-await jest.unstable_mockModule("../../src/conversation-state.mjs", () => ({ clearSession }));
-await jest.unstable_mockModule("../../src/conversation-checkpoint.mjs", () => ({
-  persistCheckpoint,
-}));
 await jest.unstable_mockModule("../../src/agent/session-bootstrap.mjs", () => ({
   prepareAgentSession,
 }));
@@ -39,7 +33,11 @@ test("starts session services before the prompt session", async () => {
   const session = { outputFlags: {}, checkpointPath: "checkpoint", statePath: "state" };
   const runtimeState = { openai: "client" };
   const repl = {};
-  const runtimeServices = { saveState: jest.fn() };
+  const runtimeServices = {
+    saveState: jest.fn(),
+    persistCheckpoint: jest.fn(),
+    clearSession: jest.fn(),
+  };
   prepareAgentSession.mockResolvedValue(session);
   startAgentRuntime.mockResolvedValue({ runtimeState, repl, agentsText: "rules" });
   setupAgentRuntimeRecovery.mockResolvedValue(runtimeServices);
@@ -61,11 +59,7 @@ test("starts session services before the prompt session", async () => {
     expect.objectContaining({
       session,
       runtimeState,
-      runtimeServices: expect.objectContaining({
-        ...runtimeServices,
-        persistCheckpoint,
-        clearSession,
-      }),
+      runtimeServices,
       processLifecycle: lifecycle,
     }),
   );

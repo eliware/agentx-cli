@@ -49,5 +49,5 @@ export async function setupAgentRuntimeRecovery({
     clearSession,
     extractTextFromResponse,
   });
-  return services;
+  return { ...services, persistCheckpoint, clearSession };
 }
