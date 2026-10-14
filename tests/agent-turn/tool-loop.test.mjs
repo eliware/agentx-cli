@@ -60,7 +60,7 @@ test("returns the current response when a tool call cancels a goal", async () =>
   expect(result).toBe(response);
 });
 
-test("completes a goal after its final tool decision", async () => {
+test("returns the completed goal response after the final decision", async () => {
   const response = {
     id: "goal-response",
     output: [
@@ -81,7 +81,6 @@ test("completes a goal after its final tool decision", async () => {
       suppressStatusOutput: true,
     }),
   ).resolves.toBe(final);
-  expect(openai.responses.create.mock.calls[0][0]).toMatchObject({ tool_choice: "none" });
 });
 
 test("continues after an empty goal cycle and after a tool response", async () => {

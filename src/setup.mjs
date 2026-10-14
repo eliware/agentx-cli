@@ -5,12 +5,9 @@ import { selectSetupMenu } from "./setup-menu.mjs";
 import { buildMenuEntries, DEFAULTS, renderReadlineMenu } from "./setup-presentation.mjs";
 import { createInterface } from "node:readline/promises";
 import { applySetupAction } from "./setup-action.mjs";
+import { selectReadlineMenuChoice } from "./setup-menu-interaction.mjs";
 
 export { buildMenuEntries };
-
-async function ask(rl, prompt) {
-  return String(await rl.question(prompt));
-}
 
 export async function runSetup({
   stdin = process.stdin,
@@ -43,12 +40,7 @@ export async function runSetup({
           mcpPath: getSetupPaths().mcpConfigPath,
           entries,
         });
-        const choice = (await ask(rl, "\nChoose an option: ")).trim().toLowerCase();
-        const index = Number(choice);
-        selected =
-          Number.isInteger(index) && index >= 1 && index <= entries.length
-            ? entries[index - 1]
-            : entries.find((entry) => entry.id === choice || entry.label.toLowerCase() === choice);
+        selected = await selectReadlineMenuChoice(rl, entries);
       }
       if (!selected) {
         message = "Unknown option.";

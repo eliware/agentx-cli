@@ -2,8 +2,7 @@ import { path } from "@eliware/common";
 import { homedir } from "node:os";
 import { readJson } from "./runtime.mjs";
 import { getHomeDirectory } from "./platform.mjs";
-
-const WORKER_TOOLS = new Set(["spawn_agent", "agent_status", "cancel_agent"]);
+import { filterWorkerTools } from "./prompt-tools.mjs";
 
 export async function loadPromptTemplate(
   promptPath,
@@ -35,11 +34,7 @@ export async function loadPromptTemplate(
       mcpTools === null
         ? template
         : { ...template, tools: [...(template.tools || []), ...mcpTools] };
-    if (!env?.AGENTX_WORKER_ID) return merged;
-    return {
-      ...merged,
-      tools: (merged.tools || []).filter((tool) => !WORKER_TOOLS.has(tool?.name)),
-    };
+    return filterWorkerTools(merged, env);
   } catch (error) {
     throw new Error(
       `Unable to read prompt template at ${promptPath}: ${error?.message || String(error)}`,

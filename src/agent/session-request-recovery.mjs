@@ -1,5 +1,6 @@
 import { handleRecoveryMenuAbort } from "./recovery-menu-abort.mjs";
 import { isWebsocketRetryAvailable } from "./session-websocket-recovery.mjs";
+import { applySessionRecoveryAction } from "./session-recovery-actions.mjs";
 
 export async function resolveSessionRequestFailure({
   error,
@@ -63,36 +64,15 @@ export async function resolveSessionRequestFailure({
   });
   state.recoveryAttempts = menuRecovery.recoveryAttempts;
   state.newChainAttempts = menuRecovery.newChainAttempts ?? state.newChainAttempts;
-  if (menuRecovery.action === "retry" || menuRecovery.action === "debug-retry") {
-    state.openai = await deps.recreateOpenAIClient(state.openai, createSessionClient);
-    deps.setActiveOpenAI(state.openai);
-    if (menuRecovery.action === "debug-retry" && !state.debugEnabled) {
-      state.debugEnabled = true;
-      deps.bindDebugListeners(state.openai);
-      deps.writeDebugEnabled();
-    }
-    state.retryRequest = state.pendingRetryRequest;
-    return { control: "retry" };
-  }
-  if (menuRecovery.action === "new-chain") {
-    state.clearPendingContinuationForNewChain();
-    await deps.saveState();
-    return { control: "retry" };
-  }
-  if (menuRecovery.action === "rollback") {
-    const selected = await deps.promptRollback(history, { input, output });
-    if (selected) {
-      deps.applyRollback(selected);
-      await deps.saveState();
-      await deps.persistCheckpoint(checkpointPath, selected);
-    }
-    return { control: "end" };
-  }
-  if (menuRecovery.action === "clear") {
-    state.retryRequest = null;
-    deps.resetState(deps.createUsageTotals());
-    await deps.clearSession(statePath);
-    deps.writeSystem("Session cleared");
-  }
-  return { control: "end" };
+  return applySessionRecoveryAction({
+    action: menuRecovery.action,
+    state,
+    createSessionClient,
+    history,
+    input,
+    output,
+    checkpointPath,
+    statePath,
+    deps,
+  });
 }

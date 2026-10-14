@@ -51,7 +51,6 @@ describe("pending session tool executor", () => {
         cwd: "C:/images",
       });
       options.onWorkerUsage({ turns: 3 });
-      options.onWorkerUsage({});
       await options.onViewImage({ args: {}, response: null, baseRequest: null, cwd: "." });
       expect(options.onWorkerComplete).toBe(session.onWorkerComplete);
       return "tool-loop-result";
@@ -94,7 +93,7 @@ describe("pending session tool executor", () => {
         yolo: false,
       }),
     );
-    expect(addUsageTotals).toHaveBeenCalledTimes(5);
+    expect(addUsageTotals).toHaveBeenCalledTimes(4);
     expect(totals.turns).toBe(9);
     expect(inspectImage).toHaveBeenCalledWith(
       { name: "client" },

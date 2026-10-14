@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "@jest/globals";
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { readEnvState, setupEnvInternals, writeEnvState } from "../src/setup-env.mjs";
+import { readEnvState, writeEnvState } from "../src/setup-env.mjs";
 
 const directories = [];
 async function tempDirectory() {
@@ -16,38 +16,6 @@ afterEach(async () => {
 });
 
 describe("setup environment file", () => {
-  test("parses dotenv-like pairs while preserving raw lines", () => {
-    expect(setupEnvInternals.parseEnvLines("A=1\n# note\nBAD LINE")).toEqual([
-      { type: "pair", key: "A", value: "1", line: "A=1" },
-      { type: "raw", line: "# note" },
-      { type: "raw", line: "BAD LINE" },
-    ]);
-    expect(setupEnvInternals.parseEnvLines(null)).toEqual([{ type: "raw", line: "" }]);
-    expect(setupEnvInternals.decodeEnvValue(' "hello" ')).toBe("hello");
-    expect(setupEnvInternals.decodeEnvValue('"bad')).toBe('"bad');
-    expect(setupEnvInternals.decodeEnvValue('"bad\n"')).toBe("bad\n");
-    expect(setupEnvInternals.decodeEnvValue(" plain ")).toBe("plain");
-    expect(setupEnvInternals.decodeEnvValue(null)).toBe("");
-  });
-
-  test("serializes updates, collapses duplicate keys, and retains comments", () => {
-    expect(setupEnvInternals.serializeEnvValue("")).toBe("");
-    expect(setupEnvInternals.serializeEnvValue(null)).toBe("");
-    expect(setupEnvInternals.serializeEnvValue("safe-1:/")).toBe("safe-1:/");
-    expect(setupEnvInternals.serializeEnvValue('needs "quotes" \\')).toBe(
-      '"needs \\"quotes\\" \\\\"',
-    );
-    expect(
-      setupEnvInternals.updateEnvText("A=old\nA=duplicate\n# keep\n", {
-        A: "new",
-        B: "two words",
-      }),
-    ).toBe('A=new\n# keep\n\nB="two words"\n');
-    expect(setupEnvInternals.updateEnvText("", { A: "1" })).toBe("A=1\n");
-    expect(setupEnvInternals.updateEnvText("", {})).toBe("");
-    expect(setupEnvInternals.updateEnvText(null, {})).toBe("");
-  });
-
   test("reads missing and populated config files", async () => {
     const directory = await tempDirectory();
     const file = path.join(directory, ".agentx");

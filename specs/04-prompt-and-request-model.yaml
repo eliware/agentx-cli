@@ -30,7 +30,7 @@ body: |
   2. A cwd-change note.
   3. The actual user message.
 
-  Prompt/MCP file loading and worker-tool filtering, local shell transcript formatting/context composition, and request override/goal-tool shaping are separate responsibilities with focused mirrored tests. API-key resolution belongs with AgentX client startup. Runtime wiring imports these focused modules directly; it does not use a broad agent-flow helper module.
+  Prompt/MCP file loading belongs to `prompt-loader.mjs`; worker orchestration-tool filtering belongs to `prompt-tools.mjs`. Both modules have focused mirrored tests. Local shell transcript formatting/context composition and request override/goal-tool shaping are separate responsibilities with focused mirrored tests. API-key resolution belongs with AgentX client startup. Runtime wiring imports these focused modules directly; it does not use a broad agent-flow helper module.
 
   MCP config is optional at `$HOME/.agentx.mcp.json`. Accept either a top-level array or `{ tools: [...] }`; merge enabled entries after template tools. An MCP entry with `enabled: false` is omitted from requests, allowing each server to be toggled without deleting credentials. The local `enabled` control field is stripped from enabled entries before sending the request because it is not part of the Responses API MCP schema. Missing file is allowed; invalid JSON is fatal and should be reported as a prompt-template load error.
 

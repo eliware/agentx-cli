@@ -4,13 +4,7 @@ import { API_PRICING } from "@eliware/openai";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import {
-  choices,
-  editApiKey,
-  editCompaction,
-  editValue,
-  selectChoice,
-} from "../src/setup-editors.mjs";
+import { choices, editApiKey, editCompaction, editValue } from "../src/setup-editors.mjs";
 import { readEnvState } from "../src/setup-env.mjs";
 
 class Terminal extends EventEmitter {
@@ -48,24 +42,8 @@ async function envState(values = {}) {
 const send = (input, value) => setImmediate(() => input.emit("data", Buffer.from(value)));
 
 describe("setup setting editors", () => {
-  test("matches interactive, numeric, and textual choices and rejects invalid input", async () => {
+  test("uses the OpenAI pricing catalog for model choices", () => {
     expect(choices.model).toEqual(Object.keys(API_PRICING));
-    const input = new Terminal();
-    const interactive = selectChoice(input, new Output(), {}, "Model", ["one", "two"], "two");
-    send(input, "\r");
-    await expect(interactive).resolves.toBe("two");
-    expect(input.raw).toBe(false);
-
-    const rl = { question: async () => "2" };
-    await expect(selectChoice({}, new Output(), rl, "Model", ["one", "two"], "one")).resolves.toBe(
-      "two",
-    );
-    await expect(
-      selectChoice({}, new Output(), { question: async () => "tw" }, "Model", ["one", "two"], ""),
-    ).resolves.toBe("two");
-    await expect(
-      selectChoice({}, new Output(), { question: async () => "nope" }, "Model", ["one"], ""),
-    ).resolves.toBeNull();
   });
 
   test("persists only a changed setting choice", async () => {

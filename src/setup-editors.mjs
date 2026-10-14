@@ -1,8 +1,8 @@
 import { API_PRICING } from "@eliware/openai";
-import { getPackageVersion } from "./cli-version.mjs";
 import { writeEnvState } from "./setup-env.mjs";
-import { getSetupPaths } from "./setup-paths.mjs";
-import { askMasked, selectSetupMenu } from "./setup-menu.mjs";
+import { askMasked } from "./setup-menu.mjs";
+import { selectChoice } from "./setup-choice.mjs";
+export { selectChoice } from "./setup-choice.mjs";
 
 const ask = async (rl, prompt) => String(await rl.question(prompt));
 
@@ -25,36 +25,6 @@ export const labels = {
 async function saveEnvValue(envState, key, value) {
   envState.values[key] = value;
   envState.text = await writeEnvState(envState.filePath, envState.values, envState.text);
-}
-
-export async function selectChoice(stdin, stdout, rl, title, valuesList, current) {
-  const entries = valuesList.map((value) => ({
-    id: value,
-    label: `${value}${value === current ? " (current)" : ""}`,
-  }));
-  stdout.write(`\x1b[2J\x1b[HAgentX ${getPackageVersion()} Setup\n\n${title}\n`);
-  const currentIndex = entries.findIndex((entry) => entry.id === current);
-  const defaults = getSetupPaths();
-  const selected = await selectSetupMenu(
-    stdin,
-    stdout,
-    entries,
-    currentIndex >= 0 ? currentIndex : 0,
-    { rootDir: defaults.rootDir, envPath: defaults.envPath },
-  );
-  if (selected) return selected.id;
-  const answer = (await ask(rl, `${title} (1-${entries.length}) [${current}]: `)).trim();
-  const index = Number(answer);
-  if (Number.isInteger(index) && index >= 1 && index <= entries.length)
-    return entries[index - 1].id;
-  return (
-    entries.find(
-      (entry) =>
-        entry.id === answer ||
-        entry.id.startsWith(answer) ||
-        entry.label.toLowerCase().startsWith(answer.toLowerCase()),
-    )?.id ?? null
-  );
 }
 
 export async function editValue(stdin, stdout, rl, envState, key, label, valuesList) {

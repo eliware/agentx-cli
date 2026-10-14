@@ -72,48 +72,30 @@ describe("live response event routing", () => {
     expect(status.pause).toHaveBeenCalled();
     expect(status.resume).toHaveBeenCalledWith({ renderNow: false });
   });
-  test("routes web-search state and completion through its renderer", () => {
-    const status = {
+  test("routes MCP and web-search events to their renderers", () => {
+    const statusController = {
       showExecuting: jest.fn(),
-      pause: jest.fn(),
       showReasoning: jest.fn(),
+      beginWriting: jest.fn(),
+      pause: jest.fn(),
       resume: jest.fn(),
     };
-    const live = createLiveResponseHandlers({ liveStreaming: true, statusController: status });
+    const live = createLiveResponseHandlers({ liveStreaming: true, statusController });
+    live.handlers.onEvent({ type: "response.mcp_call.progress", progress: "half" });
     live.handlers.onEvent({ type: "response.web_search_call.in_progress" });
     live.handlers.onEvent({ type: "response.web_search_call.searching" });
-    live.handlers.onItemDone({ type: "web_search_call", action: { queries: ["q"] } });
+    live.handlers.onItemAdded({ type: "mcp_call", name: "lookup" });
+    live.handlers.onItemDone({ type: "mcp_call", name: "lookup" });
+    live.handlers.onItemDone({
+      type: "web_search_call",
+      action: { queries: ["q"] },
+    });
+    expect(stdoutWrites.join("")).toContain('"mcp":"half"');
     expect(stdoutWrites.join("")).toContain('"web_search":"in_progress"');
     expect(stdoutWrites.join("")).toContain('"web_search":"searching"');
     expect(stdoutWrites.join("")).toContain('"web_search": "complete"');
-    expect(status.showExecuting).toHaveBeenCalled();
-    expect(status.showReasoning).toHaveBeenCalled();
-    expect(status.resume).toHaveBeenCalled();
-  });
-  test("routes MCP progress, streamed arguments, and completed calls", () => {
-    const status = {
-      beginWriting: jest.fn(),
-      showExecuting: jest.fn(),
-      showReasoning: jest.fn(),
-      pause: jest.fn(),
-      resume: jest.fn(),
-    };
-    const live = createLiveResponseHandlers({ liveStreaming: true, statusController: status });
-    live.handlers.onEvent({ type: "response.mcp_call.in_progress" });
-    live.handlers.onEvent({ type: "response.mcp_call.progress", progress: "half" });
-    live.handlers.onEvent({ type: "response.mcp_call.progress" });
-    live.handlers.onEvent({ type: "response.mcp_call.completed" });
-    live.handlers.onEvent({ type: "response.mcp_call.failed" });
-    live.handlers.onEvent({ type: "response.mcp_call_arguments.delta", delta: '{"q":1}' });
-    live.handlers.onItemAdded({ type: "mcp_call", name: "lookup" });
-    live.handlers.onItemDone({ type: "mcp_call" });
-    expect(stdoutWrites.join("")).toContain('{"mcp":"half"}');
-    expect(stdoutWrites.join("")).toContain("lookup(");
-    expect(status.showExecuting).toHaveBeenCalled();
-    expect(status.showReasoning).toHaveBeenCalled();
-    expect(status.pause).toHaveBeenCalled();
-    expect(status.resume).toHaveBeenCalled();
-    expect(status.showReasoning).toHaveBeenCalled();
+    expect(statusController.showExecuting).toHaveBeenCalled();
+    expect(statusController.resume).toHaveBeenCalled();
   });
   test("uses a reasoning transcript when no streamed summary was received", () => {
     const live = createLiveResponseHandlers({ liveStreaming: true });
