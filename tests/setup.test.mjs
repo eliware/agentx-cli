@@ -82,7 +82,7 @@ describe("interactive setup menu flow", () => {
         setTimeout(() => {
           readlineInput.emit("data", Buffer.from(`${value}\n`));
           resolve();
-        }, 50),
+        }, 10),
       );
     }
   };
@@ -154,11 +154,11 @@ describe("setup branch completion", () => {
         configPath,
         readlineInput,
       });
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       menuInput.emit("data", Buffer.from("7"));
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       readlineInput.emit("data", Buffer.from("123456\n"));
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       menuInput.emit("data", Buffer.from("8"));
       await run;
       expect((await readEnvState(configPath)).values.AGENTX_COMPACTION_THRESHOLD).toBe("123456");
