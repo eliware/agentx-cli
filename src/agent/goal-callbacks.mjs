@@ -1,6 +1,6 @@
 import { formatSystemMessage } from "../shell-display.mjs";
 import { writeTerminal } from "../terminal-output.mjs";
-import { askGoalQuestion } from "./goal-question.mjs";
+import { createGoalQuestionCallback } from "./goal-question-callback.mjs";
 
 export function createGoalCallbacks({
   getGoal,
@@ -12,6 +12,15 @@ export function createGoalCallbacks({
   formatMessage = formatSystemMessage,
   printFinalResponse = (text) => write(text),
 }) {
+  const onGoalBlocked = createGoalQuestionCallback({
+    getGoal,
+    setGoal,
+    saveState,
+    getReadline,
+    terminalInput,
+    write,
+    formatMessage,
+  });
   return {
     onGoalIteration: async (iterations) => {
       const goal = getGoal();
@@ -28,19 +37,7 @@ export function createGoalCallbacks({
       });
       await saveState();
     },
-    onGoalBlocked: async ({ question, choices = [] }) => {
-      const answer = await askGoalQuestion({
-        question,
-        choices,
-        getReadline,
-        terminalInput,
-        write,
-        formatMessage,
-      });
-      setGoal({ ...getGoal(), last_question: question });
-      await saveState();
-      return answer;
-    },
+    onGoalBlocked,
     onGoalLimit: async (iterations) => {
       setGoal({ ...getGoal(), status: "blocked", iterations });
       await saveState();

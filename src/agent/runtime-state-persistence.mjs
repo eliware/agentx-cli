@@ -16,6 +16,10 @@ export function getAgentPersistedState(state) {
   };
 }
 
+export function setAgentActiveGoal(state, goal) {
+  state.activeGoal = goal;
+}
+
 export function applyAgentPersistedState(state, saved) {
   state.previousResponseId = saved.response_id;
   state.sessionUsage = saved.usage;

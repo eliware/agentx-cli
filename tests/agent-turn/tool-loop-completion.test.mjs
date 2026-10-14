@@ -48,7 +48,13 @@ describe("tool-loop response completion", () => {
     };
     const cumulativeUsage = { inputTokens: 7, cachedTokens: 3, outputTokens: 4, turns: 1 };
     const onResponseUsage = jest.fn(() => cumulativeUsage);
-    const onResponseState = jest.fn();
+    const events = [];
+    const onResponseState = jest.fn(async () => events.push("state"));
+    process.stdout.write = (text) => {
+      events.push("output");
+      writes.push(String(text));
+      return true;
+    };
     await finalizeToolLoopResponse({
       response,
       statusController,
@@ -70,7 +76,7 @@ describe("tool-loop response completion", () => {
       cumulativeUsage,
     });
     expect(statusController.clear).toHaveBeenCalledTimes(1);
-    expect(writes.join("")).toContain('"time":"2s"');
+    expect(events.indexOf("state")).toBeLessThan(events.indexOf("output"));
   });
 
   test("respects no-timer output suppression and tolerates absent status controls", async () => {

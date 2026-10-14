@@ -44,34 +44,6 @@ describe("goal callbacks", () => {
     expect(saved).toHaveBeenCalledTimes(1);
   });
 
-  test("stores the goal question and saves the answer context", async () => {
-    const readline = { question: jest.fn().mockResolvedValue("B") };
-    const terminalInput = { setRawMode: jest.fn() };
-    const { callbacks, state, saved } = makeCallbacks({ readline, terminalInput });
-    await expect(
-      callbacks.onGoalBlocked({ question: "Which?", choices: ["First", "Second"] }),
-    ).resolves.toBe("B");
-    expect(state.goal.last_question).toBe("Which?");
-    expect(saved).toHaveBeenCalledTimes(1);
-    expect(terminalInput.setRawMode).toHaveBeenCalledWith(false);
-    expect(readline.question).toHaveBeenCalled();
-  });
-
-  test("handles missing choices, readline, and optional raw-mode control", async () => {
-    const withReadline = makeCallbacks({
-      readline: { question: jest.fn().mockResolvedValue("text") },
-    });
-    await expect(withReadline.callbacks.onGoalBlocked({})).resolves.toBe("text");
-    expect(withReadline.writes).toEqual(["<GOAL QUESTION: Input required>\n"]);
-    expect(withReadline.state.goal.last_question).toBeUndefined();
-
-    const withoutReadline = makeCallbacks();
-    await expect(withoutReadline.callbacks.onGoalBlocked({ question: "Need input" })).resolves.toBe(
-      "",
-    );
-    expect(withoutReadline.saved).toHaveBeenCalledTimes(1);
-  });
-
   test("blocks a goal at its iteration limit and only renders nonempty final responses", async () => {
     const { callbacks, state, writes, saved } = makeCallbacks();
     await callbacks.onGoalLimit(8);

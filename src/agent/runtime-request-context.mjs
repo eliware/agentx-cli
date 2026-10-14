@@ -1,3 +1,5 @@
+import { setAgentActiveGoal } from "./runtime-state-persistence.mjs";
+
 export function createAgentRequestContext({
   state,
   cwd,
@@ -25,9 +27,7 @@ export function createAgentRequestContext({
     recoveryDependencies: recovery,
     getTemplate: () => state.runtime.template,
     getGoal: () => state.runtime.activeGoal,
-    setGoal: (goal) => {
-      state.runtime.activeGoal = goal;
-    },
+    setGoal: (goal) => setAgentActiveGoal(state.runtime, goal),
     getCwd: cwd,
     getOpenAI: () => state.runtime.openai,
     getSessionUsage: () => state.runtime.sessionUsage,

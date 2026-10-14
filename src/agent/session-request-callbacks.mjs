@@ -1,6 +1,8 @@
 import { inspectImage as inspectImageDefault } from "../image-inspector.mjs";
 import { addUsageTotals as addUsageTotalsDefault } from "../response.mjs";
 import { createGoalCallbacks as createGoalCallbacksDefault } from "./goal-callbacks.mjs";
+import { createSessionImageInspection } from "./session-image-inspection.mjs";
+import { createSessionWorkerUsageCallback } from "./session-worker-usage-accounting.mjs";
 
 export function createSessionRequestCallbacks({
   getOpenAI,
@@ -44,26 +46,13 @@ export function createSessionRequestCallbacks({
     await saveState();
   };
 
-  const onViewImage = async ({ args, response, previousResponseId, baseRequest, cwd }) =>
-    inspectImage(getOpenAI(), args, {
-      cwd,
-      responseId: response?.id,
-      previousResponseId,
-      callerResponse: response,
-      model: baseRequest?.model,
-      processWorker: true,
-      onUsage: (usage) => {
-        const totals = getSessionUsage();
-        addUsageTotals(totals, usage);
-        totals.turns += usage.turns || 1;
-      },
-    });
-
-  const onWorkerUsage = (usage) => {
-    const totals = getSessionUsage();
-    addUsageTotals(totals, usage);
-    totals.turns += usage.turns || 0;
-  };
+  const onViewImage = createSessionImageInspection({
+    getOpenAI,
+    getSessionUsage,
+    addUsageTotals,
+    inspectImage,
+  });
+  const onWorkerUsage = createSessionWorkerUsageCallback({ getSessionUsage, addUsageTotals });
 
   const goalCallbacks = createGoalCallbacks({
     getGoal,

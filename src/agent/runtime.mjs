@@ -8,6 +8,7 @@ import { startAgentRuntime } from "./runtime-startup.mjs";
 import { createAgentRuntimeTurnContext } from "./runtime-turn-context.mjs";
 import { setupAgentRuntimeRecovery } from "./runtime-recovery-setup.mjs";
 import { createRuntimePromptContext } from "./runtime-prompt-context.mjs";
+import { createSessionWorkingDirectory } from "./session-working-directory.mjs";
 
 export async function runAgent({
   promptPath,
@@ -20,6 +21,7 @@ export async function runAgent({
 } = {}) {
   const session = await prepareAgentSession({ promptPath, cwd, oneShot, flags });
   const { outputFlags, checkpointPath, statePath } = session;
+  const workingDirectory = createSessionWorkingDirectory(cwd);
   const yoloEnabled = !outputFlags.confirm;
   const { runtimeState, createSessionClient, onWorkerComplete, repl, agentsText } =
     await startAgentRuntime({ session, cwd, oneShot, terminalInput, terminalOutput });
@@ -71,10 +73,8 @@ export async function runAgent({
     handleImageGeneration,
     onWorkerComplete,
     setActiveOpenAI: agentProcessLifecycle.setActiveClient,
-    getCwd: () => cwd,
-    setCwd: (value) => {
-      cwd = value;
-    },
+    getCwd: workingDirectory.get,
+    setCwd: workingDirectory.set,
   });
 
   const promptContext = createRuntimePromptContext({

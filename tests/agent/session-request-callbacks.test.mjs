@@ -84,45 +84,8 @@ describe("session request callbacks", () => {
     });
     expect(state.saveState).toHaveBeenCalledTimes(1);
   });
-  test("inspects images with caller response identity and accounts branch usage", async () => {
+  test("creates goal callbacks with live state accessors", () => {
     const state = makeCallbacks();
-    await expect(
-      state.callbacks.onViewImage({
-        args: { images: [] },
-        response: { id: "caller" },
-        previousResponseId: "previous",
-        baseRequest: { model: "model" },
-        cwd: "/work",
-      }),
-    ).resolves.toBe("inspected");
-    expect(state.inspectImage).toHaveBeenCalledWith(
-      "client",
-      { images: [] },
-      expect.objectContaining({
-        cwd: "/work",
-        responseId: "caller",
-        previousResponseId: "previous",
-        callerResponse: { id: "caller" },
-        model: "model",
-        processWorker: true,
-      }),
-    );
-    expect(state.usage).toMatchObject({
-      inputTokens: 4,
-      cachedTokens: 1,
-      outputTokens: 6,
-      turns: 2,
-    });
-  });
-  test("accounts image and worker usage and creates goal callbacks with live state accessors", () => {
-    const state = makeCallbacks();
-    state.callbacks.onWorkerUsage({ inputTokens: 5, cachedTokens: 2, outputTokens: 7, turns: 3 });
-    expect(state.usage).toMatchObject({
-      inputTokens: 6,
-      cachedTokens: 2,
-      outputTokens: 9,
-      turns: 3,
-    });
     expect(state.goalCallbacksFactory).toHaveBeenCalledWith(
       expect.objectContaining({
         getGoal: expect.any(Function),
@@ -149,13 +112,8 @@ describe("session request callbacks", () => {
       expect.objectContaining({ onGoalIteration: expect.any(Function) }),
     );
   });
-  test("uses empty retry defaults and zero-or-missing usage turn fallbacks", async () => {
-    const state = makeCallbacks({
-      inspectImage: jest.fn(async (_client, _args, options) => {
-        options.onUsage({ inputTokens: 1, cachedTokens: 0, outputTokens: 0 });
-        return "inspected";
-      }),
-    });
+  test("uses empty retry defaults", async () => {
+    const state = makeCallbacks();
     state.values.pendingTransaction = undefined;
     await state.callbacks.onRetryState({ request: null, response: null });
     expect(state.values.pendingTransaction).toEqual({
@@ -166,9 +124,5 @@ describe("session request callbacks", () => {
       execution_journal: [{ identity: "shell:test" }],
       attempt_count: 1,
     });
-    await state.callbacks.onViewImage({ args: {}, response: null, baseRequest: null, cwd: "." });
-    expect(state.usage.turns).toBe(1);
-    state.callbacks.onWorkerUsage({ inputTokens: 0, cachedTokens: 0, outputTokens: 0 });
-    expect(state.usage.turns).toBe(1);
   });
 });

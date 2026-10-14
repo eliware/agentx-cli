@@ -3,7 +3,7 @@ import {
   recoverPendingSession,
   shouldRecoverPendingSession,
 } from "../../src/agent/session-pending-recovery.mjs";
-import { baseState, harness } from "../../test-fixtures/session-pending-recovery-helpers.mjs";
+import { harness } from "../../test-fixtures/session-pending-recovery-helpers.mjs";
 describe("session pending recovery", () => {
   test.each([
     [{ previousResponseId: "response", pendingToolCalls: [{}], oneShot: false }, true],
@@ -13,33 +13,7 @@ describe("session pending recovery", () => {
   ])("selects recovery only for interactive pending continuations: %j", (input, expected) => {
     expect(shouldRecoverPendingSession(input)).toBe(expected);
   });
-  test("abandons a pending transaction to the last successful checkpoint", async () => {
-    const state = baseState();
-    state.pending_transaction = { request: { input: [] } };
-    state.history = [
-      { response_id: "response-good", last_user_message: "old", usage: { turns: 2 } },
-    ];
-    const ctx = harness("new-session", state);
-    await recoverPendingSession({
-      savedState: {},
-      getState: ctx.getState,
-      setState: ctx.setState,
-      execute: jest.fn(),
-      deps: ctx.deps,
-    });
-    expect(ctx.getState()).toMatchObject({
-      response_id: "response-good",
-      last_user_message: "old",
-      usage: { turns: 2 },
-      pending_tool_calls: [],
-      pending_transaction: null,
-      pending_retry_request: null,
-      failed_response: false,
-    });
-    expect(ctx.deps.persistCheckpoint).toHaveBeenCalledWith(state.history[0]);
-    expect(ctx.deps.saveState).toHaveBeenCalledTimes(1);
-  });
-  test("clears a new session when there is no pending transaction", async () => {
+  test("routes the new-session choice to pending-session abandonment", async () => {
     const ctx = harness("new-session");
     await recoverPendingSession({
       savedState: {},
@@ -50,26 +24,7 @@ describe("session pending recovery", () => {
     });
     expect(ctx.deps.resetState).toHaveBeenCalledWith({ turns: 0 });
     expect(ctx.deps.clearSession).toHaveBeenCalledTimes(1);
-  });
-  test("abandons a transaction to an empty session when no checkpoint exists", async () => {
-    const state = baseState();
-    state.pending_transaction = { request: { input: [] } };
-    state.history = [];
-    const ctx = harness("new-session", state);
-    await recoverPendingSession({
-      savedState: {},
-      getState: ctx.getState,
-      setState: ctx.setState,
-      execute: jest.fn(),
-      deps: ctx.deps,
-    });
-    expect(ctx.getState()).toMatchObject({
-      response_id: "",
-      last_user_message: "",
-      last_assistant_message: "",
-      usage: { turns: 0 },
-    });
-    expect(ctx.deps.persistCheckpoint).not.toHaveBeenCalled();
+    expect(ctx.deps.createRunner).not.toHaveBeenCalled();
   });
   test("applies a successful resumed response", async () => {
     const ctx = harness("auto-resume");

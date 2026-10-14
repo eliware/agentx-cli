@@ -52,7 +52,7 @@ test("exposes request services and live runtime state", async () => {
   expect(context.getTemplate()).toBe("template");
   expect(context.getGoal()).toBeNull();
   context.setGoal("goal");
-  expect(runtime.activeGoal).toBe("goal");
+  expect(context.getGoal()).toBe("goal");
   expect(context.getCwd()).toBe("/work");
   expect(context.getOpenAI()).toBe("client");
   expect(context.getSessionUsage()).toBe(runtime.sessionUsage);

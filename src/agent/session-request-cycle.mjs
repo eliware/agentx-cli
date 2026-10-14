@@ -1,7 +1,7 @@
 import { sendMessage } from "../agent-turn/response-service.mjs";
 import { buildRequestOverride, withGoalTools, WORKER_ROLE_MESSAGE } from "../request-builder.mjs";
 import { createSessionRequestCallbacks } from "./session-request-callbacks.mjs";
-import { attachGoalInterruptListener } from "./session-input.mjs";
+import { attachGoalInterruptListener } from "./session-goal-interruption.mjs";
 import { resolveSessionRequestFailure } from "./session-request-recovery.mjs";
 import { createSessionRequestOptions } from "./session-request-options.mjs";
 
