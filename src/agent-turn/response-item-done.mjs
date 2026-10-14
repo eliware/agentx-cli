@@ -1,6 +1,7 @@
 import { writeTerminal } from "../terminal-output.mjs";
 import { formatSystemMessage } from "../shell-display.mjs";
-import { isMcpToolCall, isShellToolCall, responseItemToTranscript } from "./response-format.mjs";
+import { isMcpToolCall, isShellToolCall } from "./response-event-types.mjs";
+import { responseItemToTranscript } from "./response-format.mjs";
 
 export function createResponseItemDoneHandler({
   noReasoning,

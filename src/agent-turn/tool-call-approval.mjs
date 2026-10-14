@@ -1,5 +1,8 @@
 import { toolOutputForCall } from "../tool-output-adapter.mjs";
-import { requiresDestructiveConfirmation, requiresToolConfirmation } from "../tool-permissions.mjs";
+import {
+  requiresDestructiveConfirmation,
+  requiresToolConfirmation,
+} from "../tool-confirmation-rules.mjs";
 
 export async function approveToolCall(call, cwd, streamOptions, statusController) {
   if (

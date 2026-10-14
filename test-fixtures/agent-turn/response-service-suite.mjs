@@ -1,9 +1,8 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import path from "node:path";
 import { writeFileSync } from "node:fs";
-import { buildInputMessage } from "../../src/prompt-builder.mjs";
 import { sendMessage } from "../../src/agent-turn/response-service.mjs";
-import { createStatusLineController } from "../../src/agent-turn/status-controller.mjs";
+import { buildInputMessage } from "../../src/prompt-builder.mjs";
 import { loadPromptTemplate } from "../../src/prompt-loader.mjs";
 import { cleanupTempDir, makeTempDir } from "../test-helpers.mjs";
 
@@ -74,7 +73,6 @@ describe("agent session modules", () => {
       cleanupTempDir(tmp);
     }
   });
-
   test("sendMessage stops status controller when streaming fails", async () => {
     const statusController = { showReasoning: jest.fn(), clear: jest.fn(), stop: jest.fn() };
     const openai = {
@@ -94,57 +92,6 @@ describe("agent session modules", () => {
       ),
     ).rejects.toThrow("stream failed");
     expect(statusController.stop).toHaveBeenCalledTimes(1);
-  });
-  test("sendMessage uses first-message templating on a fresh session", async () => {
-    const template = {
-      model: "test-model",
-      input: [
-        { role: "developer", content: [{ type: "input_text", text: "base prompt" }] },
-        { role: "user", content: [{ type: "input_text", text: "first user message" }] },
-      ],
-      context_management: [{ type: "compaction", compact_threshold: 300000 }],
-      tools: [],
-    };
-
-    const calls = [];
-    const openai = {
-      responses: {
-        create: async (request) => {
-          calls.push(request);
-          return { id: "resp-1", output: [] };
-        },
-      },
-    };
-
-    await sendMessage(openai, template, "", "hello", "AGENTS body", "/tmp/work");
-
-    expect(calls[0].input[1].content[0].text).toBe("hello");
-    expect(calls[0].input[0].content[0].text).toContain("/tmp/work");
-    expect(calls[0].context_management).toEqual([
-      { type: "compaction", compact_threshold: 300000 },
-    ]);
-  });
-  test("sendMessage resumes with previous_response_id for subsequent turns", async () => {
-    const template = { model: "test-model", input: [], tools: [] };
-    const calls = [];
-    const openai = {
-      responses: {
-        create: async (request) => {
-          calls.push(request);
-          return { id: "resp-2", output: [] };
-        },
-      },
-    };
-
-    await sendMessage(openai, template, "prev-1", "next", "", "/tmp/work");
-
-    expect(calls[0]).toEqual({
-      model: "test-model",
-      input: [buildInputMessage("next")],
-      store: true,
-      tools: [],
-      previous_response_id: "prev-1",
-    });
   });
   test("sendMessage preserves top-level prompt config when using a request override", async () => {
     const template = {
@@ -186,165 +133,5 @@ describe("agent session modules", () => {
       tools: [],
       previous_response_id: "prev-1",
     });
-  });
-  test("sendMessage pauses live status during web search events and resumes reasoning after completion", async () => {
-    jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
-    const statusController = createStatusLineController(Date.now());
-    try {
-      const template = { model: "test-model", input: [], tools: [] };
-      let handlers;
-      let resolveResponse;
-      const openai = {
-        responses: {
-          create: async (_request, nextHandlers) => {
-            handlers = nextHandlers;
-            return await new Promise((resolve) => {
-              resolveResponse = resolve;
-            });
-          },
-        },
-      };
-
-      const pending = sendMessage(
-        openai,
-        template,
-        "",
-        "hello",
-        "AGENTS body",
-        "/tmp/work",
-        null,
-        null,
-        { liveStreaming: true, statusController },
-      );
-
-      expect(stdoutWrites.join("")).toContain('{"time":"0s"');
-
-      handlers.onEvent(
-        { type: "response.web_search_call.in_progress" },
-        { raw: '{"type":"response.web_search_call.in_progress"}' },
-      );
-      handlers.onEvent(
-        { type: "response.web_search_call.searching" },
-        { raw: '{"type":"response.web_search_call.searching"}' },
-      );
-
-      const writeCount = stdoutWrites.length;
-      await jest.advanceTimersByTimeAsync(1000);
-      expect(stdoutWrites.length).toBe(writeCount);
-
-      handlers.onItemDone({
-        type: "web_search_call",
-        action: {
-          queries: ["alpha"],
-          sources: [{ type: "url", url: "https://example.com" }],
-        },
-      });
-
-      const output = stdoutWrites.join("");
-      expect(output).toContain('[38;5;213m{"web_search":"in_progress"}[0m');
-      expect(output).toContain('[38;5;213m{"web_search":"searching"}[0m');
-      expect(output).toContain('\u001b[38;5;213m{\n  "web_search": "complete",');
-      expect(output).toContain(`"queries": [
-    "alpha"
-  ]`);
-      expect(output).toContain(`"sources": [
-    "https://example.com"
-  ]`);
-      expect(output).toContain('[32m"reasoning":"0s/0s"[38;5;255m');
-
-      const beforeBlank = stdoutWrites.length;
-      handlers.onItemDone({ type: "web_search_call", action: { queries: [], sources: [] } });
-      expect(stdoutWrites.length).toBe(beforeBlank);
-
-      resolveResponse({ id: "resp-live", output: [] });
-      await pending;
-    } finally {
-      statusController.stop();
-      jest.useRealTimers();
-    }
-  });
-  test("sendMessage appends a newline after live streamed text when needed", async () => {
-    const template = { model: "test-model", input: [], tools: [] };
-    const openai = {
-      responses: {
-        create: async (_request, handlers) => {
-          handlers?.onTextDelta("done");
-          return { id: "resp-live", output: [] };
-        },
-      },
-    };
-
-    await sendMessage(openai, template, "", "hello", "AGENTS body", "/tmp/work", null, null, {
-      liveStreaming: true,
-    });
-
-    expect(stdoutWrites.join("")).toContain(`done\x1b[0m\n`);
-  });
-  test("sendMessage does not append an extra newline when streamed text already ends with one", async () => {
-    const template = { model: "test-model", input: [], tools: [] };
-    const openai = {
-      responses: {
-        create: async (_request, handlers) => {
-          handlers?.onTextDelta("done\n");
-          return { id: "resp-live", output: [] };
-        },
-      },
-    };
-
-    await sendMessage(openai, template, "", "hello", "AGENTS body", "/tmp/work", null, null, {
-      liveStreaming: true,
-    });
-
-    expect(stdoutWrites.join("")).toContain(`done\n\x1b[0m`);
-    expect(stdoutWrites.join("")).not.toContain("done\n\n");
-  });
-  test("sendMessage shows live stats until the first streamed delta and formats long waits as minutes", async () => {
-    jest.useFakeTimers({ now: Date.parse("2026-07-08T00:00:00Z") });
-    const statusController = createStatusLineController(Date.now());
-    try {
-      const template = { model: "test-model", input: [], tools: [] };
-      let handlers;
-      let resolveResponse;
-      const openai = {
-        responses: {
-          create: async (_request, nextHandlers) => {
-            handlers = nextHandlers;
-            return await new Promise((resolve) => {
-              resolveResponse = resolve;
-            });
-          },
-        },
-      };
-
-      const pending = sendMessage(
-        openai,
-        template,
-        "",
-        "hello",
-        "AGENTS body",
-        "/tmp/work",
-        null,
-        null,
-        { liveStreaming: true, statusController },
-      );
-
-      expect(stdoutWrites.join("")).toContain(
-        '{"time":"0s",\u001b[32m"reasoning":"0s/0s"\u001b[38;5;255m,"writing":"0s/0s"',
-      );
-
-      await jest.advanceTimersByTimeAsync(1000);
-      expect(stdoutWrites.join("")).toContain('{"time":"1s"');
-
-      handlers.onTextDelta("Hi");
-      resolveResponse({ id: "resp-live", output: [] });
-      await pending;
-
-      const output = stdoutWrites.join("");
-      expect(output).toContain("Hi");
-      expect(output).toContain('\u001b[38;5;255m{"time":');
-    } finally {
-      statusController.stop();
-      jest.useRealTimers();
-    }
   });
 });

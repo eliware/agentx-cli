@@ -1,4 +1,4 @@
-import { applyFirstUserMessage, buildInputMessage } from "../prompt-builder.mjs";
+import { buildResponseRequest } from "../request-builder.mjs";
 import { runToolCall } from "../tool-dispatch.mjs";
 import { createStatusLineController } from "./status-controller.mjs";
 import { handleToolCalls } from "./tool-loop.mjs";
@@ -24,19 +24,14 @@ export async function sendMessage(
       transitionOnly: Boolean(streamOptions?.transitionOnlyStatus),
       colors: streamOptions?.colors !== false,
     });
-  const request = requestOverride
-    ? { ...baseRequest, ...requestOverride }
-    : previousResponseId
-      ? {
-          ...baseRequest,
-          input: [buildInputMessage(userMessage)],
-          store: true,
-          previous_response_id: previousResponseId,
-        }
-      : {
-          ...applyFirstUserMessage(baseRequest, userMessage, agentsText, cwd),
-          store: true,
-        };
+  const request = buildResponseRequest(
+    baseRequest,
+    userMessage,
+    agentsText,
+    cwd,
+    previousResponseId,
+    requestOverride,
+  );
 
   try {
     const response = await createStreamedResponse(openai, request, {

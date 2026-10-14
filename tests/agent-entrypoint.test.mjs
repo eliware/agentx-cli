@@ -1,6 +1,14 @@
 import { expect, jest, test } from "@jest/globals";
 import { readFile } from "node:fs/promises";
 
+await import("../test-fixtures/entrypoint-startup-suite.mjs");
+await import("../test-fixtures/entrypoint-info-suite.mjs");
+await import("../test-fixtures/entrypoint-mcp-suite.mjs");
+await import("../test-fixtures/entrypoint-cwd-suite.mjs");
+await import("../test-fixtures/entrypoint-errors-suite.mjs");
+await import("../test-fixtures/entrypoint-setup-integration-suite.mjs");
+await import("../test-fixtures/entrypoint-direct-suite.mjs");
+
 test("the source entrypoint supports the documented CLI flags", async () => {
   await jest.unstable_mockModule("../src/runtime.mjs", () => ({
     isDirectInvocation: () => false,

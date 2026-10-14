@@ -2,9 +2,11 @@ import { describe, expect, test } from "@jest/globals";
 import {
   isFunctionCallArgumentsDeltaEvent,
   isMcpEvent,
+  isMcpToolCall,
   isReasoningSummaryEvent,
   isResponseCompletedEvent,
   isShellCallCommandDeltaEvent,
+  isShellToolCall,
   isWebSearchEvent,
 } from "../../src/agent-turn/response-event-types.mjs";
 
@@ -28,5 +30,14 @@ describe("response event types", () => {
     expect(isMcpEvent({})).toBe(false);
     expect(isReasoningSummaryEvent({ type: "response.reasoning_summary_text.delta" })).toBe(true);
     expect(isReasoningSummaryEvent({})).toBe(false);
+  });
+
+  test("classifies shell and MCP response items", () => {
+    expect(isShellToolCall({ type: "shell_call" })).toBe(true);
+    expect(isShellToolCall({ type: "function_call" })).toBe(false);
+    expect(isShellToolCall(null)).toBe(false);
+    expect(isMcpToolCall({ type: "mcp_call" })).toBe(true);
+    expect(isMcpToolCall({ type: "shell_call" })).toBe(false);
+    expect(isMcpToolCall(undefined)).toBe(false);
   });
 });

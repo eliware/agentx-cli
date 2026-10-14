@@ -12,6 +12,8 @@ body: |
 
   At startup, if a home directory exists, load `$HOME/.agentx` with dotenv (quietly). Environment variables already present remain usable; the runtime must support both `agentx_api_key` and `AGENTX_API_KEY`, preferring the lowercase name.
 
+  The application entrypoint owns CLI dispatch and startup composition. The interactive setup prompt, setup call, and configuration reload belong to `agent-entrypoint-setup.mjs`. Its mirrored tests cover prompt decisions and setup ordering; entrypoint tests cover only startup wiring and dispatch.
+
   Flags are handled before the REPL:
 
   - `--help`, `-h`, `-?`: print help and exit 0.

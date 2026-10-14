@@ -1,5 +1,5 @@
 import { dedupeToolCalls } from "../tool-call-identity.mjs";
-import { isShellToolCall } from "./response-format.mjs";
+import { isShellToolCall } from "./response-event-types.mjs";
 import { isGoalToolCall } from "./goal-tools.mjs";
 import { collectToolLoopUsage, writeToolLoopUsage } from "./tool-loop-usage.mjs";
 

@@ -40,13 +40,6 @@ function shellOutputPreview(item) {
   }));
 }
 
-export function isShellToolCall(item) {
-  return item?.type === "shell_call";
-}
-export function isMcpToolCall(item) {
-  return item?.type === "mcp_call";
-}
-
 export function responseItemToTranscript(item) {
   if (!item || item.role === "developer" || item.role === "system") return "";
 

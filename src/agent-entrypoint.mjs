@@ -24,33 +24,33 @@ function printAndExit(text, code = 0) {
   process.exit(code);
 }
 
-async function confirmSetup() {
-  if (process.env.NODE_ENV === "test") return false;
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
-  const configFile = homeDirectory ? path(homeDirectory, ".agentx") : "";
-  if (
-    configFile &&
-    existsSync(configFile) &&
-    (process.env.agentx_api_key || process.env.AGENTX_API_KEY)
-  )
-    return false;
+async function askToRunSetup() {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = (await rl.question("AgentX is not configured. Run agentx-setup now? [Y/n] "))
-      .trim()
-      .toLowerCase();
-    if (answer && answer !== "y" && answer !== "yes") return false;
-    rl.close();
-    const { runSetup } = await import("./setup.mjs");
-    const { setupPaths } = await import("./setup-paths.mjs");
-    await runSetup({ stdin: process.stdin, stdout: process.stdout });
-    loadUserConfiguration(setupPaths.envPath, { override: true });
-    return Boolean(
-      existsSync(setupPaths.envPath) && (process.env.agentx_api_key || process.env.AGENTX_API_KEY),
-    );
+    return await rl.question("AgentX is not configured. Run agentx-setup now? [Y/n] ");
   } finally {
     rl.close();
   }
+}
+
+async function confirmSetup() {
+  const configFile = homeDirectory ? path(homeDirectory, ".agentx") : "";
+  const { confirmSetup: runSetupPrompt } = await import("./agent-entrypoint-setup.mjs");
+  return runSetupPrompt({
+    isTest: process.env.NODE_ENV === "test",
+    isTty: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+    configured: Boolean(configFile && existsSync(configFile)),
+    hasApiKey: () => Boolean(process.env.agentx_api_key || process.env.AGENTX_API_KEY),
+    ask: askToRunSetup,
+    runSetup: async () => {
+      const { runSetup } = await import("./setup.mjs");
+      await runSetup({ stdin: process.stdin, stdout: process.stdout });
+    },
+    reloadConfiguration: async () => {
+      const { setupPaths } = await import("./setup-paths.mjs");
+      loadUserConfiguration(setupPaths.envPath, { override: true });
+    },
+  });
 }
 
 function printStartupError(error) {

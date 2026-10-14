@@ -1,9 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import {
-  isMcpToolCall,
-  isShellToolCall,
-  responseItemToTranscript,
-} from "../../src/agent-turn/response-format.mjs";
+import { responseItemToTranscript } from "../../src/agent-turn/response-format.mjs";
 
 describe("agent response transcript formatting", () => {
   test("formats message text, refusals, roles, and empty content", () => {
@@ -127,33 +123,16 @@ describe("agent response transcript formatting", () => {
     expect(transcript).toContain("tool output shell_call_output:");
     expect(transcript).toContain("x".repeat(120));
     expect(transcript).not.toContain("x".repeat(121));
-    expect(
-      responseItemToTranscript({
-        type: "custom_call_output",
-        output: [{}],
-        encrypted_content: "secret",
-        result: "x".repeat(501),
-      }),
-    ).toContain("[encrypted reasoning omitted]");
-    expect(
-      responseItemToTranscript({
-        type: "custom_call_output",
-        output: [{}],
-        encrypted_content: "secret",
-        result: "x".repeat(501),
-      }),
-    ).toContain("[large result omitted: 501 chars]");
+    const omittedTranscript = responseItemToTranscript({
+      type: "custom_call_output",
+      output: [{}],
+      encrypted_content: "secret",
+      result: "x".repeat(501),
+    });
+    expect(omittedTranscript).toContain("[encrypted reasoning omitted]");
+    expect(omittedTranscript).toContain("[large result omitted: 501 chars]");
     expect(responseItemToTranscript({ type: "shell_call_output", call_id: "call-5" })).toBe(
       'tool output shell_call_output: {"call_id":"call-5","output":[]}',
     );
-  });
-
-  test("classifies shell and MCP calls without formatting response contents", () => {
-    expect(isShellToolCall({ type: "shell_call" })).toBe(true);
-    expect(isShellToolCall({ type: "function_call" })).toBe(false);
-    expect(isShellToolCall(null)).toBe(false);
-    expect(isMcpToolCall({ type: "mcp_call" })).toBe(true);
-    expect(isMcpToolCall({ type: "shell_call" })).toBe(false);
-    expect(isMcpToolCall(undefined)).toBe(false);
   });
 });

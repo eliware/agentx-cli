@@ -1,6 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import {
   buildRequestOverride,
+  buildResponseRequest,
   GOAL_TOOL_NAMES,
   withGoalTools,
   WORKER_ROLE_MESSAGE,
@@ -99,6 +100,35 @@ describe("request builder", () => {
         { role: "developer", content: [{ type: "input_text", text: expect.any(String) }] },
         { role: "user", content: [{ type: "input_text", text: "hello" }] },
       ],
+    });
+  });
+
+  test("selects and merges streamed response requests", () => {
+    const base = {
+      model: "test-model",
+      input: [{ role: "user", content: [{ type: "input_text", text: "first user message" }] }],
+      tools: [],
+      text: { verbosity: "low" },
+    };
+    expect(buildResponseRequest(base, "hello", "", "/tmp/work", "", null)).toMatchObject({
+      model: "test-model",
+      store: true,
+      input: [{ role: "user", content: [{ type: "input_text", text: "hello" }] }],
+    });
+    expect(buildResponseRequest(base, "next", "", "/tmp/work", "resp-1", null)).toMatchObject({
+      model: "test-model",
+      store: true,
+      previous_response_id: "resp-1",
+      input: [{ role: "user", content: [{ type: "input_text", text: "next" }] }],
+    });
+    expect(
+      buildResponseRequest(base, "next", "", "/tmp/work", "resp-1", {
+        input: [{ role: "user", content: [{ type: "input_text", text: "override" }] }],
+      }),
+    ).toMatchObject({
+      model: "test-model",
+      text: { verbosity: "low" },
+      input: [{ role: "user", content: [{ type: "input_text", text: "override" }] }],
     });
   });
 });

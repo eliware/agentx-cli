@@ -24,3 +24,11 @@ export function isMcpEvent(event) {
 export function isReasoningSummaryEvent(event) {
   return typeof event?.type === "string" && event.type.startsWith("response.reasoning_summary_");
 }
+
+export function isShellToolCall(item) {
+  return item?.type === "shell_call";
+}
+
+export function isMcpToolCall(item) {
+  return item?.type === "mcp_call";
+}

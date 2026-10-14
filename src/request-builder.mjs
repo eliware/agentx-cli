@@ -47,3 +47,15 @@ export function buildRequestOverride(
     store: true,
   };
 }
+
+export function buildResponseRequest(
+  baseRequest,
+  userMessage,
+  agentsText,
+  cwd,
+  previousResponseId,
+  requestOverride,
+) {
+  if (requestOverride) return { ...baseRequest, ...requestOverride };
+  return buildRequestOverride(baseRequest, userMessage, agentsText, cwd, previousResponseId);
+}

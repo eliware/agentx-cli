@@ -1,10 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import {
-  commandPermission,
-  permissionAllows,
-  requiresDestructiveConfirmation,
-  requiresToolConfirmation,
-} from "../src/tool-permissions.mjs";
+import { commandPermission, permissionAllows } from "../src/tool-permissions.mjs";
 
 describe("tool permission and confirmation policy", () => {
   test("classifies shell commands and applies permission levels", () => {
@@ -42,35 +37,6 @@ describe("tool permission and confirmation policy", () => {
     expect(
       permissionAllows("write", { type: "shell_call", action: { commands: ["node x"] } }),
     ).toBe(false);
-  });
-
-  test("distinguishes opt-in confirmations from destructive commands", () => {
-    expect(
-      requiresToolConfirmation({ type: "shell_call", action: { commands: ["rm file"] } }),
-    ).toBe(true);
-    expect(
-      requiresToolConfirmation({ type: "shell_call", action: { commands: ["apt install nginx"] } }),
-    ).toBe(false);
-    expect(requiresToolConfirmation({ type: "function_call", name: "shutdown" })).toBe(false);
-    expect(
-      requiresDestructiveConfirmation({
-        type: "shell_call",
-        action: { commands: ["rm -rf /tmp/x"] },
-      }),
-    ).toBe(true);
-    expect(
-      requiresDestructiveConfirmation({
-        type: "shell_call",
-        action: { commands: ["git reset --hard"] },
-      }),
-    ).toBe(true);
-    expect(
-      requiresDestructiveConfirmation({
-        type: "shell_call",
-        action: { commands: ["printf safe"] },
-      }),
-    ).toBe(false);
-    expect(requiresDestructiveConfirmation({ type: "function_call", name: "rm" })).toBe(false);
   });
 
   test("treats wrappers, substitutions, and encoded execution as execute-level", () => {
