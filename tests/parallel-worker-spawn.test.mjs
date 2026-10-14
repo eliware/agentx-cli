@@ -9,3 +9,17 @@ test("starts a worker and reports its state", async () => {
   expect(start).toHaveBeenCalledWith("work", "/workspace", "execute", false, undefined, undefined);
   expect(result.agent).toMatchObject({ id: "a", status: "running" });
 });
+
+test("waits for a running worker until the requested deadline", async () => {
+  jest.useFakeTimers();
+  try {
+    const start = jest.fn(() => ({ id: "b", status: "running", startedAt: Date.now() }));
+    const resultPromise = spawnWorker({ task: "wait", wait_ms: 100 }, "/workspace", {}, start);
+
+    await jest.advanceTimersByTimeAsync(100);
+
+    await expect(resultPromise).resolves.toMatchObject({ waited_ms: 100, timed_out: true });
+  } finally {
+    jest.useRealTimers();
+  }
+});
