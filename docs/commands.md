@@ -1,83 +1,83 @@
 # Command reference
 
-AgentX supports shell-like commands in the terminal, whether you launched it from a global install or from the repository.
+Use these commands in an interactive AgentX session unless this guide marks them as startup options.
 
-## Internal commands
+## Session commands
 
-- `cd <path>`: change the local working directory
-- `clear` or `/clear`: clear saved session state and start a fresh conversation
-- `!clear`: run the local shell `clear` command; this affects only the terminal display
-- `/usage`: print token and cost totals. Pricing follows the configured model and the pricing catalog in `@eliware/openai`.
+| Command                          | Action                                                |
+| -------------------------------- | ----------------------------------------------------- |
+| `cd PATH`                        | Change the session working directory.                 |
+| `cd -`                           | Return to the previous working directory.             |
+| `cd ~`                           | Change to your home directory.                        |
+| `clear` or `/clear`              | Delete saved session state and start a fresh session. |
+| `!clear`                         | Run the local terminal clear command.                 |
+| `/usage`                         | Show token totals and estimated cost.                 |
+| `/rollback`                      | Restore a successful response checkpoint.             |
+| `/setup`                         | Edit settings and reload them into the session.       |
+| `/goal TEXT`                     | Start an autonomous goal.                             |
+| `/goal status`                   | Show the active goal status.                          |
+| `/goal resume`                   | Resume a goal that you paused in this session.        |
+| `/goal cancel` or `/stop`        | Cancel the active goal.                               |
+| `quit`, `exit`, `/quit`, `/exit` | Close AgentX.                                         |
 
-The OpenAI client applies long-context pricing above its documented threshold. The usage report marks these requests with a warning.
+Any other input becomes a message to OpenAI. Prefix a local shell command with `!`.
 
-- `/rollback`: choose a successful response checkpoint to restore; pending tool calls are cleared and newer checkpoints are discarded
-- `/goal <text>`: start autonomous goal mode; `/goal status` reports progress, `/goal cancel` or `/stop` cancels it
-- `/setup`: edit API key, model, reasoning, output, and compaction settings, then reload them without ending the session
-- `quit`, `exit`, `/quit`, `/exit`: leave the app
+## Local shell
 
-## Autonomous goals
+Enter `!` followed by a command to run it in the current directory. AgentX streams its output and saves it for the next message.
 
-Goal mode continues through model-requested tool calls until `goal_update` (`complete`, `incomplete`, or `blocked`), `goal_blocked` user input, cancellation, or the iteration limit. A blocked goal pauses for the user's choice; saved goals are discarded on restart and never resume automatically.
+Direct local commands have no automatic timeout. Press Ctrl-C to stop a running command and return to AgentX.
 
-## Local shell commands
+The `shell_call` tool runs commands requested by the model. Press Ctrl-T to stop an active `shell_call`. AgentX then tells the model to stop and report current status.
 
-Prefix a line with `!` to run it locally. Direct commands have no automatic timeout. While one runs, press Ctrl-C to terminate it and return to AgentX; Ctrl-C does not exit AgentX in this case. Ctrl-T remains reserved for interrupting model-requested `shell_call` tools; the resulting tool message tells the agent to stop, avoid retries, and report current status.
+## Goal mode
 
-Example:
+Goal mode continues until the model marks the goal complete, blocked, or incomplete. A blocked goal can ask you a question.
 
-```text
-! ls
-```
+AgentX cancels a goal when you use `/goal cancel`, `/stop`, or Ctrl-C. AgentX discards saved goal state at startup.
 
-The output is stored and prepended to the next AI request.
+## Startup options
 
-This is separate from AgentX's internal `shell_call` tool, which the model uses for its own shell work and may run multiple commands in sequence internally.
+Pass these options when you start `agentx`:
 
-## Chat messages
+| Option                   | Action                                                  |
+| ------------------------ | ------------------------------------------------------- |
+| `--help`, `-h`, `-?`     | Show help and exit.                                     |
+| `--version`, `-v`        | Show the package version and exit.                      |
+| `--check-mcp`, `-K`      | Check MCP settings without contacting servers.          |
+| `--debug`                | Show raw transport logs and hide live status lines.     |
+| `--confirm`              | Ask for approval before high-risk tool calls.           |
+| `--yolo`                 | Use the legacy option that bypasses confirmation.       |
+| `--cwd PATH`, `-C PATH`  | Set the session working directory.                      |
+| `--quiet`, `-q`          | Hide usage, timers, tool output, and web-search output. |
+| `--no-usage`, `-u`       | Hide usage output.                                      |
+| `--no-colors`, `-c`      | Hide AgentX color codes.                                |
+| `--no-timers`, `-t`      | Hide status timers.                                     |
+| `--no-reasoning`, `-r`   | Hide reasoning output.                                  |
+| `--no-shell-calls`, `-s` | Hide shell-call output.                                 |
+| `--no-tool-calls`, `-o`  | Hide non-shell tool output.                             |
+| `--no-mcp`, `-m`         | Omit MCP tools from the request.                        |
+| `--no-mcp-output`, `-M`  | Hide MCP output and keep MCP tools enabled.             |
+| `--no-websearch`, `-w`   | Hide web-search output.                                 |
 
-Any other input is sent to OpenAI as a user message.
+You can stack short output options. For example, `agentx -qur` hides usage, reasoning, and other quiet-mode output.
 
-## Tab completion
-
-Tab completion suggests files and folders from the current directory. It follows the active directory after `cd` without creating duplicate input listeners.
-Paths with spaces are quoted.
+Output options change terminal display. They do not change tool execution, usage totals, reasoning settings, or request content. `--no-mcp` changes the request tool list.
 
 ## One-shot mode
 
-Pass a quoted message after the command to send one request and exit after the response and usage summary:
+Pass a quoted message after the command:
 
-```bash
-agentx "review the current project status"
+```sh
+agentx "summarize this project"
 ```
 
-One-shot mode inherits the latest successful checkpoint, but uses its own pending-state file. Multiple one-shots can run concurrently in the same directory without resuming or overwriting the interactive session's pending tool calls.
+AgentX sends one request, runs tool calls, prints the response and usage summary, then exits. It uses the latest successful checkpoint and a separate pending-state file.
 
-## Startup flags
+## Output and exit codes
 
-`agentx-setup --help` (`-h`) prints setup usage, and `agentx-setup --version`
-(`-v`) prints the package version. Both exit without entering the setup flow.
+AgentX writes prompts, responses, and status to stdout. It writes startup failures and diagnostics to stderr.
 
-These are command-line flags, not in-app commands:
+Code `0` means success. A nonzero code means failure. Help and version options exit with code `0`.
 
-- `--help`, `-h`, `-?`: show quick help and exit
-- `--version`, `-v`: print the package version and exit
-- `--check-mcp` (`-K`): validate the user-local MCP config shape, HTTPS URLs, labels, and authorization presence without contacting APIs
-- `--debug`: print raw websocket logs and suppress live status lines. MCP and reasoning argument deltas are filtered where appropriate to keep raw diagnostics readable.
-- `--confirm`: enable confirmation prompts for model-requested CLI tool calls. Without it, approval is automatic. `--yolo` remains a legacy alias.
-- `--cwd PATH` (`-C PATH`): use `PATH` as the working directory for the session. Relative paths resolve from the launch directory.
-- `--quiet` (`-q`): suppress usage, timers, shell-call output, non-shell tool output, MCP output, and web-search output while retaining reasoning and assistant text.
-- `--no-usage` (`-u`), `--no-colors` (`-c`), `--no-timers` (`-t`), `--no-reasoning` (`-r`), `--no-shell-calls` (`-s`), `--no-tool-calls` (`-o`), `--no-mcp-output` (`-M`), and `--no-websearch` (`-w`): selectively suppress those output categories. These flags affect rendering only; usage accounting, reasoning settings, tool execution, and request payloads are unchanged.
-- `--no-mcp` (`-m`): disable loading MCP tools into the request. This changes the request tool list and does not merely suppress rendering.
-
-Flags can be combined, for example `agentx --debug --confirm "run the test suite"`; short output flags can be stacked, such as `agentx -qur "run the tests"`.
-
-## Output and exit status
-
-Interactive mode writes prompts, responses, and status to stdout. Diagnostics, startup failures, and debug transport events are written to stderr. `agentx --help` and `agentx --version` are stable text interfaces; AgentX does not currently provide a JSON output mode.
-
-Invalid startup/configuration failures return a nonzero exit status. Successful help, version, and one-shot requests return zero.
-
-AgentX does not provide `--dry-run`: its write-capable behavior is limited to user-local session/configuration state and model-requested shell commands. Permission classification is advisory, not a sandbox; wrappers, scripts, aliases, substitutions, and encoded commands may bypass it. Use `--confirm` for tool execution and inspect commands before approval when writes are possible.
-
-`cd -` returns to the previous working directory; `cd ~` changes to the user home directory.
+AgentX has no JSON output mode. It does not provide a dry-run option. Tool permission checks are advisory and do not isolate shell commands. Use `--confirm` when you need approval prompts.

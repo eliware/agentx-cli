@@ -1,31 +1,39 @@
-# MCP smoke tests
+# MCP checks
 
-Run these checks from the AgentX repository so the local entrypoint and current working directory are unambiguous. The commands use the configured `~/.agentx.mcp.json` file and do not include credentials on the command line. On Windows, use `node bin/agentx.mjs` from the repository root and use PowerShell line continuation with a backtick instead of `\`.
+Run these checks from the AgentX repository. They use the MCP file in your home directory.
 
-## Confirm MCP is disabled
+## Check the configuration file
 
-```bash
-node bin/agentx.mjs --no-mcp --no-usage --no-timers --no-colors \
-  "Use an MCP tool if one is available. If no MCP tools are available, reply exactly: MCP disabled."
-```
+Run this command to check the file without contacting a server:
 
-Expected result: `MCP disabled.` and no MCP call.
-
-## Confirm MCP execution with output suppressed
-
-Temporarily set the target server's `enabled` field to `true` in `~/.agentx.mcp.json`, then run:
-
-```bash
-node bin/agentx.mjs --no-mcp-output --no-usage --no-timers --no-colors \
-  "Use the Puppeteer MCP tool to open https://example.com and report the page title."
-```
-
-Expected result: `Example Domain`, without streamed MCP call details. Restore `enabled: false` when finished if MCP should remain disabled by default.
-
-## Inspect configuration without contacting servers
-
-```bash
+```sh
 node bin/agentx.mjs --check-mcp
 ```
 
-This validates JSON shape, HTTPS URLs, labels, and authorization presence only. Disabled entries remain visible to this configuration check so they can be re-enabled later.
+AgentX checks JSON syntax, required fields, HTTPS URLs, labels, and authorization presence. It does not validate credentials with a server.
+
+## Check that MCP tools are disabled
+
+Run one request with MCP tools omitted:
+
+```sh
+node bin/agentx.mjs --no-mcp --no-usage --no-timers --no-colors "Use an MCP tool if one is available. If no MCP tools are available, reply exactly: MCP disabled."
+```
+
+Expected result: AgentX replies `MCP disabled.` and does not call an MCP tool.
+
+## Check output suppression
+
+Set an MCP server's `enabled` value to `true` in `~/.agentx.mcp.json`. Then run:
+
+```sh
+node bin/agentx.mjs --no-mcp-output --no-usage --no-timers --no-colors "Use the configured browser MCP tool to open https://example.com and report the page title."
+```
+
+Expected result: AgentX reports `Example Domain` without MCP call details. This check requires a configured browser server and valid authorization.
+
+Set `enabled` to `false` when you want to disable that server again.
+
+## Windows
+
+Run each command on one line in PowerShell. Start the command from the repository root.

@@ -1,100 +1,100 @@
 # Quickstart
 
-AgentX is a terminal chat agent built on the OpenAI Responses API over WebSocket transport.
-For most users, the simplest path is: install it globally, run `agentx-setup` once, then start `agentx`.
+AgentX is a terminal chat agent. It sends your messages to the OpenAI Responses API.
 
-## Start the CLI
+## Requirements
 
-If you installed the package globally, use:
+- Node.js 26 or later.
+- An OpenAI API key.
+- Windows or Linux.
 
-```bash
-agentx
+## Install and start
+
+Install AgentX for your user:
+
+```sh
+npm install --global @eliware/agentx-cli@latest
 ```
 
-If you are working from the repository root, use:
+Run setup to save your API key and settings:
 
-```bash
-node bin/agentx.mjs
-```
-
-## Optional: run the setup helper
-
-```bash
+```sh
 agentx-setup
 ```
 
-Use that to save your OpenAI API key and runtime settings in `~/.agentx`.
+Start an interactive session:
 
-## Quick flags
-
-- `agentx --help` or `agentx -h` shows quick help
-- `agentx --version` or `agentx -v` prints the package version
-- `agentx --debug` prints raw websocket logs and suppresses live status lines
-- `agentx --confirm` enables confirmation prompts; approval is the default
-- `agentx --check-mcp` (or `-K`) validates MCP configuration without contacting APIs
-- `agentx --cwd PATH` (or `-C PATH`) runs the session from a specific working directory; relative paths resolve from the launch directory
-- `agentx --quiet` is useful for one-shot subagents: it keeps reasoning and the final response while suppressing usage, timers, and tool/status output
-- Use `--no-reasoning` with `--quiet` to suppress reasoning too; output flags only affect rendering and do not disable reasoning in the API request
-- `agentx --no-mcp` (or `-m`) omits MCP tools from the request; `--no-mcp-output` (or `-M`) keeps MCP enabled but hides MCP call output
-- Short output flags can be stacked, for example `agentx -qur "run the tests"`
-- `agentx "message"` runs one request, performs tool calls, prints the response and usage summary, then exits
-- MCP calls and streamed arguments are shown in cyan when configured
-
-## One-shot requests
-
-Use a quoted argument when you want a single non-interactive request:
-
-```bash
-agentx "find the failing tests and explain them"
+```sh
+agentx
 ```
 
-One-shot requests branch from the latest successful checkpoint. Their pending tool state is isolated from `.agentx_responseid`, allowing concurrent subtasks in the same directory.
+From a repository checkout, run `node bin/agentx.mjs` instead.
 
-## Before you begin
+## Send your first message
 
-Set your API key in the shell environment, or let `agentx-setup` write it into `~/.agentx` for you:
+Type a message and press Enter. AgentX waits for your first message before it contacts OpenAI.
 
-```bash
+```text
+Explain this project.
+```
+
+AgentX streams the response to your terminal. It may also call enabled tools.
+
+## Set the API key in your shell
+
+You can set the key in the process environment instead of using setup.
+
+```sh
 export agentx_api_key="your-key-here"
-# or: export AGENTX_API_KEY="your-key-here"
 ```
 
-AgentX prefers `agentx_api_key` and falls back to `AGENTX_API_KEY`.
-The launchers load `~/.agentx` when present. Startup also displays the active model and runtime settings.
+On PowerShell, use:
 
-## Optional MCP tools
-
-To enable MCP tools, place an `.agentx.mcp.json` file in your home directory. Copy [`.agentx.mcp.json.example`](../.agentx.mcp.json.example) as a starting point and update its server URL and authorization. AgentX loads `~/.agentx.mcp.json` automatically; set `"enabled": false` on individual entries to keep them configured but disabled. A missing file is allowed, while invalid JSON prevents the prompt template from loading. See the [MCP smoke tests](./mcp-smoke-tests.md) for live verification commands.
-
-## First run
-
-1. Start AgentX.
-2. Type a normal message and press Enter.
-3. AgentX sends that message to OpenAI.
-4. The response streams into the terminal as it is generated.
-
-## What to expect
-
-- The prompt shows your user, short hostname, current working directory, and a `#` marker.
-- AgentX waits for your first message before contacting OpenAI.
-- Tool calls may stream command arguments and shell summaries live.
-- Interactive `!` commands have no automatic timeout; Ctrl-C stops the local command and returns to AgentX. Ctrl-T interrupts model-requested `shell_call` tools and tells the agent to stop, avoid retries, and report current status.
-- If `.agentx_responseid` exists, the session resumes automatically. If it contains pending tool calls, AgentX asks how you want to continue. Recognized closed/lifetime WebSocket failures are retried with exponential backoff for up to 10 seconds before recovery.
-
-## Install or update
-
-Install or update the latest release at any time with:
-
-```bash
-npm -g install @eliware/agentx-cli@latest
+```powershell
+$env:agentx_api_key = "your-key-here"
 ```
 
-See [AGENTS.md behavior](../AGENTS.md) for how project instructions are discovered and loaded. Path handling and shell launchers support Linux, macOS, and Windows.
+AgentX also accepts `AGENTX_API_KEY`. The lowercase name takes priority when both names have values.
 
-## Uninstall AgentX
+## Send one request
 
-```bash
-npm -g uninstall @eliware/agentx-cli
+Pass a message after the command to send one request and exit:
+
+```sh
+agentx "summarize this project"
 ```
 
-To remove local settings, review the files in your home directory and delete only the AgentX files that you own.
+One-shot mode uses the latest successful checkpoint. It keeps pending tool state in a separate temporary file.
+
+## Useful options
+
+- Run `agentx --help` to view commands and flags.
+- Run `agentx --version` to view the installed version.
+- Add `--cwd PATH` to set the session working directory.
+- Add `--confirm` to request approval for high-risk tool calls.
+- Add `--no-mcp` to omit MCP tools for one run.
+- Add `--no-mcp-output` to hide MCP output while MCP tools remain available.
+- Add `--quiet` to hide usage, timers, and tool output.
+- Add `--no-reasoning` to hide reasoning output.
+
+Read the [command guide](commands.md) for all flags.
+
+## Use MCP tools
+
+MCP servers are optional. Copy [the example file](../.agentx.mcp.json.example) to `~/.agentx.mcp.json` and set a server URL and required authorization.
+
+Use `"enabled": false` to keep a server in the file without loading its tools. Run `agentx --check-mcp` to validate the file without contacting servers.
+
+Read the [configuration guide](configuration.md) for MCP fields and security details.
+
+## Interrupt work
+
+Press Ctrl-C while a local `!` command runs to stop that command. AgentX then returns to its prompt.
+
+Press Ctrl-T while a model-requested `shell_call` runs to interrupt that tool. AgentX asks the model to stop and report the current status.
+
+## Update or remove AgentX
+
+Run `npm install --global @eliware/agentx-cli@latest` to update AgentX. Run `npm uninstall --global @eliware/agentx-cli` to remove it.
+
+Review files in your home directory before you delete AgentX settings or session data.

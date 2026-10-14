@@ -2,45 +2,36 @@
 
 ## Project
 
-`@eliware/agentx-cli` is AgentX, a Node.js 26 native ESM terminal application. It sends requests through the OpenAI Responses API.
+AgentX is a Node.js 26 native ESM terminal application. It uses the OpenAI Responses API.
 
 ## Scope and boundaries
 
-This repository owns the CLI and npm package. Shared policy belongs to Eliware. Follow the specifications in `specs/`.
+Keep this repository focused on the AgentX CLI and npm package. Follow `specs/` for product behavior.
 
 ## Layout
 
-- `src/` contains application code. `bin/` contains CLI launchers.
-- `tests/` mirrors `src/`. `test-fixtures/` contains test support.
-- `specs/` defines behavior. `docs/` and `README.md` guide users.
-- `package.json` defines package data, scripts, dependencies, and files.
+- Put application code in `src/` and launchers in `bin/`.
+- Put mirrored tests in `tests/` and shared test support in `test-fixtures/`.
+- Keep user guides in `docs/` and behavior rules in `specs/`.
 
 ## Development
 
-- Read the README, specifications, and related docs before edits.
-- Keep native ESM. Give each source and test module one purpose.
-- Add each new purpose in a focused module with a mirrored test.
-- Update specifications first. Then update tests and source code.
-- Keep changes within this repository. Do not weaken shared rules.
-- Keep modules under 100 lines. Keep tests under 200 lines.
-- Do not add coverage-ignore rules or internal export barrels.
+- Keep each module focused and use native ESM.
+- Mirror each `src/*.mjs` module with one test under `tests/`.
+- Keep source modules under 100 lines and test modules under 200 lines.
+- Do not add coverage exclusions or internal export barrels.
 
 ## Validation
 
-- Run `npm test` for aggregate checks.
-- Run `npm run lint` for lint checks.
-- Run `npm run audit` for dependency checks.
-- Run `npm run format` to format files.
-- Run `npm run format:check` to check formatting.
-- Run `eliware-test --pack` for package checks.
-- Require 100% statements, branches, functions, and lines. Require zero lint warnings.
-- Validate Node.js 26 on Windows, Linux, and GitHub Actions.
+- Use `npm test`, `npm run lint`, `npm run audit`, `npm run format`, and `npm run format:check`.
+- Require 100% statement, branch, function, and line coverage. Require zero lint warnings.
+- Use Node.js 26 on Windows, Linux, and GitHub Actions.
 
 ## Security
 
-- Keep credentials, API keys, tokens, private data, and runtime state out of Git.
+- Keep keys, credentials, private data, and runtime state out of Git.
 - Keep secrets in user settings or environment variables.
-- Review paths before shell commands that can delete or change files.
+- Check every target path before a command changes or deletes files.
 
 ## Changes
 
@@ -54,25 +45,21 @@ This repository owns the CLI and npm package. Shared policy belongs to Eliware. 
 - Validate settings before network access. Wait for the first user message before API access.
 - Read runtime settings from user files and supported environment variables.
 - Keep package metadata and command options separate from runtime settings.
-- Use documented quit commands for shutdown.
+- Use documented quit commands to close the session.
 
 ## CLI
 
 - `bin/agentx.mjs` starts AgentX. `bin/agentx-setup.mjs` starts setup.
-- Preserve documented commands and options. Validate option values.
 - Keep task text separate from flags. Support `--help` and `--version`.
-- Use the current directory and user settings as defaults.
-- Return code 0 for success. Return a nonzero code for failure.
+- Validate option values. Return code 0 for success and nonzero for failure.
 - Keep errors free of secrets. Support Windows and POSIX paths.
-- Confirm the target before destructive operations.
-- Run `npm test` and `eliware-test --pack`.
+- Confirm the target before a destructive operation.
 
 ## npm publication
 
 - Use `package.json.version` as the package version.
 - Keep `package.json.files` limited to required package files.
+- Set `publishConfig.provenance` to `true`.
 - Run `eliware-test --pack` before an authorized release.
-- Keep `publishConfig.provenance` set to `true`.
-- Verify an approved release with `npm view @eliware/agentx-cli@<version> version`.
 - Eli authorizes releases. DevOps publishes through the Operations handoff.
 - Do not infer release approval from repository instructions.

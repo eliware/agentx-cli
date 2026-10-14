@@ -1,10 +1,14 @@
-import { expect, test } from "@jest/globals";
+import { afterEach, expect, jest, test } from "@jest/globals";
 import {
   createStatusLineController,
   formatSpinnerFrame,
 } from "../../src/agent-turn/status-controller.mjs";
 
+let stdoutWrite;
+afterEach(() => stdoutWrite?.mockRestore());
+
 test("composes phase state, display, and lifecycle behavior", () => {
+  stdoutWrite = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
   const controller = createStatusLineController();
   try {
     expect(controller.snapshot()).toEqual(
@@ -17,6 +21,7 @@ test("composes phase state, display, and lifecycle behavior", () => {
   } finally {
     controller.stop();
   }
+  expect(stdoutWrite).toHaveBeenCalledWith(expect.stringContaining('{"time":"'));
 });
 
 test("returns no spinner animation", () => {

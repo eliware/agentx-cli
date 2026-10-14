@@ -2,14 +2,34 @@
 
 ## 12.0.0 — 2026-10-14
 
+### Added
+
+- Let AgentX start independent workers, report worker status, search bounded worker output, and cancel active workers.
+- Let AgentX inspect up to 10 local images in an isolated request and save generated images to temporary files.
+- Let users start autonomous goals, track progress, answer goal questions, resume paused goals, and cancel active goals.
+- Save successful response checkpoints and let users restore them with `/rollback`.
+- Let concurrent one-shot requests use separate pending-state files and the latest successful checkpoint.
+- Use the OpenAI client catalog for setup model choices and estimated usage costs.
+
 ### Changed
 
-- Use the OpenAI client catalog for setup model choices and usage cost estimates.
-- Redact worker output with `@eliware/common` and create worker IDs with its Snowflake generator.
-- Split runtime, shell, tool, worker, response, and status code into focused modules.
+- Expand session recovery for interrupted tool calls, failed continuations, stale response IDs, and transient WebSocket failures.
+- Add worker permission levels for read, write, and execute access. These labels do not create a security boundary.
+- Add worker shutdown handling that stops active workers when AgentX exits.
+- Add focused source modules and matching tests for runtime, setup, shell, response, tool, worker, image, and status behavior.
 - Move the application entrypoint to `src/` and keep the `agentx` command.
 - Update the package, specifications, user guides, and validation setup for the v12 convention baseline.
+- Use `@eliware/common` to redact worker output and generate worker IDs.
 - Use the shared package check and remove the local package validator.
+
+### Fixed
+
+- Preserve exact pending continuation requests and tool outputs during recovery.
+- Stop duplicate shell execution after an interruption or a new user message.
+- Stop active workers during shutdown, timeout, and cancellation.
+- Keep worker usage totals and image-branch usage in the parent session report.
+- Restore terminal input and session state after shell interruption, setup, recovery, and rollback.
+- Reduce test suite runtime and remove platform-dependent setup timing failures.
 
 ## 1.6.8 — 2026-08-11
 

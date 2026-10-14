@@ -1,21 +1,21 @@
 # Usage and cost
 
-AgentX reports token totals and an estimated cost. It uses the configured model and the pricing data from `@eliware/openai`.
+AgentX reports token totals and estimated cost. It uses the selected model and pricing data from `@eliware/openai`.
 
 ## View usage
 
-Run `/usage` in an interactive session to view totals. AgentX also prints usage after a response unless you set `--no-usage` or `--quiet`.
+Run `/usage` in a session to view totals. AgentX also shows usage after a response unless you use `--no-usage` or `--quiet`.
 
-The report can include input, cached input, cache-write, output, and reasoning tokens. It shows per-turn and session totals when the API provides those values.
+The report can show input, cached input, cache-write, output, and reasoning tokens. It shows turn and session totals when the API returns them.
 
-## Cost estimate
+## Read cost estimates
 
-AgentX gets model rates from the OpenAI client. The client model catalog also supplies the model choices in `agentx-setup`. AgentX does not keep a separate model or rate list.
+The OpenAI client catalog supplies model choices and rates. AgentX does not keep a separate model or rate list.
 
-The report marks long-context use when the client pricing result sets `long_context` to true. Rates can change when the OpenAI client changes. The estimate can differ from your provider bill.
+The report warns when the pricing data marks a request as long-context use. The estimate can differ from your provider bill. Model rates can change when the client catalog changes.
 
 ## Hide usage output
 
-Use `--no-usage` (`-u`) to hide usage for one run. Use `--quiet` (`-q`) to hide usage and other status output. These options do not change usage accounting.
+Use `--no-usage` (`-u`) to hide usage for one run. Use `--quiet` (`-q`) to hide usage and other status output.
 
-See the [command guide](commands.md) for all output options. See the [session guide](conversation-state.md) for saved usage totals.
+These options change display only. AgentX still tracks usage totals. See the [command guide](commands.md) for all output options.
