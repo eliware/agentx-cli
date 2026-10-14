@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import "../test-fixtures/jest-setup.mjs";
 import {
   clearTerminal,
   formatCommandMessage,
@@ -9,25 +10,19 @@ import {
   formatSystemMessage,
   formatUsageMessage,
   formatFinalUsageMessage,
+  formatWhiteMessage,
 } from "../src/shell-display.mjs";
 import { setTerminalOutputOptions } from "../src/terminal-output.mjs";
 
 describe("shell display", () => {
   test("formats prompt and messages and clears the terminal", () => {
     const writes = [];
-    const originalWrite = process.stdout.write;
-    const originalTTY = process.stdout.isTTY;
     const originalUser = process.env.USER;
     const originalUsername = process.env.USERNAME;
     const originalHost = process.env.HOSTNAME;
     const originalComputer = process.env.COMPUTERNAME;
 
     try {
-      process.stdout.write = (chunk) => {
-        writes.push(String(chunk));
-        return true;
-      };
-      Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true });
       process.env.USER = "alice";
       process.env.HOSTNAME = "laptop";
       delete process.env.USERNAME;
@@ -43,16 +38,22 @@ describe("shell display", () => {
       expect(formatCustomToolMessage("hello")).toBe(`[38;5;163mhello[0m`);
       expect(formatUsageMessage("hello")).toBe(`[38;5;208mhello[0m`);
       expect(formatFinalUsageMessage("hello")).toBe(`[38;5;33mhello[0m`);
-      clearTerminal();
+      expect(formatWhiteMessage("hello")).toBe("\u001b[38;5;255mhello\u001b[0m");
+      clearTerminal({ isTTY: false, write: (chunk) => writes.push(String(chunk)) });
       expect(writes).toContain("\n");
 
       writes.length = 0;
-      Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
-      clearTerminal();
+      clearTerminal({ isTTY: true, write: (chunk) => writes.push(String(chunk)) });
       expect(writes).toContain("\x1b[2J\x1b[H");
+
+      setTerminalOutputOptions({ colors: false });
+      writes.length = 0;
+      clearTerminal({ isTTY: true, write: (chunk) => writes.push(String(chunk)) });
+      expect(writes).toContain("\n");
+      clearTerminal();
+      expect(formatPromptForCwd("/tmp")).not.toContain("\u001b[");
     } finally {
-      process.stdout.write = originalWrite;
-      Object.defineProperty(process.stdout, "isTTY", { value: originalTTY, configurable: true });
+      setTerminalOutputOptions({ colors: true });
       if (originalUser === undefined) delete process.env.USER;
       else process.env.USER = originalUser;
       if (originalUsername === undefined) delete process.env.USERNAME;
@@ -61,23 +62,6 @@ describe("shell display", () => {
       else process.env.HOSTNAME = originalHost;
       if (originalComputer === undefined) delete process.env.COMPUTERNAME;
       else process.env.COMPUTERNAME = originalComputer;
-    }
-  });
-
-  test("shell display omits ANSI controls when colors are disabled", () => {
-    const original = process.stdout.write;
-    const writes = [];
-    process.stdout.write = (chunk) => {
-      writes.push(String(chunk));
-      return true;
-    };
-    try {
-      setTerminalOutputOptions({ colors: false });
-      clearTerminal();
-      expect(formatPromptForCwd("/tmp")).not.toContain("\u001b[");
-    } finally {
-      setTerminalOutputOptions({ colors: true });
-      process.stdout.write = original;
     }
   });
 });

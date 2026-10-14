@@ -1,5 +1,3 @@
-process.env.AGENTX_RUNTIME_CASES = "10";
-await import("../../test-fixtures/agent/runtime-suite.mjs");
 import { expect, test } from "@jest/globals";
 import {
   applyAgentPersistedState,

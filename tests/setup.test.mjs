@@ -70,12 +70,11 @@ describe("interactive setup menu flow", () => {
 
   const drive = async (readlineInput, values) => {
     for (const value of values) {
-      const interval = process.platform === "win32" ? 150 : 50;
       await new Promise((resolve) =>
         setTimeout(() => {
           readlineInput.emit("data", Buffer.from(`${value}\n`));
           resolve();
-        }, interval),
+        }, 50),
       );
     }
   };

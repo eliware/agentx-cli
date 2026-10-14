@@ -141,6 +141,21 @@ describe("session user turn", () => {
     );
   });
 
+  test("continues after a completed interactive response", async () => {
+    const { session } = createSession();
+    const runRequestCycle = jest.fn(async () => ({ response: { id: "response" } }));
+    const finalizeTurn = jest.fn(async () => {});
+
+    await expect(
+      runSessionUserTurn({
+        message: "continue",
+        session,
+        deps: { now: () => 1, runRequestCycle, finalizeTurn },
+      }),
+    ).resolves.toBe("continue");
+    expect(finalizeTurn).toHaveBeenCalledTimes(1);
+  });
+
   test("fails a one-shot turn that ends without a response", async () => {
     const { session } = createSession();
     session.oneShot = true;

@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
+import "../../test-fixtures/jest-setup.mjs";
 import { askGoalQuestion } from "../../src/agent/goal-question.mjs";
 
 describe("goal question prompt", () => {

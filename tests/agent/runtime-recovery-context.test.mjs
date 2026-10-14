@@ -1,5 +1,3 @@
-process.env.AGENTX_RUNTIME_CASES = "3";
-await import("../../test-fixtures/agent/runtime-suite.mjs");
 import { expect, jest, test } from "@jest/globals";
 import { createAgentRecoveryContext } from "../../src/agent/runtime-recovery-context.mjs";
 test("binds recovery actions to the active runtime", () => {

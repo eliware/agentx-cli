@@ -11,12 +11,12 @@ const USAGE_ORANGE = "\u001b[38;5;208m";
 const WHITE = "\u001b[38;5;255m";
 const RESET = "\u001b[0m";
 
-export function clearTerminal() {
-  if (process.stdout?.isTTY === false) {
-    process.stdout.write("\n");
+export function clearTerminal(stdout = process.stdout) {
+  if (stdout?.isTTY === false) {
+    stdout.write("\n");
     return;
   }
-  process.stdout.write(isTerminalColorEnabled() ? "\x1b[2J\x1b[H" : "\n");
+  stdout.write(isTerminalColorEnabled() ? "\x1b[2J\x1b[H" : "\n");
 }
 
 export function formatPromptForCwd(cwd) {

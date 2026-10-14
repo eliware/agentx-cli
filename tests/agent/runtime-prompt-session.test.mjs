@@ -1,5 +1,3 @@
-process.env.AGENTX_RUNTIME_CASES = "11";
-await import("../../test-fixtures/agent/runtime-suite.mjs");
 import { expect, jest, test } from "@jest/globals";
 import { runAgentPromptSession } from "../../src/agent/runtime-prompt-session.mjs";
 

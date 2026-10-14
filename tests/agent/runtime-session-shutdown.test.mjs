@@ -11,6 +11,7 @@ test("passes session resources to shutdown", async () => {
     signalRegistration: "signals",
   };
   await shutdownAgentPromptSession(resources, shutdown);
+  const shutdownOptions = shutdown.mock.calls[0][0];
   expect(shutdown).toHaveBeenCalledWith(
     expect.objectContaining({
       readline: "readline",
@@ -18,4 +19,5 @@ test("passes session resources to shutdown", async () => {
       signalRegistration: "signals",
     }),
   );
+  shutdownOptions.deps.restoreTerminalOutput();
 });

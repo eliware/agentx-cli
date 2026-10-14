@@ -1,5 +1,16 @@
 import { describe, expect, jest, test } from "@jest/globals";
-import { handleSessionImageGeneration } from "../../src/agent/session-image-generation.mjs";
+
+const appendCliTranscript = jest.fn((current, label, path) => `${current}:${label}:${path}`);
+const saveGeneratedImage = jest.fn(async () => "default.png");
+const writeTerminal = jest.fn();
+const formatSystemMessage = jest.fn((message) => `system:${message}`);
+await jest.unstable_mockModule("../../src/request-context.mjs", () => ({ appendCliTranscript }));
+await jest.unstable_mockModule("../../src/image-generation.mjs", () => ({ saveGeneratedImage }));
+await jest.unstable_mockModule("../../src/terminal-output.mjs", () => ({ writeTerminal }));
+await jest.unstable_mockModule("../../src/shell-display.mjs", () => ({ formatSystemMessage }));
+
+const { handleSessionImageGeneration } =
+  await import("../../src/agent/session-image-generation.mjs");
 
 function createHandler(saveGeneratedImage) {
   const state = { transcript: "existing transcript" };
@@ -21,6 +32,20 @@ function createHandler(saveGeneratedImage) {
 }
 
 describe("session image generation", () => {
+  test("uses default image, transcript, and output services", async () => {
+    const getTranscript = jest.fn(() => "prior");
+    const setTranscript = jest.fn();
+    const saveState = jest.fn();
+    const handle = handleSessionImageGeneration({ getTranscript, setTranscript, saveState });
+
+    await expect(handle({ item: "image" })).resolves.toBe("Generated image saved to default.png");
+    expect(saveGeneratedImage).toHaveBeenCalledWith("image");
+    expect(appendCliTranscript).toHaveBeenCalledWith("prior", "generated image", "default.png");
+    expect(setTranscript).toHaveBeenCalledWith("prior:generated image:default.png");
+    expect(writeTerminal).toHaveBeenCalledWith("system:Generated image saved: default.png\n");
+    expect(saveState).toHaveBeenCalledTimes(1);
+  });
+
   test("saves the image, records its path, reports success, and persists the session", async () => {
     const image = { type: "image_generation_call", result: "encoded" };
     const saveGeneratedImage = jest.fn().mockResolvedValue("C:/temp/generated.png");
