@@ -1,5 +1,5 @@
-import { redactText } from "@eliware/common";
 import { appendWorkerLog } from "./worker-registry.mjs";
+import { redactWorkerLog } from "./worker-log-redaction.mjs";
 
 export function createWorkerLogStream(worker, persistWorker) {
   let writeQueue = Promise.resolve();
@@ -7,8 +7,7 @@ export function createWorkerLogStream(worker, persistWorker) {
   let flushTimer = null;
 
   const flush = () => {
-    const secrets = [process.env.AGENTX_API_KEY, process.env.agentx_api_key].filter(Boolean);
-    const text = redactText(bufferedLog, { secrets });
+    const text = redactWorkerLog(bufferedLog);
     bufferedLog = "";
     if (!text) return;
     writeQueue = writeQueue

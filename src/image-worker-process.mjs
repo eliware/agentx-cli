@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createImageWorkerLaunch } from "./image-worker-request.mjs";
+import { formatImageWorkerResult } from "./image-worker-result.mjs";
 
 export function runImageInspectionProcess(
   args,
@@ -18,23 +19,7 @@ export function runImageInspectionProcess(
     });
     child.on("error", (error) => resolve(`ERROR: ${error.message}`));
     child.on("close", (code) => {
-      let result;
-      try {
-        result = JSON.parse(stdout);
-        if (result.usage) onUsage?.(result.usage);
-      } catch {
-        resolve(
-          `ERROR: ${code !== 0 ? stderr.trim() || `image worker exited with code ${code}` : `invalid image worker response${stderr.trim() ? `: ${stderr.trim()}` : ""}`}`,
-        );
-        return;
-      }
-      if (code !== 0) {
-        resolve(
-          `ERROR: ${stderr.trim() || result.error || `image worker exited with code ${code}`}`,
-        );
-        return;
-      }
-      resolve(result.text || result.error || "The image inspection returned no text.");
+      resolve(formatImageWorkerResult({ stdout, stderr, code, onUsage }));
     });
   });
 }

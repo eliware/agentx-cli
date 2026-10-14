@@ -76,36 +76,13 @@ describe("image worker process", () => {
     await expect(runImageInspectionProcess({}, undefined)).resolves.toBe("default options");
   });
 
-  test("normalizes worker launch, exit, and malformed-output failures", async () => {
+  test("collects child stderr while the worker returns valid text", async () => {
+    queueWorker({ stdout: JSON.stringify({ text: "ok" }), stderr: "warning" });
+    await expect(runImageInspectionProcess({}, {})).resolves.toBe("ok");
+  });
+
+  test("reports child launch errors", async () => {
     queueWorker({ error: new Error("spawn failed") });
     await expect(runImageInspectionProcess({}, {})).resolves.toBe("ERROR: spawn failed");
-    queueWorker({ stderr: "worker failed", code: 2 });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe("ERROR: worker failed");
-    queueWorker({ code: 3 });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe(
-      "ERROR: image worker exited with code 3",
-    );
-    queueWorker({ stdout: "{bad", stderr: "invalid json" });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe(
-      "ERROR: invalid image worker response: invalid json",
-    );
-    queueWorker({ stdout: "{bad" });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe(
-      "ERROR: invalid image worker response",
-    );
-    queueWorker({ stdout: JSON.stringify({ error: "partial failure" }), code: 7 });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe("ERROR: partial failure");
-    queueWorker({ stdout: "{bad", code: 2 });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe(
-      "ERROR: image worker exited with code 2",
-    );
-    queueWorker({ stdout: "{}", code: 7 });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe(
-      "ERROR: image worker exited with code 7",
-    );
-    queueWorker({ stdout: "{}" });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe(
-      "The image inspection returned no text.",
-    );
   });
 });

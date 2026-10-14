@@ -3,7 +3,7 @@ import { prepareToolLoopCycle } from "./tool-loop-cycle.mjs";
 import { handleEmptyToolLoopCycle } from "./tool-loop-empty-cycle.mjs";
 import { executeToolLoopCycle } from "./tool-loop-tool-cycle.mjs";
 import { createToolLoopState } from "./tool-loop-state.mjs";
-import { initializeToolLoopLifecycle, stopToolLoopForCancellation } from "./tool-loop-policy.mjs";
+import * as toolLoopPolicy from "./tool-loop-policy.mjs";
 
 export async function handleToolCalls(
   openai,
@@ -27,11 +27,11 @@ export async function handleToolCalls(
     goalMaxIterations,
     executeToolCall,
   } = state;
-  initializeToolLoopLifecycle(statusController);
+  toolLoopPolicy.initializeToolLoopLifecycle(statusController);
   let isFirstResponse = true;
   for (;;) {
     if (
-      stopToolLoopForCancellation({
+      toolLoopPolicy.stopToolLoopForCancellation({
         goalMode,
         goalFinished: goalState.finished,
         isGoalCancelled: streamOptions?.isGoalCancelled,
@@ -90,7 +90,7 @@ export async function handleToolCalls(
       onResponseState,
       onResponseUsage,
     });
-    if (result.cancelled) return current;
+    if (toolLoopPolicy.shouldStopAfterToolCycle(result, state, streamOptions)) return current;
     if (result.done) return result.response;
     current = result.response;
     currentPreviousResponseId = result.previousResponseId;

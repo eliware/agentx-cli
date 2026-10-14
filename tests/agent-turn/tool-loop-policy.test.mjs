@@ -1,6 +1,7 @@
 import { expect, jest, test } from "@jest/globals";
 import {
   initializeToolLoopLifecycle,
+  isToolLoopCancellation,
   stopToolLoopForCancellation,
 } from "../../src/agent-turn/tool-loop-policy.mjs";
 
@@ -36,4 +37,9 @@ test("stops and clears only when an active goal is cancelled", () => {
       isGoalCancelled: () => true,
     }),
   ).toBe(false);
+});
+
+test("resolves cancellation reported after a tool cycle", () => {
+  expect(isToolLoopCancellation({ cycleCancelled: true })).toBe(true);
+  expect(isToolLoopCancellation({ cycleCancelled: false, goalMode: false })).toBe(false);
 });
