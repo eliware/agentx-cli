@@ -53,17 +53,21 @@ describe("rollback menu", () => {
     }
   });
 
-  test("moves with arrows, wraps, and accepts enter", async () => {
+  test("renders missing previews, wraps to Cancel, and accepts Enter", async () => {
     const { input, output } = makeIO();
-    const prompt = promptRollbackMenu(history, { input, output, forceInteractive: true });
+    const incomplete = [{ response_id: "r", user_preview: null, assistant_preview: null }];
+    const prompt = promptRollbackMenu(incomplete, { input, output, forceInteractive: true });
     process.nextTick(() => {
       input.emit("keypress", "", { name: "up" });
       input.emit("keypress", "", { name: "down" });
-      input.emit("keypress", "", { name: "down" });
+      input.emit("keypress", "", { name: "up" });
       input.emit("keypress", "", { name: "return" });
     });
-    await expect(prompt).resolves.toBe(history[1]);
-    expect(output.write.mock.calls.some(([chunk]) => String(chunk).includes("Use 1-3"))).toBe(true);
+    await expect(prompt).resolves.toBeNull();
+    expect(output.write.mock.calls.some(([chunk]) => String(chunk).includes('""  ->  ""'))).toBe(
+      true,
+    );
+    expect(output.write.mock.calls.some(([chunk]) => String(chunk).includes("Use 1-2"))).toBe(true);
   });
 
   test("ignores invalid and empty keys", async () => {
@@ -102,23 +106,6 @@ describe("rollback menu", () => {
     });
     await expect(prompt).resolves.toEqual(history[0]);
   });
-});
-
-test("renders missing preview metadata and cancels with Enter", async () => {
-  const input = new EventEmitter();
-  input.isTTY = true;
-  input.setRawMode = testMocks.fn();
-  input.resume = testMocks.fn();
-  const output = { write: testMocks.fn() };
-  const prompt = promptRollbackMenu(
-    [{ response_id: "r", user_preview: null, assistant_preview: null }],
-    { input, output, forceInteractive: true },
-  );
-  process.nextTick(() => {
-    input.emit("keypress", "", { name: "up" });
-    input.emit("keypress", "", { name: "enter" });
-  });
-  await expect(prompt).resolves.toBeNull();
 });
 
 test("cleanup handles an immediate key before first render", async () => {

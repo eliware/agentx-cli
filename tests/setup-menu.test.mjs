@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "@jest/globals";
 import { EventEmitter } from "node:events";
-import { askMasked, selectSetupMenu } from "../src/setup-menu.mjs";
+import { selectSetupMenu } from "../src/setup-menu.mjs";
 
 class Terminal extends EventEmitter {
   setRawMode(value) {
@@ -27,27 +27,6 @@ describe("setup terminal menu", () => {
   });
   afterEach(() => {
     process.stdout.write = originalStdoutWrite;
-  });
-
-  test("masks user input, handles backspace, and supports cancellation fallback", async () => {
-    const input = new Terminal();
-    const output = new Output();
-    const cancelled = askMasked(input, output, "Key: ", "fallback");
-    send(input, "\u0003");
-    await expect(cancelled).resolves.toBe("fallback");
-
-    const editedInput = new Terminal();
-    const edited = askMasked(editedInput, output, "Key: ");
-    send(editedInput, "a\u0001\b\bkey\r");
-    await expect(edited).resolves.toBe("key");
-    expect(output.text).toContain("\b \b");
-    expect(output.text).toContain("***");
-    expect(editedInput.raw).toBe(false);
-
-    const emptyInput = new Terminal();
-    const empty = askMasked(emptyInput, output, "Key: ");
-    send(emptyInput, "\r");
-    await expect(empty).resolves.toBe("");
   });
 
   test("returns null when raw keyboard input is unavailable", async () => {

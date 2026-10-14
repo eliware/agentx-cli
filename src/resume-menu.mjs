@@ -1,12 +1,6 @@
-import { emitKeypressEvents } from "node:readline";
 import { stdin as defaultInput, stdout as defaultOutput } from "node:process";
-import {
-  attachKeypressListener,
-  callIfFunction,
-  createFrameRenderer,
-  getMenuLines,
-  RESUME_MENU_OPTIONS,
-} from "./resume-menu-view.mjs";
+import { abortMenuInteraction, runMenuInteraction } from "./menu-interaction.mjs";
+import { createFrameRenderer, getMenuLines, RESUME_MENU_OPTIONS } from "./resume-menu-view.mjs";
 
 export async function promptResumeMenu(
   savedState,
@@ -23,77 +17,37 @@ export async function promptResumeMenu(
     return RESUME_MENU_OPTIONS[selectedIndex].id;
   }
 
-  emitKeypressEvents(input);
-  callIfFunction(input.resume?.bind(input));
-  callIfFunction(input.setRawMode?.bind(input), true);
-  callIfFunction(output.write?.bind(output), "\x1b[?25l");
-
   const frame = createFrameRenderer(output);
-
-  return await new Promise((resolve, reject) => {
-    let finished = false;
-
-    const cleanup = () => {
-      if (finished) return;
-      finished = true;
-      frame.clear();
-      callIfFunction(input.setRawMode?.bind(input), false);
-      callIfFunction(output.write?.bind(output), "\x1b[?25h");
-      callIfFunction(input.removeListener?.bind(input), "keypress", onKeypress);
-    };
-
-    const finish = (value) => {
-      cleanup();
-      resolve(value);
-    };
-
-    const fail = (error) => {
-      cleanup();
-      reject(error);
-    };
-
-    const render = () => frame.render(getMenuLines(savedState, selectedIndex));
-
-    const selectIndex = (index) => {
-      if (index < 0 || index >= RESUME_MENU_OPTIONS.length) return;
-      selectedIndex = index;
-      render();
-      finish(RESUME_MENU_OPTIONS[selectedIndex].id);
-    };
-
-    const onKeypress = (str, key = {}) => {
-      if (key?.name === "c" && key?.ctrl) {
-        const error = new Error("Interrupted");
-        error.name = "AbortError";
-        fail(error);
-        return;
-      }
-
+  const render = () => frame.render(getMenuLines(savedState, selectedIndex));
+  return await runMenuInteraction({
+    input,
+    output,
+    render,
+    clear: () => frame.clear(),
+    onKeypress: (str, key, { finish, fail }) => {
+      if (key?.name === "c" && key?.ctrl) return abortMenuInteraction(fail);
       if (key?.name === "return" || key?.name === "enter") {
         finish(RESUME_MENU_OPTIONS[selectedIndex].id);
         return;
       }
-
-      if (key?.name === "up") {
+      if (key?.name === "up")
         selectedIndex =
           (selectedIndex + RESUME_MENU_OPTIONS.length - 1) % RESUME_MENU_OPTIONS.length;
-        render();
-        return;
-      }
-
-      if (key?.name === "down") {
+      else if (key?.name === "down")
         selectedIndex = (selectedIndex + 1) % RESUME_MENU_OPTIONS.length;
-        render();
-        return;
+      else {
+        const digit = String(str ?? "").trim();
+        if (/^\d$/.test(digit)) {
+          const index = Number(digit) - 1;
+          if (index >= 0 && index < RESUME_MENU_OPTIONS.length) {
+            selectedIndex = index;
+            render();
+            finish(RESUME_MENU_OPTIONS[index].id);
+            return;
+          }
+        }
       }
-
-      const digit = String(str ?? "").trim();
-      if (/^\d$/.test(digit)) {
-        selectIndex(Number(digit) - 1);
-      }
-    };
-
-    attachKeypressListener(input, onKeypress);
-    render();
+      render();
+    },
   });
 }

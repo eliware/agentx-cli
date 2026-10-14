@@ -1,6 +1,6 @@
 import { formatOpenAIError } from "./error-details.mjs";
-import { emitKeypressEvents } from "node:readline";
 import { stdin as defaultInput, stdout as defaultOutput } from "node:process";
+import { abortMenuInteraction, runMenuInteraction } from "./menu-interaction.mjs";
 
 const OPTIONS = [
   { id: "retry", label: "Retry the request once" },
@@ -22,10 +22,6 @@ export async function promptRecoveryMenu(
       input?.isTTY !== false &&
       typeof input?.setRawMode === "function");
   if (!interactive) return "continue";
-  emitKeypressEvents(input);
-  input.resume?.();
-  input.setRawMode?.(true);
-  output.write?.("\x1b[?25l");
   let selected = 0;
   let count = 0;
   const render = () => {
@@ -38,23 +34,14 @@ export async function promptRecoveryMenu(
     output.write(rows.join("\n"));
     count = rows.length;
   };
-  return await new Promise((resolve, reject) => {
-    const cleanup = () => {
-      output.write?.(`\x1b[${count - 1}A\r\x1b[0J`);
-      input.setRawMode?.(false);
-      output.write?.("\x1b[?25h");
-      input.removeListener?.("keypress", onKey);
-    };
-    const finish = (value) => {
-      cleanup();
-      resolve(value);
-    };
-    const onKey = (str, key = {}) => {
+  return await runMenuInteraction({
+    input,
+    output,
+    render,
+    clear: () => output.write?.(`\x1b[${count - 1}A\r\x1b[0J`),
+    onKeypress: (str, key, { finish, fail }) => {
       if (key.ctrl && key.name === "c") {
-        cleanup();
-        const e = new Error("Interrupted");
-        e.name = "AbortError";
-        reject(e);
+        abortMenuInteraction(fail);
         return;
       }
       if (key.name === "up") selected = (selected + OPTIONS.length - 1) % OPTIONS.length;
@@ -70,9 +57,7 @@ export async function promptRecoveryMenu(
         }
       }
       render();
-    };
-    input.on("keypress", onKey);
-    render();
+    },
   });
 }
 

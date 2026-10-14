@@ -1,43 +1,6 @@
 import { getPackageVersion } from "./cli-version.mjs";
 import { getSetupPaths } from "./setup-paths.mjs";
-
-export async function askMasked(input, output, prompt, fallback = "") {
-  output.write(prompt);
-  input.setRawMode?.(true);
-  input.resume?.();
-  return await new Promise((resolve) => {
-    let value = "";
-    const onData = (chunk) => {
-      for (const char of String(chunk)) {
-        if (char === "\r" || char === "\n") {
-          input.setRawMode?.(false);
-          input.off?.("data", onData);
-          output.write("\n");
-          resolve(value || fallback);
-          return;
-        }
-        if (char === "\u0003") {
-          input.setRawMode?.(false);
-          input.off?.("data", onData);
-          resolve(fallback);
-          return;
-        }
-        if (char === "\b" || char === "\u007f") {
-          if (value) {
-            value = value.slice(0, -1);
-            output.write("\b \b");
-          }
-          continue;
-        }
-        if (char >= " ") {
-          value += char;
-          output.write("*");
-        }
-      }
-    };
-    input.on("data", onData);
-  });
-}
+export { askMasked } from "./setup-masked-input.mjs";
 
 export async function selectSetupMenu(stdin, stdout, entries, initialIndex = 0, paths = {}) {
   if (typeof stdin.setRawMode !== "function" || typeof stdin.on !== "function") return null;

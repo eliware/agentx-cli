@@ -1,4 +1,5 @@
 import { resumePendingToolExecution } from "./pending-tool-resume.mjs";
+import { abandonPendingSession } from "./pending-session-abandonment.mjs";
 
 export function shouldRecoverPendingSession({ previousResponseId, pendingToolCalls, oneShot }) {
   return Boolean(previousResponseId && pendingToolCalls.length > 0 && !oneShot);
@@ -15,29 +16,8 @@ export async function recoverPendingSession({
 }) {
   const resumeChoice = await deps.promptResumeMenu(savedState, { input, output });
   let state = getState();
-  if (resumeChoice === "new-session" && state.pending_transaction) {
-    const checkpoint = state.history.at(-1);
-    state = {
-      ...state,
-      response_id: checkpoint?.response_id || "",
-      last_user_message: checkpoint?.last_user_message || "",
-      last_assistant_message: checkpoint?.last_assistant_message || "",
-      usage: checkpoint?.usage ? { ...checkpoint.usage } : deps.createUsageTotals(),
-      pending_tool_calls: [],
-      pending_retry_request: null,
-      pending_transaction: null,
-      failed_response: false,
-    };
-    setState(state);
-    await deps.saveState();
-    if (checkpoint) await deps.persistCheckpoint(checkpoint);
-    deps.writeSystem("Interrupted work abandoned; returned to the last successful checkpoint.");
-    return;
-  }
   if (resumeChoice === "new-session") {
-    deps.resetState(deps.createUsageTotals());
-    await deps.clearSession();
-    deps.writeSystem("Session cleared");
+    await abandonPendingSession(state, setState, deps);
     return;
   }
 
