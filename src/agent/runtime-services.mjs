@@ -8,6 +8,7 @@ import { createSessionToolConfirmer } from "./session-confirmation.mjs";
 import { exitSessionWithSummary } from "./session-exit.mjs";
 import { printUsageReport } from "./repl.mjs";
 import { applyAgentPersistedState, getAgentPersistedState } from "./runtime-state-persistence.mjs";
+import { clearPersistedGoal } from "./session-restore.mjs";
 
 export async function createAgentRuntimeServices({ session, runtimeState, terminalInput, repl }) {
   const { statePath, checkpointPath, oneShot, savedState } = session;
@@ -37,7 +38,7 @@ export async function createAgentRuntimeServices({ session, runtimeState, termin
     },
     saveState,
   });
-  if (savedState?.goal) await saveState();
+  await clearPersistedGoal(savedState, saveState);
   const confirmToolCall = createSessionToolConfirmer({
     oneShot,
     isTTY: terminalInput?.isTTY,

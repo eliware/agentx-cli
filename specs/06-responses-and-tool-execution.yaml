@@ -14,7 +14,7 @@ body: |
 
   Shell permission classification belongs to `tool-permissions.mjs`; command confirmation rules belong to `tool-confirmation-rules.mjs`. Each policy has mirrored tests. Call identity/deduplication is a separate tool policy. Tool-call approval and single-call execution use focused helpers with mirrored tests. Conversion of call results to Responses API tool-output shapes belongs to a focused tool-output adapter with mirrored tests, separate from the existing maximum-output/truncation policy. The tool-call runner consumes these helpers; tool dispatch retains tests only for call routing and execution integration.
 
-  `response-service.mjs` owns request streaming and tool-loop coordination. Request selection and override merging belong to `request-builder.mjs`. Its mirrored tests own request construction; response-service tests cover stream lifecycle and collaborator wiring.
+  `response-service.mjs` owns request and tool-loop coordination. Request selection and override merging belong to `request-builder.mjs`. Stream controller setup, stream options, and request submission belong to `response-stream-request.mjs`; stream events and cleanup belong to `response-stream.mjs`. Mirrored tests cover each boundary; response-service tests cover collaborator wiring and end-to-end request flow.
 
   `parallel-worker-cancel.mjs` owns cancel requests and result selection. `parallel-worker-process-cancel.mjs` owns SIGTERM signalling and recovered-process state updates. Its mirrored tests cover signal outcomes; worker recovery and race tests cover integration.
 

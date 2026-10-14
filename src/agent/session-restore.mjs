@@ -33,3 +33,7 @@ export function restoreSessionState(savedState, createUsageTotals) {
     activeGoal: null,
   };
 }
+
+export async function clearPersistedGoal(savedState, saveState) {
+  if (savedState?.goal) await saveState();
+}

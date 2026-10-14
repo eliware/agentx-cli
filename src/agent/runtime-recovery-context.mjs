@@ -1,5 +1,4 @@
-import { writeTerminal } from "../terminal-output.mjs";
-import { formatSystemMessage } from "../shell-display.mjs";
+import { writeRecoveryDebugEnabled, writeRecoverySystem } from "./recovery-presentation.mjs";
 import { promptRecoveryMenu } from "../recovery-menu.mjs";
 import { promptRollbackMenu } from "../rollback-menu.mjs";
 import { createUsageTotals } from "../response.mjs";
@@ -19,8 +18,8 @@ export function createAgentRecoveryContext({ input, repl, callbacks, applyRollba
     decideRecoveryMenuChoice,
     recreateOpenAIClient,
     setActiveOpenAI: callbacks.setActiveOpenAI,
-    writeSystem: (text) => writeTerminal(`${formatSystemMessage(text)}\n`),
-    writeDebugEnabled: () => process.stderr.write("[agentx:debug] enabled for retry\n"),
+    writeSystem: writeRecoverySystem,
+    writeDebugEnabled: writeRecoveryDebugEnabled,
     saveState: callbacks.saveState,
     promptRecoveryMenu,
     terminalInput: input,

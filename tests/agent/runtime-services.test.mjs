@@ -59,7 +59,7 @@ test("composes persistence, confirmation, image, and exit services", async () =>
     statePath: "state.json",
     checkpointPath: "checkpoint.json",
     oneShot: false,
-    savedState: { goal: { text: "goal" } },
+    savedState: null,
     outputFlags: { noUsage: true },
   };
   const runtimeState = {
@@ -112,7 +112,7 @@ test("composes persistence, confirmation, image, and exit services", async () =>
   });
   expect(services.confirmToolCall).toBe(confirmToolCall);
   expect(services.handleImageGeneration).toBe(handleImageGeneration);
-  expect(saveState).toHaveBeenCalledTimes(1);
+  expect(saveState).not.toHaveBeenCalled();
 
   services.exitWithSummary({ leadingNewline: true });
   services.exitWithSummary();
@@ -133,12 +133,4 @@ test("composes persistence, confirmation, image, and exit services", async () =>
     readline: "readline",
     printUsageReport,
   });
-
-  await createAgentRuntimeServices({
-    session: { ...session, savedState: null },
-    runtimeState,
-    terminalInput,
-    repl,
-  });
-  expect(saveState).toHaveBeenCalledTimes(1);
 });

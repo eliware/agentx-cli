@@ -34,7 +34,10 @@ describe("agent session modules", () => {
       output: [],
     });
   });
-  test("streams output, clears status, and appends a newline when needed", async () => {
+  test.each([
+    ["hello", `\x1b[38;5;255mhello\x1b[0m\n`],
+    ["hello\n", `\x1b[38;5;255mhello\n\x1b[0m`],
+  ])("streams %j with the expected line ending", async (text, expected) => {
     const statusController = {
       showReasoning: jest.fn(),
       beginWriting: jest.fn(),
@@ -43,7 +46,7 @@ describe("agent session modules", () => {
     const openai = {
       responses: {
         create: async (_request, handlers) => {
-          handlers.onTextDelta("hello");
+          handlers.onTextDelta(text);
           return { id: "resp-live" };
         },
       },
@@ -53,25 +56,7 @@ describe("agent session modules", () => {
     ).resolves.toEqual({ id: "resp-live" });
     expect(statusController.showReasoning).toHaveBeenCalled();
     expect(statusController.clear).toHaveBeenCalled();
-    expect(stdoutWrites.join("")).toBe(`\x1b[38;5;255mhello\x1b[0m\n`);
-  });
-
-  test("does not append a newline when streamed output already ends with one", async () => {
-    const statusController = {
-      showReasoning: jest.fn(),
-      beginWriting: jest.fn(),
-      clear: jest.fn(),
-    };
-    const openai = {
-      responses: {
-        create: async (_request, handlers) => {
-          handlers.onTextDelta("hello\n");
-          return { id: "resp-live" };
-        },
-      },
-    };
-    await createStreamedResponse(openai, {}, { liveStreaming: true, statusController });
-    expect(stdoutWrites.join("")).toBe(`\x1b[38;5;255mhello\n\x1b[0m`);
+    expect(stdoutWrites.join("")).toBe(expected);
   });
 
   test("does not emit a color reset when colors are disabled", async () => {

@@ -4,16 +4,18 @@ import {
   shouldRecoverPendingSession,
 } from "../../src/agent/session-pending-recovery.mjs";
 import { harness } from "../../test-fixtures/session-pending-recovery-helpers.mjs";
+
 describe("session pending recovery", () => {
   test.each([
     [{ previousResponseId: "response", pendingToolCalls: [{}], oneShot: false }, true],
     [{ previousResponseId: "", pendingToolCalls: [{}], oneShot: false }, false],
     [{ previousResponseId: "response", pendingToolCalls: [], oneShot: false }, false],
     [{ previousResponseId: "response", pendingToolCalls: [{}], oneShot: true }, false],
-  ])("selects recovery only for interactive pending continuations: %j", (input, expected) => {
+  ])("selects interactive pending recovery: %j", (input, expected) => {
     expect(shouldRecoverPendingSession(input)).toBe(expected);
   });
-  test("routes the new-session choice to pending-session abandonment", async () => {
+
+  test("routes the new-session choice to session abandonment", async () => {
     const ctx = harness("new-session");
     await recoverPendingSession({
       savedState: {},
@@ -26,110 +28,41 @@ describe("session pending recovery", () => {
     expect(ctx.deps.clearSession).toHaveBeenCalledTimes(1);
     expect(ctx.deps.createRunner).not.toHaveBeenCalled();
   });
-  test("applies a successful resumed response", async () => {
+
+  test("passes the selected choice and saved calls to the resume runner", async () => {
     const ctx = harness("auto-resume");
-    const execute = jest.fn(async () => ({ id: "response-next", output_text: "done" }));
+    const savedState = { pending_tool_calls: [{ id: "saved-call" }] };
+    const execute = jest.fn(async () => ({ id: "next-response" }));
     await recoverPendingSession({
-      savedState: {},
+      savedState,
       getState: ctx.getState,
       setState: ctx.setState,
       execute,
       deps: ctx.deps,
     });
-    expect(ctx.getState()).toMatchObject({
-      response_id: "response-next",
-      last_assistant_message: "done",
-      pending_tool_calls: [],
+    expect(ctx.deps.promptResumeMenu).toHaveBeenCalledWith(savedState, {
+      input: undefined,
+      output: undefined,
     });
-    expect(ctx.deps.saveState).toHaveBeenCalledTimes(1);
+    expect(ctx.deps.createRunner).toHaveBeenCalledWith("auto", new Set(), new Set());
+    expect(execute).toHaveBeenCalledWith("runner");
+    expect(ctx.deps.writeSystem).toHaveBeenCalledWith("Resuming pending tool execution");
   });
-  test("retains the previous response id when resume completes without an id", async () => {
-    const ctx = harness("interrupt-request");
-    await recoverPendingSession({
-      savedState: {},
-      getState: ctx.getState,
-      setState: ctx.setState,
-      execute: jest.fn(async () => ({ output_text: "recovered text" })),
-      deps: ctx.deps,
-    });
-    expect(ctx.getState()).toMatchObject({
-      response_id: "response-pending",
-      last_assistant_message: "recovered text",
-    });
-    expect(ctx.deps.writeSystem).toHaveBeenCalledWith(
-      "Resuming pending tool execution with interruption notice",
-    );
-  });
-  test("shows retry guidance for interrupted retry recovery", async () => {
-    const ctx = harness("interrupt-retry");
-    await recoverPendingSession({
-      savedState: {},
-      getState: ctx.getState,
-      setState: ctx.setState,
-      execute: jest.fn(async () => ({ id: "response-retry" })),
-      deps: ctx.deps,
-    });
-    expect(ctx.deps.writeSystem).toHaveBeenCalledWith(
-      "Resuming pending tool execution with retry hint",
-    );
-  });
-  test("clears session when the saved response no longer exists", async () => {
-    const ctx = harness("auto-resume");
-    const error = Object.assign(new Error("missing"), { code: "previous_response_not_found" });
-    await recoverPendingSession({
-      savedState: {},
-      getState: ctx.getState,
-      setState: ctx.setState,
-      execute: async () => {
-        throw error;
-      },
-      deps: ctx.deps,
-    });
-    expect(ctx.deps.resetState).toHaveBeenCalledTimes(1);
-    expect(ctx.deps.clearSession).toHaveBeenCalledTimes(1);
-    expect(ctx.deps.writeSystem).toHaveBeenCalledWith(
-      "Pending response not found; clearing session",
-    );
-  });
+
   test.each([
-    [true, 1],
-    [false, 0],
-  ])(
-    "persists failure and preserves pending calls only when a retry transaction exists (%s)",
-    async (preservePendingCalls, expectedCalls) => {
-      const ctx = harness("auto-resume");
-      const error = new Error("resume failed");
-      ctx.deps.createRunner.mockImplementation(() => () => {});
-      const execute = async () => {
-        throw error;
-      };
-      // A request marks the saved transaction as replayable and therefore preservable.
-      if (preservePendingCalls) ctx.getState().pending_transaction = { request: {} };
-      await recoverPendingSession({
-        savedState: {},
-        getState: ctx.getState,
-        setState: ctx.setState,
-        execute,
-        deps: ctx.deps,
-      });
-      expect(ctx.getState().failed_response).toBe(true);
-      expect(ctx.getState().pending_tool_calls).toHaveLength(expectedCalls);
-      expect(ctx.deps.saveState).toHaveBeenCalledTimes(1);
-    },
-  );
-  test("formats a resumed failure without an error message", async () => {
-    const ctx = harness("auto-resume");
+    ["interrupt-retry", "retry hint"],
+    ["interrupt-request", "interruption notice"],
+  ])("shows the %s recovery notice", async (choice, notice) => {
+    const ctx = harness(choice);
     await recoverPendingSession({
       savedState: {},
       getState: ctx.getState,
       setState: ctx.setState,
-      execute: async () => {
-        throw {};
-      },
+      execute: jest.fn(async () => ({})),
       deps: ctx.deps,
     });
     expect(ctx.deps.writeSystem).toHaveBeenCalledWith(
-      "Pending response failed: [object Object]. Session preserved.",
+      `Resuming pending tool execution with ${notice}`,
     );
   });
 });
