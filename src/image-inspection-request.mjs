@@ -1,4 +1,4 @@
-import { encodeImageInput } from "./image-input.mjs";
+import { prepareImageInspectionContent } from "./image-inspection-content.mjs";
 
 export const MAX_IMAGES = 10;
 export const MAX_PROMPT_LENGTH = 10_000;
@@ -12,12 +12,10 @@ export async function prepareImageInspectionRequest(args, options = {}) {
   if (!images.length) return "ERROR: at least one image is required";
   if (images.length > MAX_IMAGES) return `ERROR: a maximum of ${MAX_IMAGES} images is allowed`;
   const { cwd, responseId, previousResponseId, callerResponse, model } = options;
-  const content = [{ type: "input_text", text: prompt }];
-  for (const item of images) {
-    const image = await encodeImageInput(item?.path, { cwd, detail: args?.detail || "low" });
-    if (item?.caption) content.push({ type: "input_text", text: String(item.caption) });
-    content.push({ type: "input_image", image_url: image.dataUrl, detail: image.detail });
-  }
+  const content = [
+    { type: "input_text", text: prompt },
+    ...(await prepareImageInspectionContent(images, { cwd, detail: args?.detail || "low" })),
+  ];
   const parent = previousResponseId || callerResponse?.previous_response_id || responseId;
   return {
     model,

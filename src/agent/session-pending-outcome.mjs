@@ -1,10 +1,9 @@
 import { transitionPendingRecoveryState } from "./session-pending-outcome-transition.mjs";
+import { resetPendingResponseSession } from "./session-pending-response-reset.mjs";
 
 export async function applyPendingRecoveryOutcome({ result, state, setState, deps }) {
   if (result.status === "missing-response") {
-    deps.writeSystem("Pending response not found; clearing session");
-    deps.resetState(deps.createUsageTotals());
-    await deps.clearSession();
+    await resetPendingResponseSession(deps);
   } else {
     setState(transitionPendingRecoveryState(result, state, deps.extractAssistantText));
     await deps.saveState();

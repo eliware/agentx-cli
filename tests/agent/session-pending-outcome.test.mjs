@@ -40,6 +40,7 @@ describe("pending recovery outcome", () => {
     });
     expect(ctx.deps.resetState).toHaveBeenCalledWith({ turns: 0 });
     expect(ctx.deps.clearSession).toHaveBeenCalledTimes(1);
+    expect(ctx.deps.saveState).not.toHaveBeenCalled();
   });
 
   test.each([
