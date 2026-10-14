@@ -9,11 +9,21 @@ function setup(overrides = {}) {
     pendingRetryRequest: { input: ["retry"] },
     pendingTransaction: { request: { input: ["retry"] } },
     pendingToolCalls: [{ call_id: "tool-1" }],
+    executionJournal: [{ identity: "tool-1", status: "started" }],
     failedResponse: false,
     recoveryAttempts: 0,
     websocketRecoveryAttempts: 0,
     websocketRecoveryStartedAt: null,
     debugEnabled: false,
+    clearPendingContinuationForNewChain() {
+      this.previousResponseId = "";
+      this.retryRequest = null;
+      this.pendingRetryRequest = null;
+      this.pendingTransaction = null;
+      this.pendingToolCalls = [];
+      this.executionJournal = [];
+      this.failedResponse = false;
+    },
   };
   const deps = {
     isWebsocketRecoveryError: jest.fn(() => false),
@@ -68,13 +78,20 @@ describe("session request recovery flow", () => {
   });
 
   test("starts a new chain after a missing prior response", async () => {
-    const { state, resolve } = setup({
+    const setupState = setup({
       decideRequestFailure: jest.fn(() => ({ action: "new-chain", recoveryAttempts: 1 })),
     });
+    const { state, resolve } = setupState;
+    state.failedResponse = true;
     await expect(resolve(new Error("missing"))).resolves.toEqual({ control: "retry" });
     expect(state.previousResponseId).toBe("");
     expect(state.pendingRetryRequest).toBeNull();
+    expect(state.pendingTransaction).toBeNull();
+    expect(state.pendingToolCalls).toEqual([]);
+    expect(state.executionJournal).toEqual([]);
+    expect(state.failedResponse).toBe(false);
     expect(state.retryRequest).toBeNull();
+    expect(setupState.deps.saveState).toHaveBeenCalledTimes(1);
   });
 
   test("retries a one-shot pending continuation and otherwise returns the original error", async () => {
@@ -180,8 +197,13 @@ describe("session request recovery flow", () => {
       promptRecoveryMenu: jest.fn(async () => "new-chain"),
       decideRecoveryMenuChoice: jest.fn(() => ({ action: "new-chain", recoveryAttempts: 2 })),
     });
+    chain.state.failedResponse = true;
     await expect(chain.resolve(new Error("failure"))).resolves.toEqual({ control: "retry" });
     expect(chain.state.previousResponseId).toBe("");
+    expect(chain.state.pendingTransaction).toBeNull();
+    expect(chain.state.pendingToolCalls).toEqual([]);
+    expect(chain.state.executionJournal).toEqual([]);
+    expect(chain.state.failedResponse).toBe(false);
 
     const clear = setup({
       promptRecoveryMenu: jest.fn(async () => "clear"),

@@ -11,6 +11,7 @@ describe("session recovery state", () => {
       "PendingRetryRequest",
       "PendingTransaction",
       "PendingToolCalls",
+      "ExecutionJournal",
       "FailedResponse",
       "DebugEnabled",
     ]) {
@@ -26,6 +27,7 @@ describe("session recovery state", () => {
       "pendingRetryRequest",
       "pendingTransaction",
       "pendingToolCalls",
+      "executionJournal",
       "failedResponse",
       "debugEnabled",
     ]) {
@@ -44,5 +46,12 @@ describe("session recovery state", () => {
       state.websocketRecoveryAttempts,
       state.websocketRecoveryStartedAt,
     ]).toEqual(["retry", 1, 2, 2, 3]);
+    state.clearPendingContinuationForNewChain();
+    expect(state.previousResponseId).toBe("");
+    expect(state.pendingTransaction).toBeNull();
+    expect(state.pendingToolCalls).toEqual([]);
+    expect(state.executionJournal).toEqual([]);
+    expect(state.failedResponse).toBe(false);
+    expect(state.retryRequest).toBeNull();
   });
 });

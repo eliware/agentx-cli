@@ -17,6 +17,15 @@ export function createRecoveryState(session) {
     set previousResponseId(value) {
       session.setPreviousResponseId(value);
     },
+    clearPendingContinuationForNewChain() {
+      session.setPreviousResponseId("");
+      retryRequest = null;
+      session.setPendingRetryRequest(null);
+      session.setPendingTransaction(null);
+      session.setPendingToolCalls([]);
+      session.setExecutionJournal([]);
+      session.setFailedResponse(false);
+    },
     get retryRequest() {
       return retryRequest;
     },
@@ -40,6 +49,12 @@ export function createRecoveryState(session) {
     },
     set pendingToolCalls(value) {
       session.setPendingToolCalls(value);
+    },
+    get executionJournal() {
+      return session.getExecutionJournal();
+    },
+    set executionJournal(value) {
+      session.setExecutionJournal(value);
     },
     get failedResponse() {
       return session.getFailedResponse();

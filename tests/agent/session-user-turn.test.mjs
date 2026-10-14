@@ -11,6 +11,7 @@ function createSession() {
     pendingRetryRequest: { old: true },
     pendingTransaction: { request: { old: true } },
     pendingToolCalls: [{ id: "call" }],
+    executionJournal: [{ identity: "call", status: "started" }],
     failedResponse: false,
     debugEnabled: false,
     persistedState: { response_id: "response-old" },
@@ -38,6 +39,7 @@ function createSession() {
     "pendingRetryRequest",
     "pendingTransaction",
     "pendingToolCalls",
+    "executionJournal",
     "failedResponse",
     "debugEnabled",
   ]) {

@@ -48,6 +48,10 @@ export function createAgentUserTurnSession({
     setPendingToolCalls: (value) => {
       runtimeState.pendingToolCalls = value;
     },
+    getExecutionJournal: () => runtimeState.executionJournal,
+    setExecutionJournal: (value) => {
+      runtimeState.executionJournal = value;
+    },
     getFailedResponse: () => runtimeState.failedResponse,
     setFailedResponse: (value) => {
       runtimeState.failedResponse = value;

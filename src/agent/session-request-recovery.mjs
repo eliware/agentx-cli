@@ -31,9 +31,8 @@ export async function resolveSessionRequestFailure({
     return { control: "retry" };
   }
   if (recovery.action === "new-chain") {
-    state.previousResponseId = "";
-    state.retryRequest = null;
-    state.pendingRetryRequest = null;
+    state.clearPendingContinuationForNewChain();
+    await deps.saveState();
     deps.writeSystem("Previous response not found; starting a new chain.");
     return { control: "retry" };
   }
@@ -76,9 +75,8 @@ export async function resolveSessionRequestFailure({
     return { control: "retry" };
   }
   if (menuRecovery.action === "new-chain") {
-    state.previousResponseId = "";
-    state.retryRequest = null;
-    state.pendingRetryRequest = null;
+    state.clearPendingContinuationForNewChain();
+    await deps.saveState();
     return { control: "retry" };
   }
   if (menuRecovery.action === "rollback") {
