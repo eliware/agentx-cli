@@ -61,21 +61,38 @@ export function applyResponseSnapshot(
   return { state: nextState, checkpoint: null };
 }
 
-export function resetSessionState(state, emptyUsage) {
-  return {
+export function completeConversationTurn(
+  state,
+  { response, userMessage, assistantText, timestamp },
+) {
+  const responseId = response?.id || state.response_id;
+  const nextState = {
     ...state,
-    response_id: "",
-    usage: emptyUsage,
-    last_user_message: "",
-    last_assistant_message: "",
-    pending_cli_transcript: "",
+    response_id: responseId,
+    last_user_message: userMessage,
+    last_assistant_message: assistantText,
     pending_tool_calls: [],
-    execution_journal: [],
-    history: [],
-    rollback_backup: [],
-    failed_response: false,
     pending_retry_request: null,
     pending_transaction: null,
-    goal: null,
+    pending_cli_transcript: "",
+    failed_response: false,
+    rollback_backup: [],
   };
+  if (!response?.id) return nextState;
+  const completedEntry = (state.history || []).find(
+    (entry) => entry.response_id === response.id,
+  ) || {
+    response_id: response.id,
+    timestamp,
+    user_preview: userMessage.slice(0, 20),
+    assistant_preview: assistantText.slice(0, 20),
+    usage: { ...state.usage },
+    last_user_message: userMessage,
+    last_assistant_message: assistantText,
+  };
+  nextState.history = [
+    ...(state.history || []).filter((entry) => entry.response_id !== response.id),
+    completedEntry,
+  ].slice(-20);
+  return nextState;
 }

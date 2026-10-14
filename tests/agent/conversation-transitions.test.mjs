@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import {
   applyResponseSnapshot,
-  resetSessionState,
+  completeConversationTurn,
 } from "../../src/agent/conversation-transitions.mjs";
 
 const baseState = {
@@ -18,6 +18,66 @@ const baseState = {
 };
 
 describe("agent response snapshot transitions", () => {
+  test("builds successful turn state and bounded history data", () => {
+    const state = completeConversationTurn(baseState, {
+      response: { id: "completed" },
+      userMessage: "new question",
+      assistantText: "answer",
+      timestamp: "fixed-time",
+    });
+    expect(state).toMatchObject({
+      response_id: "completed",
+      last_user_message: "new question",
+      last_assistant_message: "answer",
+      pending_tool_calls: [],
+      pending_retry_request: null,
+      pending_transaction: null,
+      pending_cli_transcript: "",
+      failed_response: false,
+      rollback_backup: [],
+      history: [
+        { response_id: "old-response" },
+        {
+          response_id: "completed",
+          timestamp: "fixed-time",
+          user_preview: "new question",
+          assistant_preview: "answer",
+          usage: baseState.usage,
+        },
+      ],
+    });
+  });
+
+  test("preserves prior history metadata and response identity when no new ID exists", () => {
+    const entry = { response_id: "completed", usage: { turns: 8 }, timestamp: "saved" };
+    const state = completeConversationTurn(
+      { ...baseState, history: [entry] },
+      { response: { id: "completed" }, userMessage: "question", assistantText: "answer" },
+    );
+    expect(state.history).toEqual([entry]);
+    const withoutId = completeConversationTurn(baseState, {
+      response: {},
+      userMessage: "question",
+      assistantText: "answer",
+    });
+    expect(withoutId.response_id).toBe(baseState.response_id);
+    expect(withoutId.history).toBe(baseState.history);
+  });
+
+  test("creates successful history when prior history is absent", () => {
+    const state = completeConversationTurn(
+      { ...baseState, history: undefined },
+      {
+        response: { id: "first" },
+        userMessage: "question",
+        assistantText: "answer",
+        timestamp: "fixed-time",
+      },
+    );
+    expect(state.history).toHaveLength(1);
+    expect(state.history[0]).toMatchObject({ response_id: "first", timestamp: "fixed-time" });
+  });
+
   test("stores pending tool calls without marking the response successful", () => {
     const calls = [{ call_id: "call-1" }];
     const result = applyResponseSnapshot(
@@ -109,25 +169,5 @@ describe("agent response snapshot transitions", () => {
       assistant_preview: "",
     });
     expect(result.checkpoint.response_id).toBe("first");
-  });
-
-  test("clears every persisted field while installing fresh usage totals", () => {
-    const emptyUsage = { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 };
-    expect(resetSessionState(baseState, emptyUsage)).toEqual({
-      ...baseState,
-      response_id: "",
-      usage: emptyUsage,
-      last_user_message: "",
-      last_assistant_message: "",
-      pending_cli_transcript: "",
-      pending_tool_calls: [],
-      execution_journal: [],
-      history: [],
-      rollback_backup: [],
-      failed_response: false,
-      pending_retry_request: null,
-      pending_transaction: null,
-      goal: null,
-    });
   });
 });

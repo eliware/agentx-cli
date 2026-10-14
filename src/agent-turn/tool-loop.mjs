@@ -1,9 +1,9 @@
-import { setActiveStatusController } from "../terminal-output.mjs";
 import { runToolCall } from "../tool-dispatch.mjs";
 import { prepareToolLoopCycle } from "./tool-loop-cycle.mjs";
 import { handleEmptyToolLoopCycle } from "./tool-loop-empty-cycle.mjs";
 import { executeToolLoopCycle } from "./tool-loop-tool-cycle.mjs";
 import { createToolLoopState } from "./tool-loop-state.mjs";
+import { initializeToolLoopLifecycle, stopToolLoopForCancellation } from "./tool-loop-policy.mjs";
 
 export async function handleToolCalls(
   openai,
@@ -27,13 +27,18 @@ export async function handleToolCalls(
     goalMaxIterations,
     executeToolCall,
   } = state;
-  setActiveStatusController(statusController);
+  initializeToolLoopLifecycle(statusController);
   let isFirstResponse = true;
   for (;;) {
-    if (goalMode && !goalState.finished && streamOptions?.isGoalCancelled?.()) {
-      statusController?.clear();
+    if (
+      stopToolLoopForCancellation({
+        goalMode,
+        goalFinished: goalState.finished,
+        isGoalCancelled: streamOptions?.isGoalCancelled,
+        statusController,
+      })
+    )
       return current;
-    }
     const { calls } = await prepareToolLoopCycle({
       current,
       cwd,

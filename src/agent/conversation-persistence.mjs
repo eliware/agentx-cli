@@ -1,4 +1,5 @@
-import { applyResponseSnapshot, resetSessionState } from "./conversation-transitions.mjs";
+import { applyResponseSnapshot } from "./conversation-transitions.mjs";
+import { resetSessionState } from "./session-state-reset-transition.mjs";
 import { applyRollbackSelection } from "./rollback-transition.mjs";
 import { updateExecutionJournal } from "./execution-journal.mjs";
 

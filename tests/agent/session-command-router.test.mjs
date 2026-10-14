@@ -54,9 +54,7 @@ describe("session command router", () => {
       })),
     });
     await expect(router.route()).resolves.toEqual({ action: "request", message: "do the work" });
-    expect(router.state.activeGoal).toEqual({ status: "active" });
-    expect(router.deps.saveState).toHaveBeenCalledTimes(1);
-    expect(router.deps.writeSystem).toHaveBeenCalledWith("Goal started");
+    expect(router.deps.transitionGoalCommand).toHaveBeenCalledWith(null, { type: "goal" });
   });
 
   test("continues without a request when a goal command asks to continue", async () => {

@@ -1,3 +1,5 @@
+import { completeConversationTurn } from "./conversation-transitions.mjs";
+
 export async function finalizeAgentTurn({
   response,
   userMessage,
@@ -15,37 +17,12 @@ export async function finalizeAgentTurn({
 }) {
   const state = getState();
   const assistantText = extractAssistantText(response);
-  const responseId = response?.id || state.response_id;
-  const nextState = {
-    ...state,
-    response_id: responseId,
-    last_user_message: userMessage,
-    last_assistant_message: assistantText,
-    pending_tool_calls: [],
-    pending_retry_request: null,
-    pending_transaction: null,
-    pending_cli_transcript: "",
-    failed_response: false,
-    rollback_backup: [],
-  };
-
-  if (response?.id) {
-    const completedEntry = (state.history || []).find(
-      (entry) => entry.response_id === response.id,
-    ) || {
-      response_id: response.id,
-      timestamp: now(),
-      user_preview: userMessage.slice(0, 20),
-      assistant_preview: assistantText.slice(0, 20),
-      usage: { ...state.usage },
-      last_user_message: userMessage,
-      last_assistant_message: assistantText,
-    };
-    nextState.history = [
-      ...(state.history || []).filter((entry) => entry.response_id !== response.id),
-      completedEntry,
-    ].slice(-20);
-  }
+  const nextState = completeConversationTurn(state, {
+    response,
+    userMessage,
+    assistantText,
+    timestamp: response?.id ? now() : undefined,
+  });
 
   setState(nextState);
   await saveState();
@@ -63,5 +40,5 @@ export async function finalizeAgentTurn({
     });
   }
 
-  return { status: "completed", responseId };
+  return { status: "completed", responseId: nextState.response_id };
 }

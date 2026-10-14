@@ -1,175 +1,107 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { finalizeAgentTurn } from "../../src/agent/session-turn-finalization.mjs";
-function createState(overrides = {}) {
-  let state = {
-    response_id: "old-response",
-    usage: { inputTokens: 3, cachedTokens: 1, outputTokens: 2, turns: 1 },
-    last_user_message: "old user",
-    last_assistant_message: "old assistant",
-    pending_cli_transcript: "!ls",
-    pending_tool_calls: [{ call_id: "pending" }],
-    pending_retry_request: { input: ["retry"] },
-    pending_transaction: { request: { input: ["retry"] } },
-    failed_response: true,
-    rollback_backup: [{ response_id: "rollback" }],
-    history: [{ response_id: "previous" }],
+
+function stateAccessors(state) {
+  let current = { response_id: "old", usage: { turns: 1 }, history: [], ...state };
+  return {
+    getState: () => current,
+    setState: jest.fn((next) => {
+      current = next;
+    }),
+  };
+}
+
+function services(overrides = {}) {
+  return {
+    extractAssistantText: () => "answer",
+    saveState: jest.fn(),
+    persistCheckpoint: jest.fn(),
+    checkpointPath: "checkpoint.json",
+    clearSession: jest.fn(),
+    statePath: "session.json",
     ...overrides,
   };
-  return { getState: () => state, setState: (next) => (state = next) };
 }
+
 describe("session turn finalization", () => {
-  test("keeps the completed tool continuation checkpoint once with its saved usage", async () => {
-    const checkpoint = {
-      response_id: "response-next",
-      timestamp: "saved-time",
-      user_preview: "new question",
-      assistant_preview: "tool continuation answer",
-      usage: { inputTokens: 99, cachedTokens: 4, outputTokens: 21, turns: 3 },
-      last_user_message: "new question",
-      last_assistant_message: "tool continuation answer",
-    };
-    const session = createState({
-      history: [{ response_id: "previous" }, checkpoint],
-      usage: { inputTokens: 1, cachedTokens: 0, outputTokens: 1, turns: 1 },
+  test("saves transitioned state before persisting its checkpoint", async () => {
+    const order = [];
+    const state = stateAccessors();
+    const service = services({
+      setState: jest.fn((next) => {
+        order.push("state");
+        state.setState(next);
+      }),
+      saveState: jest.fn(async () => order.push("save")),
+      persistCheckpoint: jest.fn(async () => order.push("checkpoint")),
     });
-    const persistCheckpoint = jest.fn();
-    await finalizeAgentTurn({
-      response: { id: "response-next" },
-      userMessage: "new question",
-      oneShot: false,
-      ...session,
-      extractAssistantText: () => "tool continuation answer",
-      saveState: jest.fn(),
-      persistCheckpoint,
-      checkpointPath: "checkpoint.json",
-      clearSession: jest.fn(),
-      statePath: "session.json",
-    });
-    expect(session.getState().history).toEqual([{ response_id: "previous" }, checkpoint]);
-    expect(persistCheckpoint).toHaveBeenCalledWith(
-      "checkpoint.json",
-      expect.objectContaining({ response_id: "response-next", usage: checkpoint.usage }),
-    );
-  });
-  test("persists completed response state and a successful checkpoint", async () => {
-    const session = createState();
-    const saveState = jest.fn();
-    const persistCheckpoint = jest.fn();
-    const clearSession = jest.fn();
     const result = await finalizeAgentTurn({
       response: { id: "response-next" },
-      userMessage: "new question",
-      oneShot: false,
-      ...session,
-      extractAssistantText: () => "new answer",
-      saveState,
-      persistCheckpoint,
-      checkpointPath: "checkpoint.json",
-      clearSession,
-      statePath: "session.json",
-    });
-    expect(result).toMatchObject({ status: "completed", responseId: "response-next" });
-    expect(session.getState()).toMatchObject({
-      response_id: "response-next",
-      last_user_message: "new question",
-      last_assistant_message: "new answer",
-      pending_cli_transcript: "",
-      pending_tool_calls: [],
-      pending_retry_request: null,
-      pending_transaction: null,
-      failed_response: false,
-      rollback_backup: [],
-      history: [
-        { response_id: "previous" },
-        {
-          response_id: "response-next",
-          user_preview: "new question",
-          assistant_preview: "new answer",
-          last_user_message: "new question",
-          last_assistant_message: "new answer",
-        },
-      ],
-    });
-    expect(saveState).toHaveBeenCalledTimes(1);
-    expect(persistCheckpoint).toHaveBeenCalledWith(
-      "checkpoint.json",
-      expect.objectContaining({ response_id: "response-next", usage: session.getState().usage }),
-    );
-    expect(clearSession).not.toHaveBeenCalled();
-  });
-  test("preserves the previous response identity and omits history when the response has no ID", async () => {
-    const session = createState();
-    const persistCheckpoint = jest.fn();
-    await finalizeAgentTurn({
-      response: {},
       userMessage: "question",
       oneShot: false,
-      ...session,
-      extractAssistantText: () => "answer",
-      saveState: jest.fn(),
-      persistCheckpoint,
-      checkpointPath: "checkpoint.json",
-      clearSession: jest.fn(),
-      statePath: "session.json",
+      ...state,
+      ...service,
     });
-    expect(session.getState().response_id).toBe("old-response");
-    expect(session.getState().history).toEqual([{ response_id: "previous" }]);
-    expect(persistCheckpoint).toHaveBeenCalledWith(
+    expect(result).toEqual({ status: "completed", responseId: "response-next" });
+    expect(order).toEqual(["state", "save", "checkpoint"]);
+    expect(service.persistCheckpoint).toHaveBeenCalledWith(
       "checkpoint.json",
-      expect.objectContaining({ response_id: undefined }),
+      expect.objectContaining({ response_id: "response-next" }),
     );
   });
-  test("clears one-shot state and delegates the normal usage-summary exit", async () => {
-    const session = createState();
+
+  test("clears one-shot state before the completion callback", async () => {
     const order = [];
-    const persistCheckpoint = jest.fn();
-    const result = await finalizeAgentTurn({
+    const state = stateAccessors();
+    const service = services({
+      saveState: jest.fn(async () => order.push("save")),
+      clearSession: jest.fn(async (path) => order.push(`clear:${path}`)),
+      onOneShotComplete: async () => order.push("exit-summary"),
+    });
+    await finalizeAgentTurn({
       response: { id: "worker-response" },
       userMessage: "worker task",
       oneShot: true,
-      ...session,
-      extractAssistantText: () => "done",
-      saveState: jest.fn(async () => order.push("save")),
-      persistCheckpoint,
-      clearSession: jest.fn(async (path) => order.push(`clear:${path}`)),
-      statePath: "one-shot-state.json",
-      checkpointPath: "checkpoint.json",
-      onOneShotComplete: async () => order.push("exit-summary"),
+      ...state,
+      ...service,
     });
-    expect(result.status).toBe("completed");
-    expect(order).toEqual(["save", "clear:one-shot-state.json", "exit-summary"]);
-    expect(persistCheckpoint).not.toHaveBeenCalled();
+    expect(order).toEqual(["save", "clear:session.json", "exit-summary"]);
+    expect(service.persistCheckpoint).not.toHaveBeenCalled();
   });
-  test("uses the default completion callback when one-shot response has no id", async () => {
-    const session = createState();
-    const clearSession = jest.fn();
+
+  test("uses the default completion callback for one-shot responses without IDs", async () => {
+    const state = stateAccessors();
+    const service = services();
+    await expect(
+      finalizeAgentTurn({
+        response: {},
+        userMessage: "task",
+        oneShot: true,
+        ...state,
+        ...service,
+      }),
+    ).resolves.toMatchObject({ status: "completed", responseId: "old" });
+    expect(service.clearSession).toHaveBeenCalledWith("session.json");
+  });
+
+  test("uses current state for a checkpoint when the response has no ID", async () => {
+    const state = stateAccessors();
+    const service = services();
     await finalizeAgentTurn({
       response: {},
       userMessage: "task",
-      oneShot: true,
-      ...session,
-      extractAssistantText: () => "done",
-      saveState: jest.fn(),
-      persistCheckpoint: jest.fn(),
-      clearSession,
-      statePath: "state.json",
-    });
-    expect(clearSession).toHaveBeenCalledWith("state.json");
-  });
-  test("creates history when prior history is absent", async () => {
-    const session = createState({ history: undefined });
-    await finalizeAgentTurn({
-      response: { id: "fresh-response" },
-      userMessage: "question",
       oneShot: false,
-      ...session,
-      extractAssistantText: () => "answer",
-      saveState: jest.fn(),
-      persistCheckpoint: jest.fn(),
-      clearSession: jest.fn(),
-      statePath: "state.json",
-      checkpointPath: "checkpoint.json",
+      ...state,
+      ...service,
     });
-    expect(session.getState().history).toHaveLength(1);
+    expect(service.persistCheckpoint).toHaveBeenCalledWith(
+      "checkpoint.json",
+      expect.objectContaining({
+        response_id: undefined,
+        usage: state.getState().usage,
+        last_user_message: "task",
+        last_assistant_message: "answer",
+      }),
+    );
   });
 });

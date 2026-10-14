@@ -1,6 +1,7 @@
 import { resumePendingToolExecution } from "./pending-tool-resume.mjs";
 import { abandonPendingSession } from "./pending-session-abandonment.mjs";
 import { applyPendingRecoveryOutcome } from "./session-pending-outcome.mjs";
+import { resolvePendingSessionChoice } from "./session-pending-choice.mjs";
 
 export function shouldRecoverPendingSession({ previousResponseId, pendingToolCalls, oneShot }) {
   return Boolean(previousResponseId && pendingToolCalls.length > 0 && !oneShot);
@@ -17,18 +18,13 @@ export async function recoverPendingSession({
 }) {
   const resumeChoice = await deps.promptResumeMenu(savedState, { input, output });
   let state = getState();
-  if (resumeChoice === "new-session") {
+  const choice = resolvePendingSessionChoice(resumeChoice);
+  if (choice.action === "abandon") {
     await abandonPendingSession(state, setState, deps);
     return;
   }
 
-  deps.writeSystem(
-    resumeChoice === "auto-resume"
-      ? "Resuming pending tool execution"
-      : resumeChoice === "interrupt-retry"
-        ? "Resuming pending tool execution with retry hint"
-        : "Resuming pending tool execution with interruption notice",
-  );
+  deps.writeSystem(choice.notice);
   const result = await resumePendingToolExecution({
     choice: resumeChoice,
     savedState,

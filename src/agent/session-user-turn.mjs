@@ -1,5 +1,5 @@
 import { buildRequestMessage } from "../request-context.mjs";
-import { createRecoveryState } from "./session-recovery-state.mjs";
+import { createRecoveryState } from "./session-recovery-accessors.mjs";
 
 export async function runSessionUserTurn({ message, session, deps }) {
   const requestMessage = buildRequestMessage({

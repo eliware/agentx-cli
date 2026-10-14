@@ -1,6 +1,7 @@
 import { handleRecoveryMenuAbort } from "./recovery-menu-abort.mjs";
 import { isWebsocketRetryAvailable } from "./session-websocket-recovery.mjs";
 import { applySessionRecoveryAction } from "./session-recovery-actions.mjs";
+import { applyRequestFailureState, applyRecoveryMenuState } from "./session-recovery-state.mjs";
 
 export async function resolveSessionRequestFailure({
   error,
@@ -22,7 +23,7 @@ export async function resolveSessionRequestFailure({
     previousResponseId: state.previousResponseId,
     websocketRetryAvailable,
   });
-  state.recoveryAttempts = recovery.recoveryAttempts;
+  applyRecoveryMenuState(state, recovery);
 
   if (recovery.action === "reconnect") {
     state.websocketRecoveryAttempts += 1;
@@ -38,8 +39,7 @@ export async function resolveSessionRequestFailure({
     return { control: "retry" };
   }
 
-  state.failedResponse = true;
-  if (!state.pendingTransaction?.request) state.pendingToolCalls = [];
+  applyRequestFailureState(state, recovery);
   await deps.saveState();
   if (oneShot) {
     if (recovery.action === "retry-pending") {
@@ -62,8 +62,7 @@ export async function resolveSessionRequestFailure({
     recoveryAttempts: state.recoveryAttempts,
     newChainAttempts: state.newChainAttempts,
   });
-  state.recoveryAttempts = menuRecovery.recoveryAttempts;
-  state.newChainAttempts = menuRecovery.newChainAttempts ?? state.newChainAttempts;
+  applyRecoveryMenuState(state, menuRecovery);
   return applySessionRecoveryAction({
     action: menuRecovery.action,
     state,

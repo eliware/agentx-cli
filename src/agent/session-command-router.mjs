@@ -1,14 +1,19 @@
+import { applySessionGoalCommand } from "./session-goal-command-handler.mjs";
+
 export async function routeSessionCommand({ internal, message, state, deps }) {
   if (internal?.type === "setup") {
     state.template = await deps.runSetupFlow();
     return { action: "continue" };
   }
 
-  const goalCommand = deps.transitionGoalCommand(state.activeGoal, internal);
+  const goalCommand = await applySessionGoalCommand({
+    state,
+    internal,
+    transitionGoalCommand: deps.transitionGoalCommand,
+    saveState: deps.saveState,
+    writeSystem: deps.writeSystem,
+  });
   if (goalCommand.handled) {
-    state.activeGoal = goalCommand.goal;
-    if (goalCommand.persist) await deps.saveState();
-    if (goalCommand.message) deps.writeSystem(goalCommand.message);
     if (goalCommand.inputMessage) message = goalCommand.inputMessage;
     if (goalCommand.continue) return { action: "continue" };
   }
