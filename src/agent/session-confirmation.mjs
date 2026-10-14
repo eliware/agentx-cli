@@ -2,6 +2,7 @@ import {
   confirmationKey as confirmationKeyDefault,
   saveGlobalConfirmations as saveGlobalConfirmationsDefault,
 } from "../confirmation-policy.mjs";
+import { resolveSessionConfirmationChoice } from "./session-confirmation-choice.mjs";
 
 export function createSessionToolConfirmer({
   oneShot,
@@ -24,16 +25,16 @@ export function createSessionToolConfirmer({
     const answer = await getReadline().question(
       `Allow state-changing command: ${summary} [y]es/[n]o/[s]ession/[g]lobal: `,
     );
-    const choice = answer.trim().toLowerCase();
-    if (choice === "s" || choice === "session") {
+    const choice = resolveSessionConfirmationChoice(answer);
+    if (choice === "session") {
       sessionConfirmations.add(key);
       return true;
     }
-    if (choice === "g" || choice === "global") {
+    if (choice === "global") {
       globalConfirmations.add(key);
       await saveGlobalConfirmations(globalConfirmations, globalConfirmationPath);
       return true;
     }
-    return choice === "y" || choice === "yes";
+    return choice === "approve";
   };
 }

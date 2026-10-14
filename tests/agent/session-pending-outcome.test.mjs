@@ -3,31 +3,23 @@ import { applyPendingRecoveryOutcome } from "../../src/agent/session-pending-out
 import { baseState, harness } from "../../test-fixtures/session-pending-recovery-helpers.mjs";
 
 describe("pending recovery outcome", () => {
-  test("stores a completed response and clears pending calls", async () => {
+  test.each([
+    [{ id: "next", output_text: "done" }, "next"],
+    [{ output_text: "done" }, "response-pending"],
+  ])("applies completed response state with response %j", async (response, responseId) => {
     const ctx = harness("auto-resume");
     await applyPendingRecoveryOutcome({
-      result: { status: "completed", response: { id: "next", output_text: "done" } },
+      result: { status: "completed", response },
       state: ctx.getState(),
       setState: ctx.setState,
       deps: ctx.deps,
     });
     expect(ctx.getState()).toMatchObject({
-      response_id: "next",
+      response_id: responseId,
       last_assistant_message: "done",
       pending_tool_calls: [],
     });
     expect(ctx.deps.saveState).toHaveBeenCalledTimes(1);
-  });
-
-  test("keeps the prior response ID when completion has no ID", async () => {
-    const ctx = harness("auto-resume");
-    await applyPendingRecoveryOutcome({
-      result: { status: "completed", response: { output_text: "done" } },
-      state: ctx.getState(),
-      setState: ctx.setState,
-      deps: ctx.deps,
-    });
-    expect(ctx.getState().response_id).toBe("response-pending");
   });
 
   test("clears session state when the response is missing", async () => {

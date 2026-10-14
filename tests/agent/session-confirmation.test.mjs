@@ -26,24 +26,27 @@ function makeConfirmer({
 describe("session tool confirmation", () => {
   const call = { call_id: "call-1", action: { commands: "  rm   -rf  ./build\n" } };
 
-  test.each([
-    ["yes", true],
-    ["Y", true],
-    ["session", true],
-    ["global", true],
-    ["no", false],
-    ["unknown", false],
-  ])("maps %s confirmation choice to %s", async (answer, expected) => {
-    const state = makeConfirmer({ answer });
-    await expect(state.confirmer(call, "C:/work")).resolves.toBe(expected);
+  test("prompts and saves a session approval choice", async () => {
+    const state = makeConfirmer({ answer: "session" });
+    await expect(state.confirmer(call, "C:/work")).resolves.toBe(true);
     expect(state.question).toHaveBeenCalledWith(
       "Allow state-changing command: rm -rf ./build [y]es/[n]o/[s]ession/[g]lobal: ",
     );
-    if (answer === "session") expect(state.session.has("C:/work:call-1")).toBe(true);
-    if (answer === "global") {
-      expect(state.global.has("C:/work:call-1")).toBe(true);
-      expect(state.saveGlobal).toHaveBeenCalledWith(state.global, "global-confirmations.json");
-    }
+    expect(state.session.has("C:/work:call-1")).toBe(true);
+  });
+
+  test("persists a global approval choice", async () => {
+    const state = makeConfirmer({ answer: "global" });
+    await expect(state.confirmer(call, "C:/work")).resolves.toBe(true);
+    expect(state.global.has("C:/work:call-1")).toBe(true);
+    expect(state.saveGlobal).toHaveBeenCalledWith(state.global, "global-confirmations.json");
+  });
+
+  test.each([
+    ["yes", true],
+    ["unknown", false],
+  ])("returns the prompt decision for %s", async (answer, expected) => {
+    await expect(makeConfirmer({ answer }).confirmer(call, "C:/work")).resolves.toBe(expected);
   });
 
   test("reuses session/global approvals without prompting", async () => {
