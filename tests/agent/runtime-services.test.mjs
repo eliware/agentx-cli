@@ -134,3 +134,20 @@ test("composes persistence, confirmation, image, and exit services", async () =>
     printUsageReport,
   });
 });
+
+test("persists saved state when startup removes a prior goal", async () => {
+  saveState.mockClear();
+  await createAgentRuntimeServices({
+    session: {
+      statePath: "state.json",
+      checkpointPath: "checkpoint.json",
+      oneShot: false,
+      savedState: { goal: { text: "old goal" } },
+      outputFlags: { noUsage: true },
+    },
+    runtimeState: { pendingCliTranscript: "", sessionUsage: {}, template: {} },
+    terminalInput: {},
+    repl: { getReadline: jest.fn() },
+  });
+  expect(saveState).toHaveBeenCalledTimes(1);
+});

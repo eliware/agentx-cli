@@ -1,20 +1,10 @@
-import { isWorkerTerminal } from "./worker-status.mjs";
+import { requestWorkerCancellation } from "./worker-child-lifecycle.mjs";
 
 export async function terminateWorkerChildren({ state, persistWorker, graceMs }) {
   const active = [...state.children.entries()];
   for (const [id, child] of active) {
     const worker = state.workers.get(id);
-    if (worker && !isWorkerTerminal(worker.status)) {
-      worker.status = "cancelled";
-      worker.error = "parent shutdown";
-      worker.finishedAt = Date.now();
-      await persistWorker(worker).catch(() => {});
-    }
-    try {
-      child.kill("SIGTERM");
-    } catch {
-      /* best effort */
-    }
+    await requestWorkerCancellation({ worker, child, persistWorker });
   }
   await new Promise((resolve) => setTimeout(resolve, graceMs));
   for (const [, child] of active) {

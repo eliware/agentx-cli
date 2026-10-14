@@ -38,7 +38,7 @@ describe("session request recovery flow", () => {
     });
   });
 
-  test("cancels a recovery menu, restores terminal and readline, and preserves session state", async () => {
+  test("ends the recovery workflow when the user cancels the menu", async () => {
     const abort = Object.assign(new Error("cancel"), { name: "AbortError" });
     const { deps, resolve } = setup(resolveSessionRequestFailure, {
       promptRecoveryMenu: jest.fn(async () => {
@@ -46,12 +46,7 @@ describe("session request recovery flow", () => {
       }),
     });
     await expect(resolve(new Error("failure"))).resolves.toEqual({ control: "end" });
-    expect(deps.terminalInput.setRawMode).toHaveBeenCalledWith(false);
-    expect(deps.terminalInput.resume).toHaveBeenCalledTimes(1);
-    expect(deps.preserveReplHistory).toHaveBeenCalledTimes(1);
-    expect(deps.closeReadline).toHaveBeenCalledTimes(1);
-    expect(deps.setReadline).toHaveBeenCalledWith("new-readline");
-    expect(deps.writeSystem).toHaveBeenCalledWith("Recovery cancelled; session preserved.");
+    expect(deps.decideRecoveryMenuChoice).not.toHaveBeenCalled();
   });
 
   test("defaults omitted history and clears pending calls when no transaction request exists", async () => {

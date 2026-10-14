@@ -34,7 +34,7 @@ body: |
 
   Interactive startup pending-call recovery belongs to `agent/session-pending-recovery.mjs`. This coordinator owns one workflow: it reads the menu choice, selects the runner, executes pending calls, and applies the outcome. `agent/session-pending-choice.mjs`, `pending-tool-resume.mjs`, and `session-pending-outcome.mjs` own the focused policy steps. `agent/session-pending-outcome-transition.mjs` builds completed and failed session states; `agent/session-pending-outcome.mjs` coordinates state persistence, missing-response cleanup, and failure notices. Its `shouldRecoverPendingSession` predicate owns the interactive-vs-one-shot/pending-state boundary. `agent/session-pending-executor.mjs` builds the pending tool-loop execution callback and its session options. Runtime composes these modules with persistence, terminal, and API dependencies; mirrored tests cover outcome transitions, recovery coordination, the recovery predicate, and execution-option wiring without importing the entire REPL runtime.
 
-  Restoring normalized saved session fields, selecting the response ID used to resume, and clearing saved goal state through the session persistence callback belong to `agent/session-restore.mjs`. The runtime owns startup messaging and recovery-menu interaction. Saved goal state is never restored across process restarts.
+  Restoring normalized saved session fields and selecting the response ID used to resume belong to `agent/session-restore.mjs`. `agent/runtime-services.mjs` clears saved goal state through its session persistence callback. The runtime owns startup messaging and recovery-menu interaction. Saved goal state is never restored across process restarts.
 
   Cross-module Agent runtime lifecycle tests belong in `tests/agent/runtime.test.mjs`, mirroring `agent/runtime.mjs`. Keep those assertions to runtime wiring and lifecycle; test state normalization, persistence transitions, pending-response conversion, and recovery guidance at their respective focused module boundaries.
 
@@ -58,6 +58,8 @@ body: |
   Startup recovery of persisted pending tool calls is coordinated by `agent/pending-tool-resume.mjs`. It selects the recovery runner from the user's resume choice, invokes the supplied execution callback with the persisted snapshot and session callbacks, and reports a state/result outcome. `agent/session-pending-recovery.mjs` owns interactive menu selection and execution order; `agent/session-pending-outcome.mjs` applies that outcome to session state. `agent/session-pending-executor.mjs` owns construction of the tool-loop call and options. Runtime tests cover only startup/menu wiring and subsequent prompt lifecycle.
 
   ## Rollback
+
+  `agent/session-rollback-flow.mjs` restores the REPL in a `finally` path after every rollback menu outcome. It reports restoration errors through the terminal writer.
 
   The `/rollback` command opens an interactive checkpoint menu. Display each available checkpoint as a numbered row containing its number, local time, user preview, and assistant preview, plus a Cancel option. Support number keys, Up/Down arrows, Enter, and Ctrl-C using the same menu behavior as setup and session-resume menus.
 

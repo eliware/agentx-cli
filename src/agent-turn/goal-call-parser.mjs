@@ -1,5 +1,9 @@
 const GOAL_METHODS = new Set(["complete", "incomplete", "blocked", "question"]);
 
+export function goalCallOutput(call) {
+  return typeof call?.input === "string" ? call.input : call?.arguments || "{}";
+}
+
 export function parseGoalCall(call) {
   let args;
   try {

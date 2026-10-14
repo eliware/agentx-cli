@@ -9,12 +9,8 @@ class Terminal extends EventEmitter {
 }
 
 describe("setup setting choice", () => {
-  test("selects through the raw menu and readline fallback", async () => {
-    const input = new Terminal();
+  test("uses readline input and selects a default after an invalid raw key", async () => {
     const stdout = { write: jest.fn() };
-    const raw = selectChoice(input, stdout, {}, "Model", ["one", "two"], "two");
-    setImmediate(() => input.emit("data", Buffer.from("\r")));
-    await expect(raw).resolves.toBe("two");
     await expect(
       selectChoice({}, stdout, { question: async () => "2" }, "Model", ["one", "two"], "one"),
     ).resolves.toBe("two");

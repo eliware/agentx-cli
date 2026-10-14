@@ -4,6 +4,10 @@ body: |
 
   CLI argument tokenization lives in `cli-args.mjs`; output suppression normalization lives in `cli-flags.mjs`; package-version file access and help rendering live in `cli-version.mjs` and `cli-help.mjs`; loading user-local dotenv configuration lives in `env-loader.mjs`. Each has a mirrored focused test suite. Entrypoint and runtime orchestration consume those focused modules without duplicating parser or help-text assertions.
 
+  `agent-entrypoint-config.mjs` resolves the working directory and preserves positional message arguments. Setup-state loading and model migration belong to `setup-env.mjs` and its focused format, state, and migration modules. Session settings application belongs to `agent/session-bootstrap.mjs`.
+
+  `agent-entrypoint-dependencies.mjs` loads and maps the CLI runtime dependencies. `agent-entrypoint-bootstrap.mjs` owns invocation and startup sequencing. Keep dependency mapping tests in its matching suite and keep workflow tests in the bootstrap suite.
+
   ## Invocation
 
   The package exposes `agentx` and `agentx-setup` through `bin/agentx.mjs` and `bin/agentx-setup.mjs`. The launchers import `src/agent-entrypoint.mjs` and `src/setup-entrypoint.mjs`. `agentx-setup --help` (`-h`) prints setup usage without entering the interactive flow; `agentx-setup --version` (`-v`) prints the package version and exits successfully. Direct invocation must use the real path of `process.argv[1]` and must work through npm or operating-system symlinks. Importing an entrypoint must not start a REPL.
@@ -41,8 +45,9 @@ body: |
   Request failure recovery flow belongs to `agent/session-request-recovery.mjs`: it coordinates transport-retry classification, recovery menus, client recreation, debug retry, new-chain, rollback, clear, and cancellation outcomes using injected actions and mutable request state. Its mirrored tests cover the recovery branches; the runtime applies the returned retry/end/throw control to its prompt loop.
 
   Recovery context wiring belongs to `agent/runtime-recovery-context.mjs`; it receives a grouped presentation adapter from `agent/recovery-presentation.mjs`. Recovery terminal and debug messages belong to the presentation module; mirrored tests cover message output, while context tests cover dependency wiring.
+  `agent/runtime-recovery-setup.mjs` owns the recovery startup workflow: it creates runtime services, then invokes pending-session recovery. Runtime service construction belongs to `agent/runtime-services.mjs`; pending recovery belongs to `agent/runtime-pending-recovery.mjs`. Keep end-to-end setup and recovery wiring tests with the workflow coordinator.
 
-  `agent/runtime-services.mjs` composes session services. `agent/session-restore.mjs` clears a saved goal during startup and persists the clean session state. Runtime service tests cover composition; session restore tests cover goal cleanup.
+  `agent/runtime-services.mjs` composes session services and persists state after it clears a saved goal. `agent/session-restore.mjs` normalizes saved session fields. Runtime service tests cover goal cleanup; session restore tests cover field normalization.
 
   Saving generated images and recording their paths in the pending CLI transcript belong to `agent/session-image-generation.mjs`; it owns success/error presentation and saving updated session state through injected file and terminal services. Its mirrored tests cover save success/failure, while runtime tests cover only callback wiring.
 

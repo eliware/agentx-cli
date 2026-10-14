@@ -1,5 +1,8 @@
 import { runShellCommands } from "./tool-shell-sequence.mjs";
-import { runParallelWorkerFunction } from "./parallel-worker-command-coordinator.mjs";
+import {
+  isParallelWorkerFunctionCall,
+  runParallelWorkerFunction,
+} from "./parallel-worker-command-coordinator.mjs";
 import { permissionAllowsRequired } from "./permission-policy.mjs";
 import { commandPermission } from "./tool-command-classification.mjs";
 
@@ -12,18 +15,12 @@ export async function runToolCall(call, cwd, options = {}) {
   if (!call || typeof call !== "object" || Array.isArray(call)) return "ERROR: invalid tool call";
   if (typeof cwd !== "string" || !cwd.trim())
     return `ERROR: invalid working directory for ${call.type || "tool"}`;
-  if (
-    call?.type === "function_call" &&
-    ["spawn_agent", "agent_status", "cancel_agent"].includes(call?.name)
-  ) {
+  if (isParallelWorkerFunctionCall(call)) {
     return await runParallelWorkerFunction(call, cwd, {
       ...options,
       permission: options.permission || process.env.AGENTX_PERMISSION || "execute",
     });
   }
-  if (call?.type === "function_call" && call?.name === "goal_update")
-    return typeof call.input === "string" ? call.input : call.arguments || "{}";
-
   if (call?.type === "shell_call") {
     const permission = options?.permission || process.env.AGENTX_PERMISSION || "execute";
     const requiredPermission = commandPermission(call);

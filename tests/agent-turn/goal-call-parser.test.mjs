@@ -1,5 +1,11 @@
 import { expect, test } from "@jest/globals";
-import { parseGoalCall } from "../../src/agent-turn/goal-call-parser.mjs";
+import { goalCallOutput, parseGoalCall } from "../../src/agent-turn/goal-call-parser.mjs";
+
+test("returns the goal payload for interrupted call recovery", () => {
+  expect(goalCallOutput({ input: "done" })).toBe("done");
+  expect(goalCallOutput({ arguments: "done" })).toBe("done");
+  expect(goalCallOutput({})).toBe("{}");
+});
 
 test("parses JSON arguments and reads the alternate input field", () => {
   expect(parseGoalCall({ arguments: '{"method":"COMPLETE"}' })).toEqual({

@@ -11,11 +11,12 @@ export function createStatusDisplay({
   snapshot,
   getState,
   isPaused,
+  writeOutput,
 }) {
   let lastRendered = "";
   function clear() {
     if (quiet || transitionOnly || !lastRendered) return;
-    if (colors) process.stdout.write("\r\x1b[2K\r");
+    if (colors) writeOutput("\r\x1b[2K\r");
     lastRendered = "";
   }
   function field(name, value) {
@@ -24,10 +25,10 @@ export function createStatusDisplay({
   }
   function write(text) {
     if (text === lastRendered) return;
-    if (transitionOnly) process.stdout.write(`${text}\n`);
+    if (transitionOnly) writeOutput(`${text}\n`);
     else {
       clear();
-      process.stdout.write(text);
+      writeOutput(text);
     }
     lastRendered = text;
   }

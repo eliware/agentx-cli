@@ -1,5 +1,5 @@
 import { createOpenAI } from "@eliware/openai";
-import { runImageInspection } from "./image-inspector.mjs";
+import { runImageInspection } from "./image-direct-inspection.mjs";
 import { isValidImageWorkerRequest, resolveImageWorkerApiKey } from "./image-worker-config.mjs";
 import { createImageWorkerUsage } from "./image-worker-usage.mjs";
 

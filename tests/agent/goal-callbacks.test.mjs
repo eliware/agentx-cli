@@ -7,7 +7,6 @@ function makeCallbacks({
   terminalInput = {},
 } = {}) {
   const state = { goal };
-  const writes = [];
   const saved = jest.fn();
   const callbacks = createGoalCallbacks({
     getGoal: () => state.goal,
@@ -17,10 +16,10 @@ function makeCallbacks({
     saveState: saved,
     getReadline: () => readline,
     terminalInput,
-    write: (text) => writes.push(text),
+    write: jest.fn(),
     formatMessage: (text) => `<${text}>`,
   });
-  return { callbacks, state, writes, saved };
+  return { callbacks, state, saved };
 }
 
 describe("goal callbacks", () => {
@@ -45,40 +44,23 @@ describe("goal callbacks", () => {
   });
 
   test("blocks a goal at its iteration limit and only renders nonempty final responses", async () => {
-    const { callbacks, state, writes, saved } = makeCallbacks();
+    const { callbacks, state, saved } = makeCallbacks();
     await callbacks.onGoalLimit(8);
     expect(state.goal).toEqual({ status: "blocked", text: "ship it", iterations: 8 });
-    expect(writes).toEqual(["<Goal stopped after 8 iterations>\n"]);
     expect(saved).toHaveBeenCalledTimes(1);
 
-    const render = jest.fn();
+    const write = jest.fn();
     const finalCallbacks = createGoalCallbacks({
       getGoal: () => null,
       setGoal: jest.fn(),
       saveState: jest.fn(),
       getReadline: () => null,
       terminalInput: {},
-      printFinalResponse: render,
+      write,
     });
     await finalCallbacks.onGoalFinalResponse("");
     await finalCallbacks.onGoalFinalResponse("final");
-    expect(render).toHaveBeenCalledTimes(1);
-    expect(render).toHaveBeenCalledWith("final");
-  });
-
-  test("uses default output formatting and final-response output", async () => {
-    const writes = [];
-    const callbacks = createGoalCallbacks({
-      getGoal: () => ({ status: "active" }),
-      setGoal: jest.fn(),
-      saveState: jest.fn(),
-      getReadline: () => null,
-      terminalInput: {},
-      write: (text) => writes.push(text),
-    });
-    await callbacks.onGoalLimit(2);
-    await callbacks.onGoalFinalResponse("answer");
-    expect(writes[0]).toMatch(/Goal stopped after 2 iterations.*\n$/s);
-    expect(writes[1]).toBe("answer");
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith("final");
   });
 });

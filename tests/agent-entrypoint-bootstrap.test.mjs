@@ -26,7 +26,20 @@ function setup(overrides = {}) {
 
 describe("entrypoint bootstrap", () => {
   test("uses process defaults when the caller omits them", async () => {
-    await bootstrapAgentEntrypoint();
+    const { dependencies } = setup();
+    dependencies.runEntrypointAction.mockReturnValue(true);
+    const loadDependencies = jest.fn(async () => dependencies);
+    await jest.isolateModulesAsync(async () => {
+      await jest.unstable_mockModule("../src/agent-entrypoint-dependencies.mjs", () => ({
+        loadAgentEntrypointDependencies: loadDependencies,
+      }));
+      const { bootstrapAgentEntrypoint: run } =
+        await import("../src/agent-entrypoint-bootstrap.mjs");
+      await run();
+    });
+    expect(loadDependencies).toHaveBeenCalledTimes(1);
+    expect(dependencies.parseCliArgs).toHaveBeenCalledWith(process.argv.slice(2));
+    expect(dependencies.runEntrypointAction).toHaveBeenCalled();
   });
 
   test("does not start when another module imports the entrypoint", async () => {
@@ -57,7 +70,7 @@ describe("entrypoint bootstrap", () => {
     expect(events).toEqual(["setup", "agent"]);
     expect(dependencies.prepareAgentStartup).toHaveBeenCalledWith(
       { flags: {}, messageArgs: [] },
-      expect.objectContaining({ env: processRef.env, cwd: "/repo" }),
+      { cwd: "/repo" },
     );
   });
 

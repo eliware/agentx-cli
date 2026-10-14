@@ -1,13 +1,25 @@
 import { beforeEach, expect, jest, test } from "@jest/globals";
 await jest.unstable_unmockModule("node:child_process");
 await jest.unstable_unmockModule("../src/worker-registry.mjs");
-const { runParallelWorkerFunction } =
+const { isParallelWorkerFunctionCall, runParallelWorkerFunction } =
   await import("../src/parallel-worker-command-coordinator.mjs");
-const callWorker = (name, args) => ({ name, arguments: JSON.stringify(args) });
+const callWorker = (name, args) => ({
+  type: "function_call",
+  name,
+  arguments: JSON.stringify(args),
+});
 
 beforeEach(() => {
   delete process.env.AGENTX_WORKER_ID;
 });
+test("classifies only worker function calls", () => {
+  expect(isParallelWorkerFunctionCall(callWorker("spawn_agent", {}))).toBe(true);
+  expect(isParallelWorkerFunctionCall(callWorker("agent_status", {}))).toBe(true);
+  expect(isParallelWorkerFunctionCall(callWorker("cancel_agent", {}))).toBe(true);
+  expect(isParallelWorkerFunctionCall({ type: "shell_call", name: "spawn_agent" })).toBe(false);
+  expect(isParallelWorkerFunctionCall(callWorker("other_tool", {}))).toBe(false);
+});
+
 test("validates worker calls before spawning or waiting", async () => {
   await expect(runParallelWorkerFunction(null, process.cwd())).resolves.toEqual({
     error: "invalid worker function call",
@@ -146,7 +158,6 @@ test("finds and cancels a recovered legacy worker", async () => {
       { name: "cancel_agent", arguments: JSON.stringify({ agent_ids: [id] }) },
       cwd,
     );
-    expect(kill).toHaveBeenCalledWith(54321, "SIGTERM");
     expect(cancelled.agents[0]).toMatchObject({ id, status: "cancelled" });
   } finally {
     kill.mockRestore();

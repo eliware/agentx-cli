@@ -3,20 +3,6 @@ import { runToolCall } from "../src/tool-dispatch.mjs";
 import { cleanupTempDir, makeTempDir } from "../test-fixtures/test-helpers.mjs";
 
 describe("tool dispatch", () => {
-  test("passes goal-update payloads through without interpreting lifecycle policy", async () => {
-    const complete = JSON.stringify({ method: "complete", summary: "done" });
-    const incomplete = JSON.stringify({ method: "incomplete" });
-    await expect(
-      runToolCall({ type: "function_call", name: "goal_update", arguments: complete }, "/tmp"),
-    ).resolves.toBe(complete);
-    await expect(
-      runToolCall({ type: "function_call", name: "goal_update", input: incomplete }, "/tmp"),
-    ).resolves.toBe(incomplete);
-    await expect(runToolCall({ type: "function_call", name: "goal_update" }, "/tmp")).resolves.toBe(
-      "{}",
-    );
-  });
-
   test("validates calls and working directories before side effects", async () => {
     expect(await runToolCall(null, process.cwd())).toBe("ERROR: invalid tool call");
     expect(await runToolCall([], process.cwd())).toBe("ERROR: invalid tool call");
@@ -26,16 +12,10 @@ describe("tool dispatch", () => {
     expect(await runToolCall({}, "")).toBe("ERROR: invalid working directory for tool");
   });
 
-  test("routes goal updates without shell execution", async () => {
-    await expect(
-      runToolCall({ type: "function_call", name: "goal_update", input: "complete" }, process.cwd()),
-    ).resolves.toBe("complete");
-    await expect(
-      runToolCall({ type: "function_call", name: "goal_update", arguments: "{}" }, process.cwd()),
-    ).resolves.toBe("{}");
+  test("does not route goal lifecycle calls outside goal-mode execution", async () => {
     await expect(
       runToolCall({ type: "function_call", name: "goal_update" }, process.cwd()),
-    ).resolves.toBe("{}");
+    ).resolves.toBe("ERROR: unsupported tool goal_update");
   });
 
   test("routes worker operations and preserves passed permissions", async () => {

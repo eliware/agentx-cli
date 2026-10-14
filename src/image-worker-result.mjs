@@ -1,4 +1,5 @@
-export function formatImageWorkerResult({ stdout, stderr, code, onUsage }) {
+export function formatImageWorkerResult({ stdout = "", stderr = "", code = null, onUsage, error }) {
+  if (error) return `ERROR: ${error.message || String(error)}`;
   let result;
   try {
     result = JSON.parse(stdout);

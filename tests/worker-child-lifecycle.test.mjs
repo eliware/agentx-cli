@@ -1,6 +1,20 @@
 import { EventEmitter } from "node:events";
 import { expect, jest, test } from "@jest/globals";
-import { attachWorkerLifecycle } from "../src/worker-child-lifecycle.mjs";
+import {
+  attachWorkerLifecycle,
+  requestWorkerCancellation,
+} from "../src/worker-child-lifecycle.mjs";
+
+test("records cancellation before it signals an active child", async () => {
+  const worker = { id: "shutdown", status: "running" };
+  const child = { kill: jest.fn() };
+  const persistWorker = jest.fn().mockResolvedValue(undefined);
+  await requestWorkerCancellation({ worker, child, persistWorker });
+  expect(worker).toMatchObject({ status: "cancelled", error: "parent shutdown" });
+  expect(worker.finishedAt).toEqual(expect.any(Number));
+  expect(persistWorker).toHaveBeenCalledWith(worker);
+  expect(child.kill).toHaveBeenCalledWith("SIGTERM");
+});
 
 test("finalizes a child on close", async () => {
   const child = new EventEmitter();

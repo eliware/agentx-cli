@@ -23,13 +23,15 @@ describe("image worker process", () => {
 
   beforeEach(() => spawn.mockReset());
 
-  test("decodes worker text and forwards usage", async () => {
+  test("collects child output and spawn options", async () => {
     queueWorker({ stdout: JSON.stringify({ text: "inspected", usage: { inputTokens: 3 } }) });
-    const onUsage = jest.fn();
     await expect(
-      runImageInspectionProcess({ prompt: "look" }, { cwd: process.cwd(), onUsage }),
-    ).resolves.toBe("inspected");
-    expect(onUsage).toHaveBeenCalledWith({ inputTokens: 3 });
+      runImageInspectionProcess({ prompt: "look" }, { cwd: process.cwd() }),
+    ).resolves.toEqual({
+      stdout: JSON.stringify({ text: "inspected", usage: { inputTokens: 3 } }),
+      stderr: "",
+      code: 0,
+    });
     expect(spawn).toHaveBeenCalledWith(
       process.execPath,
       [expect.stringContaining("image-worker.mjs")],
@@ -73,16 +75,26 @@ describe("image worker process", () => {
 
   test("uses an empty options object when options are undefined", async () => {
     queueWorker({ stdout: JSON.stringify({ text: "default options" }) });
-    await expect(runImageInspectionProcess({}, undefined)).resolves.toBe("default options");
+    await expect(runImageInspectionProcess({}, undefined)).resolves.toEqual({
+      stdout: JSON.stringify({ text: "default options" }),
+      stderr: "",
+      code: 0,
+    });
   });
 
   test("collects child stderr while the worker returns valid text", async () => {
     queueWorker({ stdout: JSON.stringify({ text: "ok" }), stderr: "warning" });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe("ok");
+    await expect(runImageInspectionProcess({}, {})).resolves.toEqual({
+      stdout: JSON.stringify({ text: "ok" }),
+      stderr: "warning",
+      code: 0,
+    });
   });
 
   test("reports child launch errors", async () => {
     queueWorker({ error: new Error("spawn failed") });
-    await expect(runImageInspectionProcess({}, {})).resolves.toBe("ERROR: spawn failed");
+    await expect(runImageInspectionProcess({}, {})).resolves.toEqual({
+      error: new Error("spawn failed"),
+    });
   });
 });

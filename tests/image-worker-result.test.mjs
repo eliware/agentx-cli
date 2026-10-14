@@ -44,3 +44,8 @@ test("formats malformed output and missing response text", () => {
     "The image inspection returned no text.",
   );
 });
+
+test("formats a process launch error", () => {
+  expect(formatImageWorkerResult({ error: new Error("spawn failed") })).toBe("ERROR: spawn failed");
+  expect(formatImageWorkerResult({ error: {} })).toBe("ERROR: [object Object]");
+});

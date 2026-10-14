@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { runSessionRollbackFlow } from "../../src/agent/session-rollback-flow.mjs";
 
-function createFlow({ history = [{ response_id: "saved" }], selected, error } = {}) {
+function createFlow({ history = [{ response_id: "saved" }], selected, error, restoreError } = {}) {
   const order = [];
   const readline = { close: jest.fn(() => order.push("close")) };
   const nextReadline = { question: jest.fn() };
@@ -15,7 +15,10 @@ function createFlow({ history = [{ response_id: "saved" }], selected, error } = 
   const saveState = jest.fn(async () => order.push("save"));
   const persistCheckpoint = jest.fn(async () => order.push("checkpoint"));
   const write = jest.fn((text) => order.push(text));
-  const setReadline = jest.fn(() => order.push("restore"));
+  const setReadline = jest.fn(() => {
+    if (restoreError) throw restoreError;
+    order.push("restore");
+  });
   const flow = runSessionRollbackFlow({
     history,
     readline,
@@ -99,5 +102,15 @@ describe("session rollback flow", () => {
     const state = createFlow({ error: {} });
     await state.flow;
     expect(state.write).toHaveBeenCalledWith("[[object Object]]\n");
+  });
+
+  test.each([
+    [new Error("restore failed"), "[restore failed]\n"],
+    [{}, "[[object Object]]\n"],
+  ])("reports REPL restoration failures after the menu closes", async (restoreError, message) => {
+    const state = createFlow({ selected: null, restoreError });
+    await expect(state.flow).resolves.toBeUndefined();
+    expect(state.setReadline).toHaveBeenCalledWith(state.nextReadline);
+    expect(state.write).toHaveBeenCalledWith(message);
   });
 });

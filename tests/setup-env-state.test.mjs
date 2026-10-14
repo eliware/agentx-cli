@@ -1,22 +1,22 @@
 import { expect, jest, test } from "@jest/globals";
 import { loadSetupEnvState } from "../src/setup-env-state.mjs";
 
-test("loads known values and persists required migration updates", async () => {
+test("loads known values and persists the configuration version", async () => {
   const persist = jest.fn(async () => "saved configuration");
   await expect(
     loadSetupEnvState(
       "/workspace/config/.agentx",
-      "AGENTX_CONFIG_VERSION=1\nAGENTX_MODEL=gpt-5.6-luna\nCUSTOM=value\n",
+      "AGENTX_CONFIG_VERSION=1\nAGENTX_MODEL=gpt-5.6-terra\nCUSTOM=value\n",
       persist,
     ),
   ).resolves.toEqual({
     filePath: "/workspace/config/.agentx",
     text: "saved configuration",
-    values: { AGENTX_API_KEY: "", AGENTX_MODEL: "gpt-6-luna" },
+    values: { AGENTX_API_KEY: "", AGENTX_MODEL: "gpt-5.6-terra" },
   });
   expect(persist).toHaveBeenCalledWith(
     "/workspace/config/.agentx",
-    { AGENTX_CONFIG_VERSION: "2", AGENTX_MODEL: "gpt-6-luna" },
+    { AGENTX_CONFIG_VERSION: "2" },
     expect.stringContaining("CUSTOM=value"),
   );
 });

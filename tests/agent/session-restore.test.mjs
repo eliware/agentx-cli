@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
-import { clearPersistedGoal, restoreSessionState } from "../../src/agent/session-restore.mjs";
+import { restoreSessionState } from "../../src/agent/session-restore.mjs";
 
 describe("session restore", () => {
   test("restores saved fields but never restores an earlier goal", () => {
@@ -99,14 +99,5 @@ describe("session restore", () => {
       history: [],
       rollbackBackup: [],
     });
-  });
-
-  test.each([
-    [{ goal: { text: "old" } }, 1],
-    [null, 0],
-  ])("persists startup cleanup only when saved goal data exists", async (savedState, calls) => {
-    const saveState = jest.fn(async () => {});
-    await clearPersistedGoal(savedState, saveState);
-    expect(saveState).toHaveBeenCalledTimes(calls);
   });
 });

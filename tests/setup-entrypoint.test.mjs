@@ -30,19 +30,13 @@ describe("agentx-setup entrypoint", () => {
     expect(isSetupDirectInvocation("other", "root", "bin")).toBe(false);
   });
 
-  test("does not start setup when imported indirectly", async () => {
+  test.each([
+    ["indirect import", false],
+    ["missing argv", true],
+  ])("does not start setup for %s", async (_caseName, omitArgv) => {
     const runSetup = jest.fn();
     await jest.unstable_mockModule("../src/setup.mjs", () => ({ runSetup }));
-
-    await import("../bin/agentx-setup.mjs");
-
-    expect(runSetup).not.toHaveBeenCalled();
-  });
-
-  test("skips startup when no entrypoint argv is present", async () => {
-    const runSetup = jest.fn();
-    await jest.unstable_mockModule("../src/setup.mjs", () => ({ runSetup }));
-    process.argv = [process.argv[0]];
+    if (omitArgv) process.argv = [process.argv[0]];
 
     await import("../bin/agentx-setup.mjs");
 

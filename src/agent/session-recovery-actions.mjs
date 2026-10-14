@@ -1,3 +1,5 @@
+import { prepareSessionRetryClient } from "../retry-recovery.mjs";
+
 export async function applySessionRecoveryAction({
   action,
   state,
@@ -10,14 +12,8 @@ export async function applySessionRecoveryAction({
   deps,
 }) {
   if (action === "retry" || action === "debug-retry") {
-    state.openai = await deps.recreateOpenAIClient(state.openai, createSessionClient);
-    deps.setActiveOpenAI(state.openai);
-    if (action === "debug-retry" && !state.debugEnabled) {
-      state.debugEnabled = true;
-      deps.bindDebugListeners(state.openai);
-      deps.writeDebugEnabled();
-    }
-    state.retryRequest = state.pendingRetryRequest;
+    const prepareRetryClient = deps.prepareRetryClient || prepareSessionRetryClient;
+    await prepareRetryClient({ state, action, createSessionClient, deps });
     return { control: "retry" };
   }
   if (action === "new-chain") {

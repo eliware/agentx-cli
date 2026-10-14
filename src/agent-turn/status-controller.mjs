@@ -19,6 +19,7 @@ export function createStatusLineController(
     snapshot: () => phase.snapshot(),
     getState: () => phase.state,
     isPaused: () => state.paused,
+    writeOutput: (text) => process.stdout.write(text),
   });
   return createStatusLifecycle({ phase, display, quiet, transitionOnly, state });
 }

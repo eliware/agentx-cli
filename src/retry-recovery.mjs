@@ -29,3 +29,14 @@ export async function recreateOpenAIClient(current, createClient) {
   }
   return createClient();
 }
+
+export async function prepareSessionRetryClient({ state, action, createSessionClient, deps }) {
+  state.openai = await deps.recreateOpenAIClient(state.openai, createSessionClient);
+  deps.setActiveOpenAI(state.openai);
+  if (action === "debug-retry" && !state.debugEnabled) {
+    state.debugEnabled = true;
+    deps.bindDebugListeners(state.openai);
+    deps.writeDebugEnabled();
+  }
+  state.retryRequest = state.pendingRetryRequest;
+}

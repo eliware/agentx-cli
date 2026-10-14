@@ -30,6 +30,10 @@ describe("recovery menu", () => {
         input.emit("keypress", String(index + 1), { name: String(index + 1) }),
       );
       await expect(prompt).resolves.toBe(option.id);
+      if (option.id === "debug-retry")
+        expect(
+          output.write.mock.calls.some(([chunk]) => String(chunk).includes(option.label)),
+        ).toBe(true);
       expect(
         output.write.mock.calls.some(([chunk]) =>
           String(chunk).includes("OpenAI request failed: broken"),
@@ -37,22 +41,6 @@ describe("recovery menu", () => {
       ).toBe(true);
       expect(input.setRawMode).toHaveBeenLastCalledWith(false);
     }
-  });
-
-  test("offers debug retry", async () => {
-    const { input, output } = makeIO();
-    const prompt = promptRecoveryMenu(new Error("broken"), {
-      input,
-      output,
-      forceInteractive: true,
-    });
-    process.nextTick(() => input.emit("keypress", "2", { name: "2" }));
-    await expect(prompt).resolves.toBe("debug-retry");
-    expect(
-      output.write.mock.calls.some(([chunk]) =>
-        String(chunk).includes("Enable debug mode and retry"),
-      ),
-    ).toBe(true);
   });
 
   test("moves up/down and accepts enter/return", async () => {

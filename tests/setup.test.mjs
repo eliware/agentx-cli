@@ -48,11 +48,24 @@ async function expectSetupToFinish(run, timeoutMs) {
   }
 }
 describe("interactive setup", () => {
-  test("rejects non-interactive terminals", async () => {
-    const stdout = new FakeOutput();
-    stdout.isTTY = false;
-    await runSetup({ stdin: {}, stdout });
-    expect(stdout.text).toContain("requires an interactive terminal");
+  test("rejects non-interactive default process streams", async () => {
+    const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+    const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+    const originalWrite = process.stdout.write;
+    const writes = [];
+    Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: false });
+    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: false });
+    process.stdout.write = (value) => (writes.push(String(value)), true);
+    try {
+      await runSetup();
+      expect(writes.join("")).toContain("requires an interactive terminal");
+    } finally {
+      process.stdout.write = originalWrite;
+      if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+      else delete process.stdin.isTTY;
+      if (stdoutTTY) Object.defineProperty(process.stdout, "isTTY", stdoutTTY);
+      else delete process.stdout.isTTY;
+    }
   });
 });
 describe("interactive setup menu flow", () => {
@@ -153,25 +166,4 @@ describe("setup branch completion", () => {
       await rm(directory, { recursive: true, force: true });
     }
   }, 5000);
-  test("covers omitted runSetup arguments", async () => {
-    const originalWrite = process.stdout.write;
-    const originalStdinTTY = process.stdin.isTTY;
-    const originalStdoutTTY = process.stdout.isTTY;
-    process.stdout.write = () => true;
-    Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: false });
-    Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: false });
-    try {
-      await runSetup();
-    } finally {
-      process.stdout.write = originalWrite;
-      Object.defineProperty(process.stdin, "isTTY", {
-        configurable: true,
-        value: originalStdinTTY,
-      });
-      Object.defineProperty(process.stdout, "isTTY", {
-        configurable: true,
-        value: originalStdoutTTY,
-      });
-    }
-  });
 });

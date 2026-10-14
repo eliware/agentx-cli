@@ -5,6 +5,10 @@ import { setup } from "../../test-fixtures/session-request-recovery-helpers.mjs"
 describe("session recovery actions", () => {
   test.each(["retry", "debug-retry"])("recreates the client for %s", async (action) => {
     const { state, deps } = setup(() => {});
+    deps.prepareRetryClient = jest.fn(async ({ state: current }) => {
+      current.openai = "new-client";
+      current.retryRequest = current.pendingRetryRequest;
+    });
     const result = await applySessionRecoveryAction({
       action,
       state,
@@ -14,17 +18,12 @@ describe("session recovery actions", () => {
     expect(result).toEqual({ control: "retry" });
     expect(state.openai).toBe("new-client");
     expect(state.retryRequest).toBe(state.pendingRetryRequest);
-    expect(deps.setActiveOpenAI).toHaveBeenCalledWith("new-client");
-    expect(deps.bindDebugListeners).toHaveBeenCalledTimes(action === "debug-retry" ? 1 : 0);
-    expect(deps.writeDebugEnabled).toHaveBeenCalledTimes(action === "debug-retry" ? 1 : 0);
-  });
-
-  test("does not repeat debug setup when debugging is active", async () => {
-    const { state, deps } = setup(() => {});
-    state.debugEnabled = true;
-    await applySessionRecoveryAction({ action: "debug-retry", state, deps });
-    expect(deps.bindDebugListeners).not.toHaveBeenCalled();
-    expect(deps.writeDebugEnabled).not.toHaveBeenCalled();
+    expect(deps.prepareRetryClient).toHaveBeenCalledWith({
+      state,
+      action,
+      createSessionClient: expect.any(Function),
+      deps,
+    });
   });
 
   test("starts a new chain and persists the changed state", async () => {

@@ -12,7 +12,7 @@ test("terminates active children with escalation", async () => {
   });
   expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
   expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
-  expect(worker.status).toBe("cancelled");
+  expect(persistWorker).toHaveBeenCalledWith(worker);
 });
 
 test("skips terminal workers and already killed children", async () => {

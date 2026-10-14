@@ -6,6 +6,12 @@ import { spawnWorker } from "./parallel-worker-spawn.mjs";
 import { cancelWorkers } from "./parallel-worker-cancel.mjs";
 import { getWorkerStatus } from "./parallel-worker-status.mjs";
 
+const workerFunctionNames = new Set(["spawn_agent", "agent_status", "cancel_agent"]);
+
+export function isParallelWorkerFunctionCall(call) {
+  return call?.type === "function_call" && workerFunctionNames.has(call.name);
+}
+
 export async function runParallelWorkerFunction(call, cwd, options = {}) {
   if (!call || typeof call !== "object" || Array.isArray(call))
     return { error: "invalid worker function call" };

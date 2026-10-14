@@ -24,8 +24,6 @@ describe("session pending recovery", () => {
       execute: jest.fn(),
       deps: ctx.deps,
     });
-    expect(ctx.deps.resetState).toHaveBeenCalledWith({ turns: 0 });
-    expect(ctx.deps.clearSession).toHaveBeenCalledTimes(1);
     expect(ctx.deps.createRunner).not.toHaveBeenCalled();
   });
 

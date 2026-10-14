@@ -5,6 +5,7 @@ import { buildMenuEntries, DEFAULTS, renderReadlineMenu } from "./setup-presenta
 import { createInterface } from "node:readline/promises";
 import { applySetupAction } from "./setup-action.mjs";
 import { selectSetupMenuChoice } from "./setup-menu-interaction.mjs";
+import { hasInteractiveSetupTerminal } from "./setup-terminal-policy.mjs";
 
 export { buildMenuEntries };
 
@@ -16,7 +17,7 @@ export async function runSetup({
 } = {}) {
   const envState = await readEnvState(configPath);
   envState.values = { ...DEFAULTS, ...envState.values };
-  if (!stdin?.isTTY || !stdout?.isTTY) {
+  if (!hasInteractiveSetupTerminal(stdin, stdout)) {
     stdout.write("AgentX setup requires an interactive terminal.\n");
     return;
   }

@@ -1,6 +1,7 @@
 import { formatSystemMessage } from "../shell-display.mjs";
 import { writeTerminal } from "../terminal-output.mjs";
 import { createGoalQuestionCallback } from "./goal-question-callback.mjs";
+import { createGoalPresentation } from "./goal-presentation.mjs";
 
 export function createGoalCallbacks({
   getGoal,
@@ -12,6 +13,7 @@ export function createGoalCallbacks({
   formatMessage = formatSystemMessage,
   printFinalResponse = (text) => write(text),
 }) {
+  const presentation = createGoalPresentation({ write, formatMessage, printFinalResponse });
   const onGoalBlocked = createGoalQuestionCallback({
     getGoal,
     setGoal,
@@ -41,10 +43,8 @@ export function createGoalCallbacks({
     onGoalLimit: async (iterations) => {
       setGoal({ ...getGoal(), status: "blocked", iterations });
       await saveState();
-      write(`${formatMessage(`Goal stopped after ${iterations} iterations`)}\n`);
+      presentation.onGoalLimit(iterations);
     },
-    onGoalFinalResponse: async (text) => {
-      if (text) printFinalResponse(text);
-    },
+    onGoalFinalResponse: presentation.onGoalFinalResponse,
   };
 }

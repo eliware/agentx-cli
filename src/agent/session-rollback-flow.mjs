@@ -28,6 +28,11 @@ export async function runSessionRollbackFlow({
     }
   } catch (error) {
     if (error?.name !== "AbortError") write(`${formatMessage(error?.message || String(error))}\n`);
+  } finally {
+    try {
+      setReadline(createReadline());
+    } catch (error) {
+      write(`${formatMessage(error?.message || String(error))}\n`);
+    }
   }
-  setReadline(createReadline());
 }

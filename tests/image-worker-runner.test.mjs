@@ -97,7 +97,7 @@ describe("image worker runner", () => {
     try {
       await jest.isolateModulesAsync(async () => {
         await jest.unstable_mockModule("@eliware/openai", () => ({ createOpenAI: createClient }));
-        await jest.unstable_mockModule("../src/image-inspector.mjs", () => ({
+        await jest.unstable_mockModule("../src/image-direct-inspection.mjs", () => ({
           runImageInspection: inspect,
         }));
         const { runImageWorker } = await import("../src/image-worker-runner.mjs");

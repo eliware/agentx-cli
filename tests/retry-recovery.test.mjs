@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import {
   recreateOpenAIClient,
+  prepareSessionRetryClient,
   waitForWebsocketRetry,
   websocketRecoveryDelay,
   WEBSOCKET_RECOVERY_WINDOW_MS,
@@ -54,5 +55,28 @@ describe("retry recovery", () => {
         create,
       ),
     ).resolves.toBe(replacement);
+  });
+
+  test.each([
+    ["retry", false, false],
+    ["debug-retry", false, true],
+    ["debug-retry", true, false],
+  ])("prepares %s client and applies debug setup", async (action, debugEnabled, applyDebug) => {
+    const state = {
+      openai: "stale",
+      debugEnabled,
+      pendingRetryRequest: { id: "retry" },
+    };
+    const deps = {
+      recreateOpenAIClient: jest.fn(async () => "fresh"),
+      setActiveOpenAI: jest.fn(),
+      bindDebugListeners: jest.fn(),
+      writeDebugEnabled: jest.fn(),
+    };
+    await prepareSessionRetryClient({ state, action, createSessionClient: jest.fn(), deps });
+    expect(state).toMatchObject({ openai: "fresh", retryRequest: { id: "retry" } });
+    expect(deps.setActiveOpenAI).toHaveBeenCalledWith("fresh");
+    expect(deps.bindDebugListeners).toHaveBeenCalledTimes(applyDebug ? 1 : 0);
+    expect(deps.writeDebugEnabled).toHaveBeenCalledTimes(applyDebug ? 1 : 0);
   });
 });
