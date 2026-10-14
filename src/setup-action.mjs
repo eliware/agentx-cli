@@ -1,5 +1,7 @@
 import { createInterface } from "node:readline/promises";
-import { choices, editApiKey, editCompaction, editValue, labels } from "./setup-editors.mjs";
+import { editApiKey } from "./setup-api-key-editor.mjs";
+import { editCompaction } from "./setup-compaction-editor.mjs";
+import { choices, editValue, labels } from "./setup-editors.mjs";
 
 const setupActionDefaults = { createInterface, editApiKey, editCompaction, editValue };
 

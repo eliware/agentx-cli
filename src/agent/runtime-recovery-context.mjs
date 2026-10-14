@@ -1,4 +1,4 @@
-import { writeRecoveryDebugEnabled, writeRecoverySystem } from "./recovery-presentation.mjs";
+import { recoveryPresentation } from "./recovery-presentation.mjs";
 import { promptRecoveryMenu } from "../recovery-menu.mjs";
 import { promptRollbackMenu } from "../rollback-menu.mjs";
 import { createUsageTotals } from "../response.mjs";
@@ -10,7 +10,14 @@ import {
   isWebsocketRecoveryError,
 } from "./request-recovery.mjs";
 
-export function createAgentRecoveryContext({ input, repl, callbacks, applyRollback, resetState }) {
+export function createAgentRecoveryContext({
+  input,
+  repl,
+  callbacks,
+  applyRollback,
+  resetState,
+  presentation = recoveryPresentation,
+}) {
   return {
     isWebsocketRecoveryError,
     waitForWebsocketRetry,
@@ -18,8 +25,8 @@ export function createAgentRecoveryContext({ input, repl, callbacks, applyRollba
     decideRecoveryMenuChoice,
     recreateOpenAIClient,
     setActiveOpenAI: callbacks.setActiveOpenAI,
-    writeSystem: writeRecoverySystem,
-    writeDebugEnabled: writeRecoveryDebugEnabled,
+    writeSystem: presentation.writeSystem,
+    writeDebugEnabled: presentation.writeDebugEnabled,
     saveState: callbacks.saveState,
     promptRecoveryMenu,
     terminalInput: input,

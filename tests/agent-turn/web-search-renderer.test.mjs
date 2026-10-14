@@ -1,8 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
-import {
-  createWebSearchRenderer,
-  formatWebSearchCompletion,
-} from "../../src/agent-turn/web-search-renderer.mjs";
+import { createWebSearchRenderer } from "../../src/agent-turn/web-search-renderer.mjs";
 
 describe("web search renderer", () => {
   test("renders in-progress and searching status messages", () => {
@@ -15,17 +12,6 @@ describe("web search renderer", () => {
     expect(status.pause).toHaveBeenCalled();
     expect(write.mock.calls.join("")).toContain('"web_search":"in_progress"');
     expect(write.mock.calls.join("")).toContain('"web_search":"searching"');
-  });
-
-  test("formats filtered queries and source URLs", () => {
-    const line = formatWebSearchCompletion({
-      action: { queries: ["q", "", 2], sources: [{ url: "https://x.test" }, "plain", ""] },
-    });
-    expect(line).toContain('"queries": [\n    "q",\n    "2"');
-    expect(line).toContain("https://x.test");
-    expect(line).toContain("plain");
-    expect(formatWebSearchCompletion({ action: {} })).toBe("");
-    expect(formatWebSearchCompletion({})).toBe("");
   });
 
   test("finishes only when there is completion detail and a status controller", () => {

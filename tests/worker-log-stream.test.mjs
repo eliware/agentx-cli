@@ -10,7 +10,7 @@ afterEach(() => {
   appendWorkerLog.mockResolvedValue(undefined);
 });
 
-test("buffers output, parses usage, redacts secrets, and persists the final record", async () => {
+test("buffers output, redacts secrets, and persists the final record", async () => {
   const previousKey = process.env.AGENTX_API_KEY;
   process.env.AGENTX_API_KEY = "worker-secret";
   appendWorkerLog.mockClear();
@@ -21,14 +21,6 @@ test("buffers output, parses usage, redacts secrets, and persists the final reco
   await stream.close();
   if (previousKey === undefined) delete process.env.AGENTX_API_KEY;
   else process.env.AGENTX_API_KEY = previousKey;
-  expect(worker.output).toContain("worker-secret");
-  expect(worker.lines).toBe(2);
-  expect(worker.usage).toMatchObject({
-    turns: 1,
-    inputTokens: 5,
-    cachedTokens: 2,
-    outputTokens: 3,
-  });
   expect(appendWorkerLog).toHaveBeenCalledWith(
     "/repo",
     "agent-log",

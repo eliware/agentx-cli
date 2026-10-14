@@ -9,7 +9,11 @@ import {
 describe("usage formatting", () => {
   test("formats positive and negative money", () => {
     expect(formatMoney(1_500_000n)).toBe("$0.002");
+    expect(formatMoney(1.2345)).toBe("$1.235");
+    expect(formatMoney(undefined)).toBe("$0.000");
     expect(formatMoney(-1_500_000n)).toBe("$-0.002");
+    expect(formatMoney(-1.2345)).toBe("$-1.235");
+    expect(formatMoney(-0.0004)).toBe("$0.000");
   });
 
   test("formats token counts and costs", () => {

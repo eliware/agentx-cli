@@ -12,4 +12,20 @@ describe("agent entrypoint environment", () => {
   test("returns no home path when the system has none", () => {
     expect(loadEntrypointEnvironment({ homeDirectory: "" })).toBe("");
   });
+
+  test("uses default adapters when called without options", async () => {
+    await jest.isolateModulesAsync(async () => {
+      await jest.unstable_mockModule("../src/platform.mjs", () => ({
+        getHomeDirectory: () => "",
+      }));
+      const load = jest.fn();
+      await jest.unstable_mockModule("../src/env-loader.mjs", () => ({
+        loadUserConfiguration: load,
+      }));
+      const { loadEntrypointEnvironment: loadEnvironment } =
+        await import("../src/agent-entrypoint-env.mjs");
+      expect(loadEnvironment()).toBe("");
+      expect(load).not.toHaveBeenCalled();
+    });
+  });
 });

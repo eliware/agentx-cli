@@ -1,10 +1,7 @@
-import { sendMessage } from "../agent-turn/response-service.mjs";
 import { buildRequestOverride, withGoalTools, WORKER_ROLE_MESSAGE } from "../request-builder.mjs";
-import { createSessionRequestCallbacks } from "./session-request-callbacks.mjs";
-import { attachGoalInterruptListener } from "./session-goal-interruption.mjs";
-import { resolveSessionRequestFailure } from "./session-request-recovery.mjs";
 import { createSessionRequestOptions } from "./session-request-options.mjs";
 import { runWithSessionRequestLifecycle } from "./session-request-lifecycle.mjs";
+import { createSessionRequestCycleServices } from "./session-request-cycle-services.mjs";
 
 export async function runSessionRequestCycle({
   message,
@@ -14,7 +11,7 @@ export async function runSessionRequestCycle({
   context,
   deps,
 }) {
-  const services = { ...sessionRequestCycleDefaults, ...deps };
+  const services = createSessionRequestCycleServices(deps);
   let response;
   while (!response) {
     const workerRoleMessage =
@@ -89,10 +86,3 @@ export async function runSessionRequestCycle({
   }
   return { control: "response", response };
 }
-
-export const sessionRequestCycleDefaults = {
-  sendMessage,
-  createRequestCallbacks: createSessionRequestCallbacks,
-  attachGoalInterruptListener,
-  resolveRequestFailure: resolveSessionRequestFailure,
-};

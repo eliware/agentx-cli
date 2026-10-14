@@ -1,6 +1,7 @@
 import { runShellCommands } from "./tool-shell-sequence.mjs";
 import { runParallelWorkerFunction } from "./parallel-worker-command-coordinator.mjs";
-import { commandPermission, permissionAllows } from "./tool-permissions.mjs";
+import { permissionAllowsRequired } from "./permission-policy.mjs";
+import { commandPermission } from "./tool-command-classification.mjs";
 
 function parseShellActionCommands(call) {
   const commands = call?.action?.commands;
@@ -25,7 +26,8 @@ export async function runToolCall(call, cwd, options = {}) {
 
   if (call?.type === "shell_call") {
     const permission = options?.permission || process.env.AGENTX_PERMISSION || "execute";
-    if (!permissionAllows(permission, call)) {
+    const requiredPermission = commandPermission(call);
+    if (!permissionAllowsRequired(permission, requiredPermission)) {
       return {
         type: "shell_call_output",
         call_id: call?.call_id || call?.id || "",
@@ -33,7 +35,7 @@ export async function runToolCall(call, cwd, options = {}) {
         output: [
           {
             stdout: "",
-            stderr: `Command blocked: worker permission '${permission}' does not allow ${commandPermission(call)} operations.`,
+            stderr: `Command blocked: worker permission '${permission}' does not allow ${requiredPermission} operations.`,
             outcome: { type: "exit", exit_code: 126 },
           },
         ],

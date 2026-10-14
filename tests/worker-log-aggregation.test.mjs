@@ -10,3 +10,11 @@ test("counts output lines and retains parsed usage", () => {
   expect(worker.lines).toBe(3);
   expect(worker.usage).toMatchObject({ inputTokens: 5, outputTokens: 3 });
 });
+
+test("keeps prior usage when new output has no usage record", () => {
+  const usage = { turns: 1 };
+  const worker = { output: "", lines: 0, usage };
+  aggregateWorkerOutput(worker, "plain output\n");
+  expect(worker.usage).toBe(usage);
+  expect(worker.lines).toBe(1);
+});

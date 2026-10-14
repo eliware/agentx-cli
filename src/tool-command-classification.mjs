@@ -1,5 +1,3 @@
-import { permissionAllowsRequired } from "./permission-policy.mjs";
-
 function normalizeCommandList(commands) {
   if (Array.isArray(commands)) return commands.map((command) => String(command ?? ""));
   if (typeof commands === "string") return [commands];
@@ -38,8 +36,4 @@ export function commandPermission(call) {
   )
     return "execute";
   return "read";
-}
-
-export function permissionAllows(permission, call) {
-  return permissionAllowsRequired(permission, commandPermission(call));
 }

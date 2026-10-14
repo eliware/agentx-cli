@@ -2,7 +2,7 @@ import { inspectImage as inspectImageDefault } from "../image-inspector.mjs";
 import { addUsageTotals as addUsageTotalsDefault } from "../response.mjs";
 import { createGoalCallbacks as createGoalCallbacksDefault } from "./goal-callbacks.mjs";
 import { createSessionImageInspection } from "./session-image-inspection.mjs";
-import { createSessionWorkerUsageCallback } from "./session-worker-usage-accounting.mjs";
+import { createSessionUsageCallbacks } from "./session-usage-accounting.mjs";
 import { persistSessionRetryState } from "./session-retry-state.mjs";
 
 export function createSessionRequestCallbacks({
@@ -23,14 +23,7 @@ export function createSessionRequestCallbacks({
   inspectImage = inspectImageDefault,
   createGoalCallbacks = createGoalCallbacksDefault,
 }) {
-  const onResponseUsage = (usage, { skipIncrement = false } = {}) => {
-    const totals = getSessionUsage();
-    if (!skipIncrement) {
-      addUsageTotals(totals, usage);
-      totals.turns += 1;
-    }
-    return totals;
-  };
+  const usageCallbacks = createSessionUsageCallbacks({ getSessionUsage, addUsageTotals });
 
   const onRetryState = (state) =>
     persistSessionRetryState({
@@ -49,8 +42,6 @@ export function createSessionRequestCallbacks({
     addUsageTotals,
     inspectImage,
   });
-  const onWorkerUsage = createSessionWorkerUsageCallback({ getSessionUsage, addUsageTotals });
-
   const goalCallbacks = createGoalCallbacks({
     getGoal,
     setGoal,
@@ -60,5 +51,10 @@ export function createSessionRequestCallbacks({
     printFinalResponse,
   });
 
-  return { onResponseUsage, onRetryState, onViewImage, onWorkerUsage, goalCallbacks };
+  return {
+    ...usageCallbacks,
+    onRetryState,
+    onViewImage,
+    goalCallbacks,
+  };
 }

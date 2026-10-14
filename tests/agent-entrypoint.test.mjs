@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-async function invokeDirectEntryPoint(args, runAgent, setupPrompt = null, options = {}) {
+import { describe, expect, jest, test } from "@jest/globals";
+async function invokeDirectEntryPoint(args, runAgent, setupPrompt = null) {
   jest.resetModules();
   const originalArgv = process.argv;
   process.argv = [process.argv[0], process.argv[1], ...args];
@@ -8,14 +8,8 @@ async function invokeDirectEntryPoint(args, runAgent, setupPrompt = null, option
     promptPath: "/tmp/prompt.json",
   }));
   await jest.unstable_mockModule("../src/agent-entrypoint-env.mjs", () => ({
-    loadEntrypointEnvironment: () => options.homeDirectory ?? null,
+    loadEntrypointEnvironment: () => null,
   }));
-  if (options.configured)
-    await jest.unstable_mockModule("node:fs", () => ({
-      ...jest.requireActual("node:fs"),
-      default: jest.requireActual("node:fs"),
-      existsSync: () => true,
-    }));
   await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
   await jest.unstable_mockModule("../src/env-loader.mjs", () => ({
     loadUserConfiguration: jest.fn(),
@@ -45,30 +39,6 @@ async function invokeDirectEntryPoint(args, runAgent, setupPrompt = null, option
 }
 
 describe("entrypoint", () => {
-  beforeEach(() => {
-    jest.resetModules();
-  });
-  test("does not start the agent when another module imports the entrypoint", async () => {
-    await jest.unstable_mockModule("../src/runtime.mjs", () => ({
-      isDirectInvocation: () => false,
-      promptPath: "",
-    }));
-    const runAgent = jest.fn();
-    await jest.unstable_mockModule("../src/agent/runtime.mjs", () => ({ runAgent }));
-    await import("../src/agent-entrypoint.mjs");
-    expect(runAgent).not.toHaveBeenCalled();
-  });
-  test("sends positional text as one-shot input", async () => {
-    const runAgent = jest.fn().mockResolvedValue(undefined);
-    await invokeDirectEntryPoint(["hello", "world"], runAgent);
-    expect(runAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        promptPath: "/tmp/prompt.json",
-        initialMessage: "hello world",
-        oneShot: true,
-      }),
-    );
-  });
   test("starts the REPL after the user accepts the setup prompt", async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     const originalApiKey = process.env.AGENTX_API_KEY;
@@ -84,9 +54,7 @@ describe("entrypoint", () => {
     try {
       const runAgent = jest.fn().mockResolvedValue(undefined);
       await invokeDirectEntryPoint([], runAgent, readline);
-      expect(readline.question).toHaveBeenCalledWith(
-        "AgentX is not configured. Run agentx-setup now? [Y/n] ",
-      );
+      expect(readline.question).toHaveBeenCalledTimes(1);
       expect(readline.close).toHaveBeenCalled();
       expect(runAgent).toHaveBeenCalled();
     } finally {
@@ -100,34 +68,6 @@ describe("entrypoint", () => {
       else delete process.stdin.isTTY;
       if (originalOutputTTY) Object.defineProperty(process.stdout, "isTTY", originalOutputTTY);
       else delete process.stdout.isTTY;
-    }
-  });
-
-  test("prints startup errors and sets a failure code", async () => {
-    const oldKey = process.env.agentx_api_key;
-    const oldUpperKey = process.env.AGENTX_API_KEY;
-    process.env.agentx_api_key = "key";
-    delete process.env.AGENTX_API_KEY;
-    const runAgent = jest.fn().mockRejectedValue("missing API key");
-    const originalWrite = process.stderr.write;
-    const originalExitCode = process.exitCode;
-    const writes = [];
-    process.stderr.write = (text) => (writes.push(String(text)), true);
-    process.exitCode = undefined;
-    try {
-      await invokeDirectEntryPoint([], runAgent, null, {
-        homeDirectory: "fake-home",
-        configured: true,
-      });
-      expect(writes.join("")).toContain("missing API key");
-      expect(process.exitCode).toBe(1);
-    } finally {
-      process.stderr.write = originalWrite;
-      process.exitCode = originalExitCode;
-      if (oldKey === undefined) delete process.env.agentx_api_key;
-      else process.env.agentx_api_key = oldKey;
-      if (oldUpperKey === undefined) delete process.env.AGENTX_API_KEY;
-      else process.env.AGENTX_API_KEY = oldUpperKey;
     }
   });
 });

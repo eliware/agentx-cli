@@ -3,7 +3,7 @@ import { inspectImage as inspectImageDefault } from "../image-inspector.mjs";
 import { addUsageTotals as addUsageTotalsDefault } from "../response.mjs";
 import { createPendingResponse as createPendingResponseDefault } from "./pending-response.mjs";
 import { createSessionImageInspection } from "./session-image-inspection.mjs";
-import { createPendingSessionUsage } from "./pending-session-usage.mjs";
+import { createSessionUsageCallbacks } from "./session-usage-accounting.mjs";
 
 export async function executePendingSessionTools(runPendingToolCall, session, services = {}) {
   const handleToolCalls = services.handleToolCalls || handleToolCallsDefault;
@@ -16,7 +16,7 @@ export async function executePendingSessionTools(runPendingToolCall, session, se
     addUsageTotals,
     inspectImage,
   });
-  const usageCallbacks = createPendingSessionUsage({
+  const usageCallbacks = createSessionUsageCallbacks({
     getSessionUsage: session.getUsage,
     addUsageTotals,
   });

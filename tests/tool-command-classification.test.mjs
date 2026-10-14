@@ -1,8 +1,8 @@
 import { describe, expect, test } from "@jest/globals";
-import { commandPermission, permissionAllows } from "../src/tool-permissions.mjs";
+import { commandPermission } from "../src/tool-command-classification.mjs";
 
 describe("tool permission and confirmation policy", () => {
-  test("classifies shell commands and applies permission levels", () => {
+  test("classifies shell commands", () => {
     expect(commandPermission({ type: "function_call" })).toBe("execute");
     expect(commandPermission({ type: "shell_call" })).toBe("read");
     expect(commandPermission({ type: "shell_call", action: { commands: 5 } })).toBe("read");
@@ -25,18 +25,6 @@ describe("tool permission and confirmation policy", () => {
     expect(commandPermission({ type: "shell_call", action: { commands: ["sed x -i file"] } })).toBe(
       "write",
     );
-    expect(
-      permissionAllows("invalid", { type: "shell_call", action: { commands: ["cat x"] } }),
-    ).toBe(true);
-    expect(
-      permissionAllows("read", { type: "shell_call", action: { commands: ["touch x"] } }),
-    ).toBe(false);
-    expect(
-      permissionAllows("write", { type: "shell_call", action: { commands: ["touch x"] } }),
-    ).toBe(true);
-    expect(
-      permissionAllows("write", { type: "shell_call", action: { commands: ["node x"] } }),
-    ).toBe(false);
   });
 
   test("treats wrappers, substitutions, and encoded execution as execute-level", () => {
@@ -48,7 +36,6 @@ describe("tool permission and confirmation policy", () => {
     ]) {
       const call = { type: "shell_call", action: { commands: [command] } };
       expect(commandPermission(call)).toBe("execute");
-      expect(permissionAllows("read", call)).toBe(false);
     }
   });
 });

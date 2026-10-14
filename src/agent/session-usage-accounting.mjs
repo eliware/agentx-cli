@@ -1,4 +1,4 @@
-export function createPendingSessionUsage({ getSessionUsage, addUsageTotals }) {
+export function createSessionUsageCallbacks({ getSessionUsage, addUsageTotals }) {
   const onResponseUsage = (tokens, { skipIncrement = false } = {}) => {
     const totals = getSessionUsage();
     if (!skipIncrement) {
@@ -7,10 +7,10 @@ export function createPendingSessionUsage({ getSessionUsage, addUsageTotals }) {
     }
     return totals;
   };
-  const onWorkerUsage = (workerUsage) => {
+  const onWorkerUsage = (usage) => {
     const totals = getSessionUsage();
-    addUsageTotals(totals, workerUsage);
-    totals.turns += workerUsage.turns || 0;
+    addUsageTotals(totals, usage);
+    totals.turns += usage.turns || 0;
   };
   return { onResponseUsage, onWorkerUsage };
 }

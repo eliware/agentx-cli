@@ -29,12 +29,18 @@ describe("live response event routing", () => {
   });
 
   test("renders a reasoning transcript when no summary arrived", () => {
-    const live = createLiveResponseHandlers({ liveStreaming: true });
-    live.handlers.onTextDelta(undefined);
-    live.handlers.onItemDone({
-      type: "reasoning",
-      summary: [{ type: "output_text", text: "transcript" }],
-    });
+    const write = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      const live = createLiveResponseHandlers({ liveStreaming: true });
+      live.handlers.onTextDelta(undefined);
+      live.handlers.onItemDone({
+        type: "reasoning",
+        summary: [{ type: "output_text", text: "transcript" }],
+      });
+      expect(write.mock.calls.join(" ")).toContain("transcript");
+    } finally {
+      write.mockRestore();
+    }
   });
 
   test("does not add MCP items when MCP output is disabled", () => {

@@ -8,3 +8,8 @@ export function writeRecoverySystem(text, write = writeTerminal) {
 export function writeRecoveryDebugEnabled(write = (text) => process.stderr.write(text)) {
   write("[agentx:debug] enabled for retry\n");
 }
+
+export const recoveryPresentation = {
+  writeSystem: writeRecoverySystem,
+  writeDebugEnabled: writeRecoveryDebugEnabled,
+};

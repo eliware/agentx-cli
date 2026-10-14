@@ -44,3 +44,8 @@ export async function writeEnvState(filePath, values, baseText = null) {
   }
   return nextText;
 }
+
+export async function saveEnvStateValue(envState, key, value) {
+  envState.values[key] = value;
+  envState.text = await writeEnvState(envState.filePath, envState.values, envState.text);
+}

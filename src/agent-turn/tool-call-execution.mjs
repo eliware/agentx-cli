@@ -1,17 +1,8 @@
 import { toolOutputForCall } from "../tool-output-adapter.mjs";
 import { toolCallIdentity } from "../tool-call-identity.mjs";
-import { isGoalToolCall } from "./goal-tools.mjs";
+import { isGoalToolCall } from "./goal-tool-classifier.mjs";
 import { handleGoalToolCall } from "./goal-tool-handler.mjs";
-
-const IMAGE_TOOL = "view_image";
-
-function parseFunctionInput(call) {
-  try {
-    return JSON.parse(call?.arguments ?? call?.input ?? "{}");
-  } catch {
-    return {};
-  }
-}
+import { executeImageToolCall, isImageToolCall } from "./tool-image-call.mjs";
 
 export async function executeOneToolCall({
   call,
@@ -50,14 +41,14 @@ export async function executeOneToolCall({
             onGoalLimit: streamOptions.onGoalLimit,
           },
         })
-      : call?.type === "function_call" && call?.name === IMAGE_TOOL
-        ? (await streamOptions.onViewImage?.({
-            args: parseFunctionInput(call),
+      : isImageToolCall(call)
+        ? await executeImageToolCall(call, {
+            onViewImage: streamOptions.onViewImage,
             response: currentResponse,
             previousResponseId,
             baseRequest,
             cwd,
-          })) || "ERROR: image inspection is unavailable"
+          })
         : await executeToolCall(call, cwd, {
             isFirstResponse,
             currentResponse,

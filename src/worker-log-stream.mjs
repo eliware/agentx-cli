@@ -1,6 +1,5 @@
 import { redactText } from "@eliware/common";
 import { appendWorkerLog } from "./worker-registry.mjs";
-import { aggregateWorkerOutput } from "./worker-log-aggregation.mjs";
 
 export function createWorkerLogStream(worker, persistWorker) {
   let writeQueue = Promise.resolve();
@@ -20,7 +19,6 @@ export function createWorkerLogStream(worker, persistWorker) {
   return {
     append(chunk) {
       const text = String(chunk);
-      aggregateWorkerOutput(worker, text);
       bufferedLog += text;
       if (!flushTimer)
         flushTimer = setTimeout(() => {

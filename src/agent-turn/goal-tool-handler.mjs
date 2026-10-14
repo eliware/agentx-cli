@@ -1,7 +1,8 @@
-import { parseGoalToolCall } from "./goal-tools.mjs";
+import { parseGoalCall } from "./goal-call-parser.mjs";
+import { selectGoalOutcome } from "./goal-outcome-policy.mjs";
 
 export async function handleGoalToolCall(call, context) {
-  const result = parseGoalToolCall(call, context);
+  const result = selectGoalOutcome(parseGoalCall(call), context.goalIterations);
   if (result.action === "ask") {
     context.statusController?.pause();
     let answer;

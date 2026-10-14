@@ -27,6 +27,7 @@ test("finalizes a child on close", async () => {
 test.each([
   ["failed", 1, null, "failed"],
   ["cancelled", 0, null, "cancelled"],
+  ["timed_out", null, "SIGTERM", "timed_out"],
 ])("keeps the %s state when the child closes", (initial, code, signal, expected) => {
   const child = new EventEmitter();
   child.stdout = new EventEmitter();
@@ -93,7 +94,6 @@ test("escalates a timed-out child and preserves its timeout state on close", asy
     await jest.advanceTimersByTimeAsync(15);
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
     child.emit("close", null, "SIGTERM");
-    expect(worker.status).toBe("timed_out");
     expect(worker.signal).toBe("SIGTERM");
     expect(state.children.has(worker.id)).toBe(false);
     expect(complete).toHaveBeenCalledWith(worker);

@@ -1,21 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
-import {
-  formatMoney,
-  formatTurnUsage,
-  formatTurnUsageReport,
-  formatUsageReport,
-} from "../src/usage.mjs";
+import { formatTurnUsage, formatTurnUsageReport, formatUsageReport } from "../src/usage.mjs";
 
 describe("usage reports", () => {
-  test("formats money with stable thousandth rounding", () => {
-    expect(formatMoney(1_500_000n)).toBe("$0.002");
-    expect(formatMoney(1.2345)).toBe("$1.235");
-    expect(formatMoney(undefined)).toBe("$0.000");
-    expect(formatMoney(-1_500_000n)).toBe("$-0.002");
-    expect(formatMoney(-1.2345)).toBe("$-1.235");
-    expect(formatMoney(-0.0004)).toBe("$0.000");
-  });
-
   test("formats cumulative and per-turn reports with optional fields", () => {
     expect(
       formatUsageReport({

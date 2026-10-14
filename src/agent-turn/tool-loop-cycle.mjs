@@ -1,6 +1,6 @@
 import { dedupeToolCalls } from "../tool-call-identity.mjs";
 import { isShellToolCall } from "./response-event-types.mjs";
-import { isGoalToolCall } from "./goal-tools.mjs";
+import { isGoalToolCall } from "./goal-tool-classifier.mjs";
 import { collectToolLoopUsage, writeToolLoopUsage } from "./tool-loop-usage.mjs";
 
 const IMAGE_TOOL = "view_image";

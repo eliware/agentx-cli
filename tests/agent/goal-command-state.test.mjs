@@ -35,9 +35,9 @@ describe("goal CLI state transitions", () => {
       continue: true,
     });
     expect(transitionGoalCommand(null, { type: "goal_cancel" })).toMatchObject({
-      goal: null,
       message: "No active goal.",
       persist: false,
+      continue: true,
     });
   });
 
