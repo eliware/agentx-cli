@@ -3,6 +3,7 @@ import { inspectImage as inspectImageDefault } from "../image-inspector.mjs";
 import { addUsageTotals as addUsageTotalsDefault } from "../response.mjs";
 import { createPendingResponse as createPendingResponseDefault } from "./pending-response.mjs";
 import { createSessionImageInspection } from "./session-image-inspection.mjs";
+import { createPendingSessionUsage } from "./pending-session-usage.mjs";
 
 export async function executePendingSessionTools(runPendingToolCall, session, services = {}) {
   const handleToolCalls = services.handleToolCalls || handleToolCallsDefault;
@@ -15,22 +16,18 @@ export async function executePendingSessionTools(runPendingToolCall, session, se
     addUsageTotals,
     inspectImage,
   });
+  const usageCallbacks = createPendingSessionUsage({
+    getSessionUsage: session.getUsage,
+    addUsageTotals,
+  });
   const options = session.outputFlags;
-  const usage = (tokens, { skipIncrement = false } = {}) => {
-    const totals = session.getUsage();
-    if (!skipIncrement) {
-      addUsageTotals(totals, tokens);
-      totals.turns += 1;
-    }
-    return totals;
-  };
 
   return handleToolCalls(
     session.getOpenAI(),
     createPendingResponse(session.savedState),
     session.getTemplate(),
     session.getCwd(),
-    usage,
+    usageCallbacks.onResponseUsage,
     runPendingToolCall,
     {
       liveStreaming: true,
@@ -54,11 +51,7 @@ export async function executePendingSessionTools(runPendingToolCall, session, se
       onImageGeneration: session.handleImageGeneration,
       onViewImage,
       yolo: session.yoloEnabled,
-      onWorkerUsage: (workerUsage) => {
-        const totals = session.getUsage();
-        addUsageTotals(totals, workerUsage);
-        totals.turns += workerUsage.turns || 0;
-      },
+      onWorkerUsage: usageCallbacks.onWorkerUsage,
       onWorkerComplete: session.onWorkerComplete,
     },
   );

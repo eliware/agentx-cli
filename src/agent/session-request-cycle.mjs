@@ -4,6 +4,7 @@ import { createSessionRequestCallbacks } from "./session-request-callbacks.mjs";
 import { attachGoalInterruptListener } from "./session-goal-interruption.mjs";
 import { resolveSessionRequestFailure } from "./session-request-recovery.mjs";
 import { createSessionRequestOptions } from "./session-request-options.mjs";
+import { runWithSessionRequestLifecycle } from "./session-request-lifecycle.mjs";
 
 export async function runSessionRequestCycle({
   message,
@@ -30,61 +31,61 @@ export async function runSessionRequestCycle({
       state.previousResponseId,
       workerRoleMessage,
     );
-    const goalRequestActive = context.getGoal()?.status === "active";
-    const detachGoalInterrupt = services.attachGoalInterruptListener({
-      oneShot: context.oneShot,
-      terminalInput: context.terminalInput,
-      getGoal: context.getGoal,
-      setGoal: context.setGoal,
-      saveState: context.saveState,
+    const attemptResult = await runWithSessionRequestLifecycle({
+      context,
+      attachListener: services.attachGoalInterruptListener,
+      attempt: async () => {
+        try {
+          const callbacks = services.createRequestCallbacks({
+            getOpenAI: context.getOpenAI,
+            getSessionUsage: context.getSessionUsage,
+            getPendingTransaction: context.getPendingTransaction,
+            getPendingToolCalls: context.getPendingToolCalls,
+            getExecutionJournal: context.getExecutionJournal,
+            getGoal: context.getGoal,
+            setGoal: context.setGoal,
+            setPendingRetryRequest: context.setPendingRetryRequest,
+            setPendingTransaction: context.setPendingTransaction,
+            saveState: context.saveState,
+            getReadline: context.getReadline,
+            terminalInput: context.terminalInput,
+            printFinalResponse: deps.printAgentText,
+          });
+          const response = await services.sendMessage(
+            context.getOpenAI(),
+            requestTemplate,
+            state.previousResponseId,
+            requestMessage,
+            context.agentsText,
+            context.getCwd(),
+            callbacks.onResponseUsage,
+            state.retryRequest || activeOverride,
+            createSessionRequestOptions({ context, sessionStartedAt, callbacks, message }),
+          );
+          return { response };
+        } catch (error) {
+          const recovery = await services.resolveRequestFailure({
+            error,
+            state,
+            oneShot: context.oneShot,
+            history: context.getHistory(),
+            statePath: context.statePath,
+            checkpointPath: context.checkpointPath,
+            input: context.terminalInput,
+            output: context.terminalOutput,
+            createSessionClient: context.createSessionClient,
+            deps: context.recoveryDependencies,
+          });
+          return { recovery };
+        }
+      },
     });
-    try {
-      const callbacks = services.createRequestCallbacks({
-        getOpenAI: context.getOpenAI,
-        getSessionUsage: context.getSessionUsage,
-        getPendingTransaction: context.getPendingTransaction,
-        getPendingToolCalls: context.getPendingToolCalls,
-        getExecutionJournal: context.getExecutionJournal,
-        getGoal: context.getGoal,
-        setGoal: context.setGoal,
-        setPendingRetryRequest: context.setPendingRetryRequest,
-        setPendingTransaction: context.setPendingTransaction,
-        saveState: context.saveState,
-        getReadline: context.getReadline,
-        terminalInput: context.terminalInput,
-        printFinalResponse: deps.printAgentText,
-      });
-      response = await services.sendMessage(
-        context.getOpenAI(),
-        requestTemplate,
-        state.previousResponseId,
-        requestMessage,
-        context.agentsText,
-        context.getCwd(),
-        callbacks.onResponseUsage,
-        state.retryRequest || activeOverride,
-        createSessionRequestOptions({ context, sessionStartedAt, callbacks, message }),
-      );
-    } catch (error) {
-      const recovery = await services.resolveRequestFailure({
-        error,
-        state,
-        oneShot: context.oneShot,
-        history: context.getHistory(),
-        statePath: context.statePath,
-        checkpointPath: context.checkpointPath,
-        input: context.terminalInput,
-        output: context.terminalOutput,
-        createSessionClient: context.createSessionClient,
-        deps: context.recoveryDependencies,
-      });
-      if (recovery.control === "retry") continue;
-      if (recovery.control === "throw") throw recovery.error;
-      return { control: recovery.control, response: null };
-    } finally {
-      detachGoalInterrupt();
-      if (goalRequestActive) context.replaceReplInterface();
+    if (attemptResult.recovery) {
+      if (attemptResult.recovery.control === "retry") continue;
+      if (attemptResult.recovery.control === "throw") throw attemptResult.recovery.error;
+      return { control: attemptResult.recovery.control, response: null };
     }
+    response = attemptResult.response;
   }
   return { control: "response", response };
 }

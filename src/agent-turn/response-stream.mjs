@@ -1,6 +1,6 @@
 import { createLiveResponseHandlers } from "./response-events.mjs";
-import { createDebugEventHandler } from "./response-debug-events.mjs";
 import { finalizeStreamOutput } from "./response-stream-finalization.mjs";
+import { createResponseStreamHandlers } from "./response-stream-handler-policy.mjs";
 
 export async function createStreamedResponse(
   openai,
@@ -29,8 +29,7 @@ export async function createStreamedResponse(
     noWebsearch,
     ...(debug ? { debug: true } : {}),
   });
-  const handlers = live.handlers ? { ...live.handlers } : debug ? {} : undefined;
-  if (debug) handlers.onEvent = createDebugEventHandler();
+  const handlers = createResponseStreamHandlers(live, debug);
   try {
     const response = await openai.responses.create(request, handlers);
     if (liveStreaming) finalizeStreamOutput(live, colors);

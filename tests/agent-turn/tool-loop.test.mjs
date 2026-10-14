@@ -24,6 +24,42 @@ test("returns the current response when no tool calls need execution", async () 
   ).resolves.toBe(response);
 });
 
+test("continues an active goal cycle until its limit", async () => {
+  const next = { id: "goal-next", output: [] };
+  const openai = { responses: { create: jest.fn().mockResolvedValue(next) } };
+  await expect(
+    handleToolCalls(openai, { id: "goal-start", output: [] }, {}, "/repo", null, undefined, {
+      goalMode: true,
+      goalMaxIterations: 1,
+      suppressUsageOutput: true,
+      suppressStatusOutput: true,
+    }),
+  ).resolves.toBe(next);
+});
+
+test("returns the final response after a goal tool completes", async () => {
+  const final = { id: "goal-final", output: [] };
+  const openai = { responses: { create: jest.fn().mockResolvedValue(final) } };
+  const response = {
+    id: "goal-start",
+    output: [
+      {
+        type: "function_call",
+        call_id: "goal-1",
+        name: "goal_update",
+        arguments: '{"method":"complete","result":"done"}',
+      },
+    ],
+  };
+  await expect(
+    handleToolCalls(openai, response, { model: "test" }, "/repo", null, undefined, {
+      goalMode: true,
+      suppressUsageOutput: true,
+      suppressStatusOutput: true,
+    }),
+  ).resolves.toBe(final);
+});
+
 test("stops before a goal cycle when cancellation is active", async () => {
   const response = { id: "cancelled", output: [] };
   const clear = jest.fn();
@@ -55,42 +91,7 @@ test("returns the current response when a tool call cancels a goal", async () =>
   expect(result).toBe(response);
 });
 
-test("returns the completed goal response after the final decision", async () => {
-  const response = {
-    id: "goal-response",
-    output: [
-      {
-        type: "function_call",
-        call_id: "goal-1",
-        name: "goal_update",
-        arguments: '{"method":"complete","result":"done"}',
-      },
-    ],
-  };
-  const final = { id: "goal-final", output: [] };
-  const openai = { responses: { create: jest.fn().mockResolvedValue(final) } };
-  await expect(
-    handleToolCalls(openai, response, { model: "test" }, "/repo", null, undefined, {
-      goalMode: true,
-      suppressUsageOutput: true,
-      suppressStatusOutput: true,
-    }),
-  ).resolves.toBe(final);
-});
-
-test("continues after an empty goal cycle and after a tool response", async () => {
-  const goalOpenai = {
-    responses: { create: jest.fn().mockResolvedValue({ id: "empty-next", output: [] }) },
-  };
-  await expect(
-    handleToolCalls(goalOpenai, { id: "empty-start", output: [] }, {}, "/repo", null, undefined, {
-      goalMode: true,
-      goalMaxIterations: 1,
-      suppressUsageOutput: true,
-      suppressStatusOutput: true,
-    }),
-  ).resolves.toMatchObject({ id: "empty-next", output: [] });
-
+test("continues after a tool response", async () => {
   const next = { id: "after-tool", output: [] };
   const openai = { responses: { create: jest.fn().mockResolvedValue(next) } };
   const response = {

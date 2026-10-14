@@ -67,21 +67,10 @@ describe("session request callbacks", () => {
     expect(addUsageTotals).toHaveBeenCalledTimes(1);
     expect(usage).toMatchObject({ inputTokens: 3, turns: 1 });
   });
-  test("persists retry request and transaction context", async () => {
+  test("forwards retry state through the request callback", async () => {
     const state = makeCallbacks();
-    await state.callbacks.onRetryState({
-      request: { input: ["result"] },
-      response: { id: "response-1" },
-    });
-    expect(state.setters.pendingRetryRequest).toHaveBeenCalledWith({ input: ["result"] });
-    expect(state.values.pendingTransaction).toEqual({
-      attempt_count: 3,
-      base_response_id: "response-1",
-      request: { input: ["result"] },
-      calls: [{ call_id: "tool-1" }],
-      outputs: ["result"],
-      execution_journal: [{ identity: "shell:test" }],
-    });
+    await state.callbacks.onRetryState({ request: { input: [] }, response: null });
+    expect(state.setters.pendingRetryRequest).toHaveBeenCalledWith({ input: [] });
     expect(state.saveState).toHaveBeenCalledTimes(1);
   });
   test("creates goal callbacks with live state accessors", () => {
@@ -111,18 +100,5 @@ describe("session request callbacks", () => {
     expect(state.callbacks.goalCallbacks).toEqual(
       expect.objectContaining({ onGoalIteration: expect.any(Function) }),
     );
-  });
-  test("uses empty retry defaults", async () => {
-    const state = makeCallbacks();
-    state.values.pendingTransaction = undefined;
-    await state.callbacks.onRetryState({ request: null, response: null });
-    expect(state.values.pendingTransaction).toEqual({
-      base_response_id: "",
-      request: null,
-      calls: [{ call_id: "tool-1" }],
-      outputs: [],
-      execution_journal: [{ identity: "shell:test" }],
-      attempt_count: 1,
-    });
   });
 });

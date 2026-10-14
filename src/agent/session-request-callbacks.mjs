@@ -3,6 +3,7 @@ import { addUsageTotals as addUsageTotalsDefault } from "../response.mjs";
 import { createGoalCallbacks as createGoalCallbacksDefault } from "./goal-callbacks.mjs";
 import { createSessionImageInspection } from "./session-image-inspection.mjs";
 import { createSessionWorkerUsageCallback } from "./session-worker-usage-accounting.mjs";
+import { persistSessionRetryState } from "./session-retry-state.mjs";
 
 export function createSessionRequestCallbacks({
   getOpenAI,
@@ -31,20 +32,16 @@ export function createSessionRequestCallbacks({
     return totals;
   };
 
-  const onRetryState = async ({ request, response }) => {
-    setPendingRetryRequest(request);
-    const transaction = getPendingTransaction();
-    setPendingTransaction({
-      ...transaction,
-      base_response_id: response?.id || transaction?.base_response_id || "",
-      request,
-      calls: getPendingToolCalls(),
-      outputs: request?.input || [],
-      execution_journal: getExecutionJournal(),
-      attempt_count: Number(transaction?.attempt_count || 0) + 1,
+  const onRetryState = (state) =>
+    persistSessionRetryState({
+      ...state,
+      getPendingTransaction,
+      getPendingToolCalls,
+      getExecutionJournal,
+      setPendingRetryRequest,
+      setPendingTransaction,
+      saveState,
     });
-    await saveState();
-  };
 
   const onViewImage = createSessionImageInspection({
     getOpenAI,

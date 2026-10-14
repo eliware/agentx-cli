@@ -1,3 +1,5 @@
+import { reportEntrypointError } from "./agent-entrypoint-error.mjs";
+
 async function loadDependencies() {
   const [runtime, agent, help, version, args, mcpFormat, mcpFile, actions, config, setup] =
     await Promise.all([
@@ -26,10 +28,6 @@ async function loadDependencies() {
     readEnvState: (await import("./setup-env.mjs")).readEnvState,
     runEntrypointSetup: setup.runEntrypointSetup,
   };
-}
-
-function printStartupError(error, processRef) {
-  processRef.stderr.write(`${error?.message || String(error)}\n`);
 }
 
 export async function bootstrapAgentEntrypoint({
@@ -63,7 +61,6 @@ export async function bootstrapAgentEntrypoint({
       ...(messageArgs.length ? { initialMessage: messageArgs.join(" "), oneShot: true } : {}),
     });
   } catch (error) {
-    printStartupError(error, processRef);
-    processRef.exitCode = 1;
+    reportEntrypointError(error, processRef);
   }
 }

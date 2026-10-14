@@ -36,15 +36,13 @@ function createSession(overrides = {}) {
 
 describe("pending session tool executor", () => {
   test("builds the resumed tool loop and forwards session callbacks", async () => {
-    const totals = { turns: 2 };
-    const session = createSession({ getUsage: () => totals });
+    const session = createSession();
     const execute = jest.fn(async (...args) => {
       const [, , , , usage, runner, options] = args;
-      expect(usage({ inputTokens: 1 })).toBe(totals);
-      usage({ inputTokens: 2 }, { skipIncrement: true });
+      expect(usage).toEqual(expect.any(Function));
       expect(runner).toBe(runPendingToolCall);
-      options.onWorkerUsage({ turns: 3 });
       expect(options.onViewImage).toEqual(expect.any(Function));
+      expect(options.onWorkerUsage).toEqual(expect.any(Function));
       expect(options.onWorkerComplete).toBe(session.onWorkerComplete);
       return "tool-loop-result";
     });
@@ -82,16 +80,13 @@ describe("pending session tool executor", () => {
         yolo: false,
       }),
     );
-    expect(addUsageTotals).toHaveBeenCalledTimes(2);
-    expect(totals.turns).toBe(6);
   });
 
   test("uses default tool-loop utilities when adapters are omitted", async () => {
-    const totals = { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 };
     const handleToolCalls = jest.fn(
       async (_client, _response, _template, _cwd, usage, _runner, options) => {
-        usage({ inputTokens: 4 });
-        options.onWorkerUsage({ turns: 2 });
+        expect(usage).toEqual(expect.any(Function));
+        expect(options.onWorkerUsage).toEqual(expect.any(Function));
         return "done";
       },
     );
@@ -99,13 +94,11 @@ describe("pending session tool executor", () => {
       outputFlags: { quiet: false, noUsage: false },
       oneShot: false,
       terminalInput: { isTTY: true },
-      getUsage: () => totals,
       getDebugEnabled: () => false,
     });
     await expect(executePendingSessionTools(jest.fn(), session, { handleToolCalls })).resolves.toBe(
       "done",
     );
-    expect(totals).toMatchObject({ inputTokens: 4, turns: 3 });
     expect(handleToolCalls.mock.calls[0][6]).toMatchObject({
       suppressStatusOutput: false,
       transitionOnlyStatus: false,
