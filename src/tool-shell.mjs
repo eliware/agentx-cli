@@ -2,10 +2,6 @@ import { MAX_TOOL_OUTPUT } from "./tool-output.mjs";
 import { getShellLaunchers, isMissingLauncherError } from "./platform.mjs";
 import { makeShellCommandOutput } from "./shell-output.mjs";
 import { runShellProcess } from "./shell-process-runner.mjs";
-import { normalizeTerminationOutcome } from "./shell-termination.mjs";
-
-export { normalizeTerminationOutcome };
-
 function getLaunchPlan(command, platform, getLaunchers) {
   return getLaunchers(platform).map((launcher) => ({
     file: launcher.file,

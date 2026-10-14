@@ -1,13 +1,8 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  assertReadableImage,
-  defaultConvertToJpeg,
-  encodeImageInput,
-  resolveImagePath,
-} from "../src/image-input.mjs";
+import { defaultConvertToJpeg, encodeImageInput } from "../src/image-input.mjs";
 
 describe("image input encoding", () => {
   let dir;
@@ -17,14 +12,6 @@ describe("image input encoding", () => {
   });
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true });
-  });
-
-  test("resolves paths relative to cwd and rejects missing paths", () => {
-    expect(resolveImagePath("images/picture.png", "/work")).toBe(
-      resolve("/work", "images", "picture.png"),
-    );
-    expect(resolveImagePath("picture.png")).toBe(join(process.cwd(), "picture.png"));
-    expect(() => resolveImagePath(undefined)).toThrow("Image path is required");
   });
 
   test("converts and returns an inline JPEG data URL", async () => {
@@ -49,13 +36,10 @@ describe("image input encoding", () => {
     expect(convert).toHaveBeenCalled();
   });
 
-  test("rejects invalid detail and unreadable or non-file paths", async () => {
+  test("rejects invalid detail and missing paths", async () => {
     await expect(
       encodeImageInput("missing.png", { cwd: dir, convertToJpeg: jest.fn() }),
     ).rejects.toThrow("Unable to read image file");
-    await expect(encodeImageInput(".", { cwd: dir, convertToJpeg: jest.fn() })).rejects.toThrow(
-      "not a regular file",
-    );
     await expect(encodeImageInput("", { cwd: dir, convertToJpeg: jest.fn() })).rejects.toThrow(
       "Image path is required",
     );
@@ -80,8 +64,6 @@ describe("image input encoding", () => {
         throw new Error("missing");
       }),
     ).rejects.toThrow("optional sharp package");
-    await writeFile(join(dir, "picture.png"), "source");
-    await assertReadableImage(join(dir, "picture.png"));
   });
 
   test("uses sharp for default conversion", async () => {

@@ -24,6 +24,8 @@ body: |
 
   Status phase accounting and terminal-line rendering belong to focused modules with mirrored tests. The status controller coordinates phase changes, timers, pauses, and cleanup.
 
+  `response-stream.mjs` owns the API stream lifecycle. Raw debug-event logging belongs to `response-debug-events.mjs`; terminal flushing and reset behavior belong to `response-stream-finalization.mjs`. Image file validation and loading belong to `image-file-input.mjs`; JPEG conversion and data URL encoding belong to `image-input.mjs`. Shell process signaling belongs to `shell-termination.mjs`; exit outcome normalization belongs to `shell-termination-outcome.mjs`. Each focused module has a mirrored test, while coordinator tests verify wiring and lifecycle.
+
   Session request recovery delegates WebSocket retry timing and state updates to `session-websocket-recovery.mjs`; the mirrored test covers the retry boundary.
 
   Final response completion is owned by `agent-turn/tool-loop-completion.mjs`. It persists a final response snapshot when provided, reports completion usage when the caller supplies an unreported final usage record, resolves the completion-time snapshot, clears the status controller, and emits the completion line. The tool loop delegates both ordinary and goal-completion finalization to this module; mirrored tests cover its independent behavior, while tool-loop tests cover when finalization is invoked.

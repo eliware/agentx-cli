@@ -8,20 +8,7 @@ const spawn = jest.fn(() => {
   return killer;
 });
 await jest.unstable_mockModule("node:child_process", () => ({ spawn }));
-const { killShellProcess, normalizeTerminationOutcome } =
-  await import("../src/shell-termination.mjs");
-
-test("maps timeout and process exit state to shell outcomes", () => {
-  expect(normalizeTerminationOutcome()).toEqual({ type: "exit", exit_code: 1 });
-  expect(normalizeTerminationOutcome({ timedOut: true })).toEqual({ type: "timeout" });
-  expect(normalizeTerminationOutcome({ interrupted: true, code: 4 })).toEqual({ type: "timeout" });
-  expect(normalizeTerminationOutcome({ signal: "SIGTERM", code: 4 })).toEqual({
-    type: "exit",
-    exit_code: 1,
-  });
-  expect(normalizeTerminationOutcome({ code: 3 })).toEqual({ type: "exit", exit_code: 3 });
-  expect(normalizeTerminationOutcome({ code: Number.NaN })).toEqual({ type: "exit", exit_code: 1 });
-});
+const { killShellProcess } = await import("../src/shell-termination.mjs");
 
 test("kills process groups and falls back to child termination", () => {
   const child = { pid: 123, kill: jest.fn() };

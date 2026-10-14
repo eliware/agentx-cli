@@ -1,5 +1,6 @@
-import { writeTerminal } from "../terminal-output.mjs";
 import { createLiveResponseHandlers } from "./response-events.mjs";
+import { createDebugEventHandler } from "./response-debug-events.mjs";
+import { finalizeStreamOutput } from "./response-stream-finalization.mjs";
 
 export async function createStreamedResponse(
   openai,
@@ -29,16 +30,10 @@ export async function createStreamedResponse(
     ...(debug ? { debug: true } : {}),
   });
   const handlers = live.handlers ? { ...live.handlers } : debug ? {} : undefined;
-  if (debug)
-    handlers.onEvent = (event, raw) =>
-      process.stderr.write(`[openai:event] ${JSON.stringify(raw ?? event)}\n`);
+  if (debug) handlers.onEvent = createDebugEventHandler();
   try {
     const response = await openai.responses.create(request, handlers);
-    if (liveStreaming && live.sawOutput()) {
-      live.flushTextDelta();
-      if (colors) writeTerminal("\u001b[0m");
-      if (!live.streamedText().endsWith("\n")) writeTerminal("\n");
-    }
+    if (liveStreaming) finalizeStreamOutput(live, colors);
     return response;
   } finally {
     statusController?.clear();

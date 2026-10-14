@@ -6,7 +6,7 @@ import {
   truncateShellText,
   validateShellRequest,
 } from "./shell-output.mjs";
-import { normalizeTerminationOutcome } from "./shell-termination.mjs";
+import { normalizeTerminationOutcome } from "./shell-termination-outcome.mjs";
 import { attachShellProcessEvents } from "./shell-process-events.mjs";
 import { startShellTermination } from "./shell-process-termination.mjs";
 import { createShellSpawnOptions } from "./shell-process-options.mjs";

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { path } from "@eliware/common";
 import { existsSync } from "node:fs";
-import { createInterface } from "node:readline/promises";
 import { loadEntrypointEnvironment } from "./agent-entrypoint-env.mjs";
 import { loadUserConfiguration } from "./env-loader.mjs";
 
@@ -17,24 +16,16 @@ const { validateMcpConfigFile } = await import("./mcp-config-file.mjs");
 const { runEntrypointAction } = await import("./agent-entrypoint-actions.mjs");
 const { prepareAgentStartup } = await import("./agent-entrypoint-config.mjs");
 
-async function askToRunSetup() {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    return await rl.question("AgentX is not configured. Run agentx-setup now? [Y/n] ");
-  } finally {
-    rl.close();
-  }
-}
-
 async function confirmSetup() {
   const configFile = homeDirectory ? path(homeDirectory, ".agentx") : "";
   const { confirmSetup: runSetupPrompt } = await import("./agent-entrypoint-setup.mjs");
+  const { askToRunSetup } = await import("./agent-entrypoint-prompt.mjs");
   return runSetupPrompt({
     isTest: process.env.NODE_ENV === "test",
     isTty: Boolean(process.stdin.isTTY && process.stdout.isTTY),
     configured: Boolean(configFile && existsSync(configFile)),
     hasApiKey: () => Boolean(process.env.agentx_api_key || process.env.AGENTX_API_KEY),
-    ask: askToRunSetup,
+    ask: () => askToRunSetup({ input: process.stdin, output: process.stdout }),
     runSetup: async () => {
       const { runSetup } = await import("./setup.mjs");
       await runSetup({ stdin: process.stdin, stdout: process.stdout });
