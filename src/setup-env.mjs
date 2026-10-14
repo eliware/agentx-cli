@@ -3,13 +3,13 @@ import { snowflake } from "@eliware/common";
 import nodePath from "node:path";
 import { getSetupPaths } from "./setup-paths.mjs";
 import {
-  configVersion,
   decodeEnvValue,
   knownSetupKeys,
   parseEnvLines,
   serializeEnvValue,
   updateEnvText,
 } from "./setup-env-format.mjs";
+import { migrateSetupValues } from "./setup-env-migration.mjs";
 
 async function readOptionalText(filePath) {
   try {
@@ -32,17 +32,10 @@ export async function readEnvState(filePath = getSetupPaths().envPath) {
   for (const line of parseEnvLines(text))
     if (line.type === "pair" && knownKeys.has(line.key))
       values[line.key] = decodeEnvValue(line.value);
-  const version = configVersion();
-  if (text && Number(values[version.key] || 0) < Number(version.current)) {
-    const updates = { [version.key]: version.current };
-    if (values.AGENTX_MODEL === "gpt-5.6-luna") {
-      updates.AGENTX_MODEL = "gpt-6-luna";
-      values.AGENTX_MODEL = "gpt-6-luna";
-    }
-    text = await writeEnvState(filePath, updates, text);
-  }
-  delete values[version.key];
-  return { filePath, text, values };
+  const migration = migrateSetupValues(values, text);
+  if (Object.keys(migration.updates).length)
+    text = await writeEnvState(filePath, migration.updates, text);
+  return { filePath, text, values: migration.values };
 }
 
 export async function writeEnvState(filePath, values, baseText = null) {

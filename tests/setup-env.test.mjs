@@ -48,22 +48,18 @@ describe("setup environment file", () => {
     expect(setupEnvInternals.updateEnvText(null, {})).toBe("");
   });
 
-  test("reads missing/populated config and upgrades only the legacy default", async () => {
+  test("reads missing and populated config files", async () => {
     const directory = await tempDirectory();
     const file = path.join(directory, ".agentx");
     expect((await readEnvState(file)).values).toEqual({ AGENTX_API_KEY: "" });
     await writeFile(
       file,
-      "AGENTX_CONFIG_VERSION=1\nAGENTX_MODEL=gpt-5.6-luna\nCUSTOM=value\n# retained\n",
+      "AGENTX_CONFIG_VERSION=2\nAGENTX_MODEL=gpt-6-luna\nCUSTOM=value\n# retained\n",
     );
     const upgraded = await readEnvState(file);
     expect(upgraded.values).toEqual({ AGENTX_API_KEY: "", AGENTX_MODEL: "gpt-6-luna" });
-    expect(upgraded.text).toContain("AGENTX_MODEL=gpt-6-luna");
     expect(upgraded.text).toContain("CUSTOM=value");
     expect(upgraded.text).toContain("# retained");
-
-    await writeFile(file, "AGENTX_CONFIG_VERSION=1\nAGENTX_MODEL=gpt-5.6-terra\n");
-    expect((await readEnvState(file)).values.AGENTX_MODEL).toBe("gpt-5.6-terra");
   });
 
   test("writes atomically, keeps private permissions, and cleans temporary files", async () => {

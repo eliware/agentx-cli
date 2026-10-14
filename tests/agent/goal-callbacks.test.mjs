@@ -44,18 +44,17 @@ describe("goal callbacks", () => {
     expect(saved).toHaveBeenCalledTimes(1);
   });
 
-  test("switches to cooked mode, displays choices, asks readline, and saves the answer context", async () => {
+  test("stores the goal question and saves the answer context", async () => {
     const readline = { question: jest.fn().mockResolvedValue("B") };
     const terminalInput = { setRawMode: jest.fn() };
-    const { callbacks, state, writes, saved } = makeCallbacks({ readline, terminalInput });
+    const { callbacks, state, saved } = makeCallbacks({ readline, terminalInput });
     await expect(
       callbacks.onGoalBlocked({ question: "Which?", choices: ["First", "Second"] }),
     ).resolves.toBe("B");
-    expect(terminalInput.setRawMode).toHaveBeenCalledWith(false);
-    expect(readline.question).toHaveBeenCalledWith("Choose A-D or answer: ");
-    expect(writes).toEqual(["<GOAL QUESTION: Which?>\n", "A) First\n", "B) Second\n"]);
     expect(state.goal.last_question).toBe("Which?");
     expect(saved).toHaveBeenCalledTimes(1);
+    expect(terminalInput.setRawMode).toHaveBeenCalledWith(false);
+    expect(readline.question).toHaveBeenCalled();
   });
 
   test("handles missing choices, readline, and optional raw-mode control", async () => {

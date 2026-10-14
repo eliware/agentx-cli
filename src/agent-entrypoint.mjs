@@ -2,13 +2,10 @@
 import { path } from "@eliware/common";
 import { existsSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { getHomeDirectory } from "./platform.mjs";
+import { loadEntrypointEnvironment } from "./agent-entrypoint-env.mjs";
 import { loadUserConfiguration } from "./env-loader.mjs";
 
-const homeDirectory = getHomeDirectory();
-if (homeDirectory) {
-  loadUserConfiguration(path(homeDirectory, ".agentx"));
-}
+const homeDirectory = loadEntrypointEnvironment();
 
 const { isDirectInvocation, promptPath } = await import("./runtime.mjs");
 const { runAgent } = await import("./agent/runtime.mjs");

@@ -2,7 +2,7 @@ title: "Configuration and setup"
 body: |
   # Configuration and setup
 
-  Setup persistence is separate from interactive setup orchestration. The settings-file module owns dotenv-style parsing, serialization, version migration, private permissions, atomic replacement, and file-path errors. The setup-editors module owns setting-choice matching, API-key editing, compaction validation, and saving edited values. The setup-presentation module owns menu-entry policy and setup-screen rendering. The setup module owns workflow coordination. Resolve the home directory when reading/writing so an invocation observes the current environment.
+  Setup persistence is separate from interactive setup orchestration. The settings-file module owns dotenv-style parsing, serialization, private permissions, atomic replacement, and file-path errors. `setup-env-migration.mjs` owns config-version and model migration decisions. The setup-editors module owns setting-choice matching, API-key editing, compaction validation, and saving edited values. The setup-presentation module owns menu-entry policy and setup-screen rendering. The setup module owns workflow coordination. Resolve the home directory when reading/writing so an invocation observes the current environment.
 
   ## Configuration file
 

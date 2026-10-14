@@ -1,5 +1,6 @@
 import { formatSystemMessage } from "../shell-display.mjs";
 import { writeTerminal } from "../terminal-output.mjs";
+import { askGoalQuestion } from "./goal-question.mjs";
 
 export function createGoalCallbacks({
   getGoal,
@@ -28,13 +29,14 @@ export function createGoalCallbacks({
       await saveState();
     },
     onGoalBlocked: async ({ question, choices = [] }) => {
-      terminalInput.setRawMode?.(false);
-      write(`${formatMessage(`GOAL QUESTION: ${question || "Input required"}`)}\n`);
-      choices.forEach((choice, index) => write(`${String.fromCharCode(65 + index)}) ${choice}\n`));
-      const readline = getReadline();
-      const answer = readline
-        ? await readline.question(choices.length ? "Choose A-D or answer: " : "Answer: ")
-        : "";
+      const answer = await askGoalQuestion({
+        question,
+        choices,
+        getReadline,
+        terminalInput,
+        write,
+        formatMessage,
+      });
       setGoal({ ...getGoal(), last_question: question });
       await saveState();
       return answer;

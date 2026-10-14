@@ -12,3 +12,20 @@ test("persists worker lifecycle fields", async () => {
     expect.objectContaining({ id: "agent-1", status: "running", finished_at: null }),
   );
 });
+
+test("persists a completed worker with its exit details", async () => {
+  const worker = {
+    id: "agent-2",
+    cwd: "/repo",
+    status: "failed",
+    startedAt: 1,
+    finishedAt: 2,
+    exitCode: 0,
+    signal: "SIGTERM",
+  };
+  await persistWorkerRecord(worker);
+  expect(saveWorkerRecord).toHaveBeenCalledWith(
+    "/repo",
+    expect.objectContaining({ finished_at: new Date(2).toISOString(), exit_code: 0 }),
+  );
+});

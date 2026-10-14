@@ -10,7 +10,7 @@ body: |
 
   Setup entrypoint invocation and setup workflow behavior are covered by the mirrored `tests/setup.test.mjs` suite, which owns the setup module boundary and its root launcher integration.
 
-  At startup, if a home directory exists, load `$HOME/.agentx` with dotenv (quietly). Environment variables already present remain usable; the runtime must support both `agentx_api_key` and `AGENTX_API_KEY`, preferring the lowercase name.
+  `agent-entrypoint-env.mjs` resolves the home directory and loads `$HOME/.agentx` quietly. Environment variables already present remain usable; the runtime must support both `agentx_api_key` and `AGENTX_API_KEY`, preferring the lowercase name.
 
   The application entrypoint owns startup coordination. CLI action handling belongs in `agent-entrypoint-actions.mjs`; startup configuration belongs in `agent-entrypoint-config.mjs`. The interactive setup prompt, setup call, and configuration reload belong to `agent-entrypoint-setup.mjs`. Keep launcher and startup integration tests in `tests/agent-entrypoint.test.mjs`; test each focused helper in its mirrored suite.
 

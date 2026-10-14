@@ -1,24 +1,13 @@
 import { spawn } from "node:child_process";
-import { path } from "@eliware/common";
+import { createImageWorkerLaunch } from "./image-worker-request.mjs";
 
 export function runImageInspectionProcess(
   args,
   { cwd, responseId, previousResponseId, model, onUsage } = {},
 ) {
   return new Promise((resolve) => {
-    const env = Object.fromEntries(
-      Object.entries(process.env).filter(([key]) =>
-        ["path", "systemroot", "windir", "temp", "tmp"].includes(key.toLowerCase()),
-      ),
-    );
-    if (process.env.agentx_api_key) env.agentx_api_key = process.env.agentx_api_key;
-    if (process.env.AGENTX_API_KEY) env.AGENTX_API_KEY = process.env.AGENTX_API_KEY;
-    env.AGENTX_IMAGE_REQUEST = JSON.stringify({ args, cwd, responseId, previousResponseId, model });
-    const child = spawn(process.execPath, [path(import.meta, "./image-worker.mjs")], {
-      cwd,
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const launch = createImageWorkerLaunch(args, { cwd, responseId, previousResponseId, model });
+    const child = spawn(launch.command, launch.args, launch.options);
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => {
