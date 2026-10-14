@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { isSetupDirectInvocation, runSetupCli } from "../src/setup-entrypoint.mjs";
+await import("../test-fixtures/agentx-setup-suite.mjs");
 
 describe("setup entrypoint", () => {
   test("matches either public invocation path", () => {

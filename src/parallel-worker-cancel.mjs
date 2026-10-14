@@ -1,5 +1,6 @@
 import { snapshotWorker } from "./worker-status.mjs";
 import { cancelRecoveredWorkerProcess } from "./parallel-worker-process-cancel.mjs";
+import { cancelLiveWorkerProcess } from "./parallel-worker-live-cancel.mjs";
 
 export async function cancelWorkers(args, cwd, { state, readRecord, persist }) {
   const ids = Array.isArray(args.agent_ids)
@@ -15,11 +16,7 @@ export async function cancelWorkers(args, cwd, { state, readRecord, persist }) {
       continue;
     }
     if (child && ["running", "timed_out"].includes(worker.status)) {
-      worker.status = "cancelled";
-      worker.error = "cancelled by request";
-      worker.finishedAt = Date.now();
-      await persist(worker);
-      child.kill("SIGTERM");
+      await cancelLiveWorkerProcess(worker, child, persist);
     } else if (!child && ["running", "timed_out"].includes(worker.status) && worker.pid) {
       await cancelRecoveredWorkerProcess(worker, persist);
     }

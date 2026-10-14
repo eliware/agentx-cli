@@ -1,12 +1,10 @@
-import { readdir, readFile, unlink } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import {
   legacyWorkerDirectory,
   workerDirectory,
   workerFilePath,
   workerPathInternals,
 } from "./worker-paths.mjs";
-
-const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function recordsIn(directory, readDirectory = readdir) {
   let names;
@@ -37,22 +35,3 @@ export async function listIndexedWorkerRecords(cwd) {
   for (const record of current) byId.set(record.id, record);
   return [...byId.values()];
 }
-
-export async function pruneWorkerRecords(cwd, now = Date.now()) {
-  const directories = [workerDirectory(cwd), legacyWorkerDirectory(cwd)];
-  for (const directory of directories) {
-    for (const record of await recordsIn(directory)) {
-      const finished = new Date(record.finished_at || record.updated_at || 0).getTime();
-      if (
-        ["completed", "failed", "cancelled", "timed_out", "terminated"].includes(record.status) &&
-        now - finished >= RETENTION_MS
-      )
-        await Promise.allSettled([
-          unlink(workerFilePath(directory, record.id, ".json")),
-          unlink(workerFilePath(directory, record.id, ".log")),
-        ]);
-    }
-  }
-}
-
-export const workerIndexInternals = { RETENTION_MS };

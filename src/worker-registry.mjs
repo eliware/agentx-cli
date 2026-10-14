@@ -6,12 +6,8 @@ import {
   saveStoredWorkerRecord,
   workerStorageInternals,
 } from "./worker-record-storage.mjs";
-import {
-  listIndexedWorkerRecords,
-  pruneWorkerRecords,
-  recordsIn,
-  workerIndexInternals,
-} from "./worker-record-index.mjs";
+import { listIndexedWorkerRecords, recordsIn } from "./worker-record-index.mjs";
+import { pruneWorkerRecords, workerRecordRetentionInternals } from "./worker-record-retention.mjs";
 import {
   workerDirectory,
   workerLogPath,
@@ -24,7 +20,7 @@ import {
 export const workerRegistryInternals = {
   ...workerStorageInternals,
   ...workerPathInternals,
-  ...workerIndexInternals,
+  ...workerRecordRetentionInternals,
   legacyWorkerDirectory,
   workerStateDirectory,
   recordsIn,

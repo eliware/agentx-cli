@@ -1,4 +1,5 @@
 import { isWorkerTerminal } from "./worker-status.mjs";
+import { markMissingWorkerProcess } from "./parallel-worker-liveness.mjs";
 
 export async function recoverWorkers(cwd, { cleanup, list, readLog, persist, state }) {
   await cleanup(cwd);
@@ -21,14 +22,7 @@ export async function recoverWorkers(cwd, { cleanup, list, readLog, persist, sta
       exited: isWorkerTerminal(record.status),
     };
     if (!isWorkerTerminal(worker.status) && worker.pid) {
-      try {
-        process.kill(worker.pid, 0);
-      } catch {
-        worker.status = "failed";
-        worker.error = "worker process no longer exists";
-        worker.finishedAt = Date.now();
-        await persist(worker);
-      }
+      await markMissingWorkerProcess(worker, persist);
     }
     state.workers.set(worker.id, worker);
   }

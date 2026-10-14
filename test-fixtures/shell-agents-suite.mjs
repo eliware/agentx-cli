@@ -186,21 +186,3 @@ describe("shell agents realpath error handling", () => {
     });
   });
 });
-
-test("skips entries when realpath resolution fails", async () => {
-  const originalReadFile = commonFs.promises.readFile;
-  const originalLstat = commonFs.promises.lstat;
-  const originalRealpath = commonFs.promises.realpath;
-  commonFs.promises.readFile = async () => "content";
-  commonFs.promises.lstat = async () => ({ isSymbolicLink: () => false });
-  commonFs.promises.realpath = async () => {
-    throw new Error("realpath failure");
-  };
-  try {
-    await expect(readAgentsFromCwdAndParents("/tmp/agentx-realpath-failure", "")).resolves.toBe("");
-  } finally {
-    commonFs.promises.readFile = originalReadFile;
-    commonFs.promises.lstat = originalLstat;
-    commonFs.promises.realpath = originalRealpath;
-  }
-});

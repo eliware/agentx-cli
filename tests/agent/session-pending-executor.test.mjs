@@ -1,5 +1,8 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { executePendingSessionTools } from "../../src/agent/session-pending-executor.mjs";
+await jest.isolateModulesAsync(
+  () => import("../../test-fixtures/session-pending-executor-defaults-suite.mjs"),
+);
 
 function createSession(overrides = {}) {
   const session = {
@@ -154,7 +157,3 @@ describe("pending session tool executor", () => {
     expect(addUsageTotals).toHaveBeenCalledTimes(2);
   });
 });
-
-await jest.isolateModulesAsync(
-  () => import("../../test-fixtures/session-pending-executor-defaults-suite.mjs"),
-);
