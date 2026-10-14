@@ -1,5 +1,6 @@
 import { getPackageVersion } from "./cli-version.mjs";
 import { getSetupPaths } from "./setup-paths.mjs";
+import { runMenuInteraction } from "./menu-interaction.mjs";
 export { askMasked } from "./setup-masked-input.mjs";
 
 export async function selectSetupMenu(stdin, stdout, entries, initialIndex = 0, paths = {}) {
@@ -8,7 +9,6 @@ export async function selectSetupMenu(stdin, stdout, entries, initialIndex = 0, 
     Number.isInteger(initialIndex) && initialIndex >= 0 && initialIndex < entries.length
       ? initialIndex
       : 0;
-  let buffer = "";
   const render = () => {
     stdout.write(`\x1b[2J\x1b[HAgentX ${getPackageVersion()} Setup\n\n`);
     if (paths.rootDir || paths.envPath || paths.mcpPath) {
@@ -22,38 +22,22 @@ export async function selectSetupMenu(stdin, stdout, entries, initialIndex = 0, 
     );
     stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`);
   };
-  render();
-  stdin.setRawMode(true);
-  stdin.resume();
-  return await new Promise((resolve) => {
-    const onData = (chunk) => {
-      buffer += chunk.toString();
-      if (buffer.includes("\x1b[A")) {
+  return runMenuInteraction({
+    input: stdin,
+    output: stdout,
+    render,
+    clear: () => stdout.write("\n"),
+    onKeypress: (value, key, { finish, render: redraw }) => {
+      if (key.name === "up") {
         selected = (selected + entries.length - 1) % entries.length;
-        buffer = "";
-        render();
-      } else if (buffer.includes("\x1b[B")) {
+        redraw();
+      } else if (key.name === "down") {
         selected = (selected + 1) % entries.length;
-        buffer = "";
-        render();
-      } else if (/^[1-9]$/.test(buffer) && Number(buffer) <= entries.length) {
-        selected = Number(buffer) - 1;
-        buffer = "";
-        stdin.setRawMode(false);
-        stdin.off?.("data", onData);
-        stdout.write("\n");
-        resolve(entries[selected]);
-      } else if (buffer.includes("\r") || buffer.includes("\n")) {
-        stdin.setRawMode(false);
-        stdin.off?.("data", onData);
-        stdout.write("\n");
-        resolve(entries[selected]);
-      } else if (buffer.includes("\u0003")) {
-        stdin.setRawMode(false);
-        stdin.off?.("data", onData);
-        resolve(entries.find((entry) => entry.id === "quit"));
-      } else buffer = buffer.length > 8 ? buffer.slice(-8) : buffer;
-    };
-    stdin.on("data", onData);
+        redraw();
+      } else if (key.name === "return") finish(entries[selected]);
+      else if (key.ctrl && key.name === "c") finish(entries.find((entry) => entry.id === "quit"));
+      else if (/^[1-9]$/.test(value) && Number(value) <= entries.length)
+        finish(entries[Number(value) - 1]);
+    },
   });
 }

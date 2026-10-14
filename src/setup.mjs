@@ -2,7 +2,7 @@ import { reloadSettings } from "./settings.mjs";
 import { readEnvState } from "./setup-env.mjs";
 import { getSetupPaths } from "./setup-paths.mjs";
 import { selectSetupMenu } from "./setup-menu.mjs";
-import { buildMenuEntries, DEFAULTS, renderScreen } from "./setup-presentation.mjs";
+import { buildMenuEntries, DEFAULTS, renderReadlineMenu } from "./setup-presentation.mjs";
 import { createInterface } from "node:readline/promises";
 import { applySetupAction } from "./setup-action.mjs";
 
@@ -35,15 +35,14 @@ export async function runSetup({
         mcpPath: getSetupPaths().mcpConfigPath,
       });
       if (!selected) {
-        renderScreen({
+        renderReadlineMenu({
           values: envState.values,
           message,
           stdout,
           configPath,
           mcpPath: getSetupPaths().mcpConfigPath,
+          entries,
         });
-        entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`));
-        stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`);
         const choice = (await ask(rl, "\nChoose an option: ")).trim().toLowerCase();
         const index = Number(choice);
         selected =

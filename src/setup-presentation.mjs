@@ -43,3 +43,9 @@ export function renderScreen({ values, message, stdout, configPath, mcpPath }) {
   if (message) stdout.write(`\n${message}\n`);
   stdout.write("\n");
 }
+
+export function renderReadlineMenu({ values, message, stdout, configPath, mcpPath, entries }) {
+  renderScreen({ values, message, stdout, configPath, mcpPath });
+  entries.forEach((entry, index) => stdout.write(`${index + 1}. ${entry.label}\n`));
+  stdout.write(`\nUse 1-${entries.length}, ↑/↓, or Enter.\n`);
+}
