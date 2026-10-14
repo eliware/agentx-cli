@@ -21,8 +21,8 @@ test("the source entrypoint supports the documented CLI flags", async () => {
   const source = await readFile(new URL("../src/agent-entrypoint.mjs", import.meta.url), "utf8");
   expect(entrypoint).toBeDefined();
   expect(source).toContain("parseCliArgs(argv)");
-  expect(source).toContain("parsed.flags.help");
-  expect(source).toContain("parsed.flags.version");
+  expect(source).toContain("runEntrypointAction(parsed");
+  expect(source).toContain("prepareAgentStartup(parsed");
 });
 
 await import("../test-fixtures/agentx-smoke-suite.mjs");

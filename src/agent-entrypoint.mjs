@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { path } from "@eliware/common";
 import { existsSync } from "node:fs";
-import { resolve as resolvePath } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { getHomeDirectory } from "./platform.mjs";
 import { loadUserConfiguration } from "./env-loader.mjs";
@@ -18,11 +17,8 @@ const { getPackageVersion } = await import("./cli-version.mjs");
 const { parseCliArgs } = await import("./cli-args.mjs");
 const { formatMcpConfigValidation } = await import("./mcp-config-format.mjs");
 const { validateMcpConfigFile } = await import("./mcp-config-file.mjs");
-
-function printAndExit(text, code = 0) {
-  process.stdout.write(`${text}\n`);
-  process.exit(code);
-}
+const { runEntrypointAction } = await import("./agent-entrypoint-actions.mjs");
+const { prepareAgentStartup } = await import("./agent-entrypoint-config.mjs");
 
 async function askToRunSetup() {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -60,22 +56,25 @@ function printStartupError(error) {
 if (isDirectInvocation(import.meta.url)) {
   const argv = process.argv.slice(2);
   const parsed = parseCliArgs(argv);
-  if (parsed.flags.help) {
-    printAndExit(formatQuickHelp());
-  } else if (parsed.flags.version) {
-    printAndExit(getPackageVersion());
-  } else if (parsed.flags.checkMcp) {
-    const mcpPath = path(homeDirectory || process.cwd(), ".agentx.mcp.json");
-    const result = validateMcpConfigFile(mcpPath);
-    printAndExit(formatMcpConfigValidation(result), result.valid ? 0 : 1);
-  } else {
+  const handled = runEntrypointAction(parsed, {
+    homeDirectory,
+    stdout: process.stdout,
+    processRef: process,
+    dependencies: {
+      formatQuickHelp,
+      getPackageVersion,
+      formatMcpConfigValidation,
+      validateMcpConfigFile,
+    },
+  });
+  if (!handled) {
     try {
       const { readEnvState } = await import("./setup-env.mjs");
-      await readEnvState();
-      if (process.env.AGENTX_MODEL === "gpt-5.6-luna") process.env.AGENTX_MODEL = "gpt-6-luna";
-      const messageArgs = parsed.messageArgs;
-      if (parsed.flags.cwd === "") throw new Error("--cwd requires a path");
-      const cwd = parsed.flags.cwd ? resolvePath(process.cwd(), parsed.flags.cwd) : process.cwd();
+      const { cwd, messageArgs } = await prepareAgentStartup(parsed, {
+        readEnvState,
+        env: process.env,
+        cwd: process.cwd(),
+      });
       if (!messageArgs.length) await confirmSetup();
       await runAgent({
         promptPath,
