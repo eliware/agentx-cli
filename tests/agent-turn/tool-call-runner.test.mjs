@@ -57,7 +57,7 @@ describe("tool call runner", () => {
     expect(status.updateExecuting).toHaveBeenCalledTimes(2);
     expect(status.clear).toHaveBeenCalledTimes(1);
   });
-  test("declines a destructive call after confirmation and serializes an incomplete result", async () => {
+  test("coordinates a declined call without execution and returns its incomplete result", async () => {
     const executeToolCall = testMocks.fn();
     const status = {
       showExecuting: testMocks.fn(),

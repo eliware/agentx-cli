@@ -5,17 +5,16 @@ import { recoverParallelWorkers } from "./parallel-worker-recovery-coordinator.m
 import { spawnWorker } from "./parallel-worker-spawn.mjs";
 import { cancelWorkers } from "./parallel-worker-cancel.mjs";
 import { getWorkerStatus } from "./parallel-worker-status.mjs";
+import {
+  unsupportedParallelWorkerCall,
+  validateParallelWorkerCall,
+} from "./parallel-worker-call-policy.mjs";
 
-const workerFunctionNames = new Set(["spawn_agent", "agent_status", "cancel_agent"]);
-
-export function isParallelWorkerFunctionCall(call) {
-  return call?.type === "function_call" && workerFunctionNames.has(call.name);
-}
+export { isParallelWorkerFunctionCall } from "./parallel-worker-call-policy.mjs";
 
 export async function runParallelWorkerFunction(call, cwd, options = {}) {
-  if (!call || typeof call !== "object" || Array.isArray(call))
-    return { error: "invalid worker function call" };
-  if (typeof cwd !== "string" || !cwd.trim()) return { error: "invalid working directory" };
+  const validationError = validateParallelWorkerCall(call, cwd);
+  if (validationError) return validationError;
   const args = parseWorkerArguments(call);
   await recoverParallelWorkers(cwd);
   if (call.name === "spawn_agent") return spawnWorker(args, cwd, options, startWorker);
@@ -26,5 +25,5 @@ export async function runParallelWorkerFunction(call, cwd, options = {}) {
       persist: persistWorker,
     });
   if (call.name === "agent_status") return getWorkerStatus(args, workerProcessState);
-  return { error: `unsupported worker function ${call.name || ""}` };
+  return unsupportedParallelWorkerCall(call);
 }

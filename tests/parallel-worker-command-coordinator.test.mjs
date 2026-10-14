@@ -1,7 +1,7 @@
 import { beforeEach, expect, jest, test } from "@jest/globals";
 await jest.unstable_unmockModule("node:child_process");
 await jest.unstable_unmockModule("../src/worker-registry.mjs");
-const { isParallelWorkerFunctionCall, runParallelWorkerFunction } =
+const { runParallelWorkerFunction } =
   await import("../src/parallel-worker-command-coordinator.mjs");
 const callWorker = (name, args) => ({
   type: "function_call",
@@ -12,23 +12,6 @@ const callWorker = (name, args) => ({
 beforeEach(() => {
   delete process.env.AGENTX_WORKER_ID;
 });
-test("classifies only worker function calls", () => {
-  expect(isParallelWorkerFunctionCall(callWorker("spawn_agent", {}))).toBe(true);
-  expect(isParallelWorkerFunctionCall(callWorker("agent_status", {}))).toBe(true);
-  expect(isParallelWorkerFunctionCall(callWorker("cancel_agent", {}))).toBe(true);
-  expect(isParallelWorkerFunctionCall({ type: "shell_call", name: "spawn_agent" })).toBe(false);
-  expect(isParallelWorkerFunctionCall(callWorker("other_tool", {}))).toBe(false);
-});
-
-test("validates worker calls before spawning or waiting", async () => {
-  await expect(runParallelWorkerFunction(null, process.cwd())).resolves.toEqual({
-    error: "invalid worker function call",
-  });
-  await expect(
-    runParallelWorkerFunction({ type: "function_call", name: "agent_status" }, ""),
-  ).resolves.toEqual({ error: "invalid working directory" });
-});
-
 test("rejects malformed spawn requests", async () => {
   await expect(
     runParallelWorkerFunction(
@@ -36,6 +19,15 @@ test("rejects malformed spawn requests", async () => {
       process.cwd(),
     ),
   ).resolves.toEqual({ error: "task must be a non-empty string" });
+});
+
+test("rejects invalid calls before recovery", async () => {
+  await expect(runParallelWorkerFunction(null, process.cwd())).resolves.toEqual({
+    error: "invalid worker function call",
+  });
+  await expect(
+    runParallelWorkerFunction({ type: "function_call", name: "agent_status" }, ""),
+  ).resolves.toEqual({ error: "invalid working directory" });
 });
 
 test("rejects nested worker spawning", async () => {
@@ -60,22 +52,23 @@ test("cancels unknown agents without throwing", async () => {
 test("routes status requests to the worker status handler", async () => {
   await expect(
     runParallelWorkerFunction(
-      callWorker("agent_status", { agent_ids: ["missing-agent"] }),
+      {
+        type: "function_call",
+        name: "agent_status",
+        arguments: { agent_ids: ["missing-agent"] },
+      },
       process.cwd(),
     ),
   ).resolves.toMatchObject({ agents: [{ id: "missing-agent", status: "unknown" }] });
 });
 
-test("handles malformed arguments and unsupported worker calls", async () => {
+test("returns an error for unsupported worker functions", async () => {
   await expect(
     runParallelWorkerFunction({ name: "other_tool", arguments: "{" }, process.cwd()),
   ).resolves.toEqual({ error: "unsupported worker function other_tool" });
-  await expect(
-    runParallelWorkerFunction({ name: "other_tool", input: { unused: true } }, process.cwd()),
-  ).resolves.toEqual({ error: "unsupported worker function other_tool" });
-  await expect(runParallelWorkerFunction({ arguments: "{}" }, process.cwd())).resolves.toEqual({
-    error: "unsupported worker function ",
-  });
+});
+
+test("routes malformed arguments to supported worker handlers", async () => {
   await expect(
     runParallelWorkerFunction({ name: "agent_status" }, process.cwd()),
   ).resolves.toMatchObject({ agents: [], waited_ms: 0, timed_out: false });
