@@ -1,3 +1,15 @@
+export async function cancelActiveSessionGoal({
+  goal,
+  setGoal,
+  saveState,
+  now = () => new Date().toISOString(),
+}) {
+  if (goal?.status !== "active") return false;
+  setGoal({ ...goal, status: "cancelled", cancelled_at: now() });
+  await saveState();
+  return true;
+}
+
 export function attachGoalInterruptListener({
   oneShot,
   terminalInput,
@@ -11,8 +23,7 @@ export function attachGoalInterruptListener({
   const onInput = (chunk) => {
     if (!String(chunk).includes("\x14")) return;
     interrupted = true;
-    setGoal({ ...getGoal(), status: "cancelled", cancelled_at: now() });
-    void saveState().catch(() => {});
+    void cancelActiveSessionGoal({ goal: getGoal(), setGoal, saveState, now }).catch(() => {});
   };
   terminalInput.setRawMode?.(true);
   terminalInput.on("data", onInput);

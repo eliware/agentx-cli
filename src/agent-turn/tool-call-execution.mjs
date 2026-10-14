@@ -1,6 +1,7 @@
 import { toolOutputForCall } from "../tool-output-adapter.mjs";
 import { toolCallIdentity } from "../tool-call-identity.mjs";
-import { handleGoalToolCall, isGoalToolCall } from "./goal-tools.mjs";
+import { isGoalToolCall } from "./goal-tools.mjs";
+import { handleGoalToolCall } from "./goal-tool-handler.mjs";
 
 const IMAGE_TOOL = "view_image";
 

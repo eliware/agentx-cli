@@ -22,10 +22,13 @@ describe("session prompt errors", () => {
     [Object.assign(new Error("aborted"), { code: "ABORT_ERR" })],
   ])("continues after cancelling an active goal on abort", async (error) => {
     const deps = dependencies({ status: "active", text: "goal" });
+    deps.cancelGoal = jest.fn(async () => {});
     await expect(handleSessionPromptError(error, deps)).resolves.toBe("continue");
-    expect(deps.currentGoal()).toMatchObject({ status: "cancelled", text: "goal" });
-    expect(deps.currentGoal().cancelled_at).toEqual(expect.any(String));
-    expect(deps.saveState).toHaveBeenCalledTimes(1);
+    expect(deps.cancelGoal).toHaveBeenCalledWith({
+      goal: { status: "active", text: "goal" },
+      setGoal: expect.any(Function),
+      saveState: deps.saveState,
+    });
     expect(deps.write).toHaveBeenCalledWith("[Goal cancelled]\n");
     expect(deps.exitWithSummary).not.toHaveBeenCalled();
   });
