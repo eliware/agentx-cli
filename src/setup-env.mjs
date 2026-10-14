@@ -2,14 +2,8 @@ import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promi
 import { snowflake } from "@eliware/common";
 import nodePath from "node:path";
 import { getSetupPaths } from "./setup-paths.mjs";
-import {
-  decodeEnvValue,
-  knownSetupKeys,
-  parseEnvLines,
-  serializeEnvValue,
-  updateEnvText,
-} from "./setup-env-format.mjs";
-import { migrateSetupValues } from "./setup-env-migration.mjs";
+import { updateEnvText } from "./setup-env-format.mjs";
+import { loadSetupEnvState } from "./setup-env-state.mjs";
 
 async function readOptionalText(filePath) {
   try {
@@ -27,15 +21,7 @@ export async function readEnvState(filePath = getSetupPaths().envPath) {
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
-  const values = { AGENTX_API_KEY: "" };
-  const knownKeys = knownSetupKeys();
-  for (const line of parseEnvLines(text))
-    if (line.type === "pair" && knownKeys.has(line.key))
-      values[line.key] = decodeEnvValue(line.value);
-  const migration = migrateSetupValues(values, text);
-  if (Object.keys(migration.updates).length)
-    text = await writeEnvState(filePath, migration.updates, text);
-  return { filePath, text, values: migration.values };
+  return loadSetupEnvState(filePath, text, writeEnvState);
 }
 
 export async function writeEnvState(filePath, values, baseText = null) {
@@ -58,10 +44,3 @@ export async function writeEnvState(filePath, values, baseText = null) {
   }
   return nextText;
 }
-
-export const setupEnvInternals = {
-  decodeEnvValue,
-  parseEnvLines,
-  serializeEnvValue,
-  updateEnvText,
-};

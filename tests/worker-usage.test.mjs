@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { parseWorkerUsage, reportWorkerUsage } from "../src/worker-usage.mjs";
+import { parseWorkerUsage } from "../src/worker-usage.mjs";
 
 describe("worker usage policies", () => {
   test("parses structured, cumulative, and colorized usage summaries", () => {
@@ -46,17 +46,5 @@ describe("worker usage policies", () => {
       cachedTokens: 1,
       outputTokens: 2,
     });
-  });
-
-  test("reports usage exactly once, including canceled workers", () => {
-    const usage = { turns: 2, inputTokens: 10, cachedTokens: 3, outputTokens: 4 };
-    const reported = [];
-    const worker = { status: "cancelled", usage, usageReported: false };
-    expect(reportWorkerUsage(worker, (value) => reported.push(value))).toBe(true);
-    expect(reportWorkerUsage(worker, (value) => reported.push(value))).toBe(false);
-    expect(reported).toEqual([usage]);
-    expect(reportWorkerUsage({ usageReported: false }, undefined)).toBe(false);
-    expect(reportWorkerUsage({ usage, usageReported: false })).toBe(true);
-    expect(reportWorkerUsage({ usage: null, usageReported: false })).toBe(false);
   });
 });

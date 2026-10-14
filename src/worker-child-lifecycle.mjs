@@ -1,4 +1,4 @@
-import { reportWorkerUsage } from "./worker-usage.mjs";
+import { reportWorkerUsage } from "./worker-usage-forwarding.mjs";
 import { createWorkerLogStream } from "./worker-log-stream.mjs";
 
 export function attachWorkerLifecycle({

@@ -15,11 +15,22 @@ describe("response content transcript", () => {
       }),
     ).toBe("assistant: line one\nline two\n[refusal] nope");
     expect(textFromContent(null)).toBeUndefined();
-    expect(textFromContent([{ type: "input_text" }, { text: "text" }])).toBe("text");
+    expect(
+      textFromContent([
+        { type: "input_text" },
+        { type: "refusal", refusal: "" },
+        { text: "text" },
+        { type: "other" },
+      ]),
+    ).toBe("text");
+    expect(formatContentTranscript({ type: "message", content: [{ text: "plain" }] })).toBe(
+      "message: plain",
+    );
     expect(formatContentTranscript({ type: "message", content: [] })).toBe("");
     expect(formatContentTranscript({ type: "reasoning", summary: [{ text: "plan" }] })).toBe(
       "plan",
     );
+    expect(formatContentTranscript({ type: "reasoning", summary: null })).toBe("");
     expect(formatContentTranscript({ type: "other" })).toBeUndefined();
   });
 });

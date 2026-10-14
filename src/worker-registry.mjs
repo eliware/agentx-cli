@@ -1,9 +1,5 @@
 import { snowflake } from "@eliware/common";
-import {
-  readStoredWorkerRecord,
-  saveStoredWorkerRecord,
-  workerRecordStorageInternals,
-} from "./worker-record-storage.mjs";
+import { readStoredWorkerRecord, saveStoredWorkerRecord } from "./worker-record-storage.mjs";
 import {
   appendStoredWorkerLog,
   readStoredWorkerLog,
@@ -22,7 +18,6 @@ import {
 } from "./worker-paths.mjs";
 
 export const workerRegistryInternals = {
-  ...workerRecordStorageInternals,
   ...workerLogStorageInternals,
   ...workerStorageDirectoryInternals,
   ...workerPathInternals,

@@ -1,5 +1,5 @@
 import { runShellCommands } from "./tool-shell-sequence.mjs";
-import { runParallelWorkerFunction } from "./parallel-workers.mjs";
+import { runParallelWorkerFunction } from "./parallel-worker-command-coordinator.mjs";
 import { commandPermission, permissionAllows } from "./tool-permissions.mjs";
 
 function parseShellActionCommands(call) {

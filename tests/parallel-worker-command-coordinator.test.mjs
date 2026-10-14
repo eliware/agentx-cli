@@ -1,7 +1,8 @@
 import { beforeEach, expect, jest, test } from "@jest/globals";
 await jest.unstable_unmockModule("node:child_process");
 await jest.unstable_unmockModule("../src/worker-registry.mjs");
-const { runParallelWorkerFunction } = await import("../src/parallel-workers.mjs");
+const { runParallelWorkerFunction } =
+  await import("../src/parallel-worker-command-coordinator.mjs");
 const callWorker = (name, args) => ({ name, arguments: JSON.stringify(args) });
 
 beforeEach(() => {

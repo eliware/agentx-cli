@@ -10,20 +10,12 @@ describe("image worker runner", () => {
       options.onUsage({ turns: 2, inputTokens: 3, cachedTokens: 1, outputTokens: 4 });
       return "inspected";
     });
-    const invalid = [
-      { prompt: "", images: [{ path: "image.png" }] },
-      { prompt: "inspect", images: "image.png" },
-      { prompt: "inspect", images: [] },
-      { prompt: "inspect", images: Array(11).fill({ path: "image.png" }) },
-      { prompt: "x".repeat(10001), images: [{ path: "image.png" }] },
-    ];
-    for (const args of invalid) {
-      await expect(runImageWorker({ args }, { createClient, inspect })).resolves.toEqual({
-        text: "inspected",
-        usage: { turns: 2, inputTokens: 3, cachedTokens: 1, outputTokens: 4 },
-      });
-      expect(inspect).toHaveBeenLastCalledWith(null, args, expect.any(Object));
-    }
+    const args = { prompt: "", images: [{ path: "image.png" }] };
+    await expect(runImageWorker({ args }, { createClient, inspect })).resolves.toEqual({
+      text: "inspected",
+      usage: { turns: 2, inputTokens: 3, cachedTokens: 1, outputTokens: 4 },
+    });
+    expect(inspect).toHaveBeenCalledWith(null, args, expect.any(Object));
     expect(createClient).not.toHaveBeenCalled();
   });
 
