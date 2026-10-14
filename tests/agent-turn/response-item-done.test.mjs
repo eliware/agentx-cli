@@ -43,4 +43,21 @@ describe("response item completion", () => {
     state.onItemDone({ type: "reasoning", summary: [{ text: "thinking" }] });
     expect(state.reasoningRenderer.hasStreamedSummary).toHaveBeenCalled();
   });
+
+  test.each([
+    ["noMcpOutput", { type: "mcp_call" }],
+    ["noShellCalls", { type: "shell_call" }],
+    ["noToolCalls", { type: "function_call" }],
+  ])("suppresses completed items with %s", (flag, item) => {
+    const state = setup({ [flag]: true });
+    state.onItemDone(item);
+    expect(state.markOutput).not.toHaveBeenCalled();
+    expect(state.appendStreamedText).not.toHaveBeenCalled();
+  });
+
+  test("suppresses reasoning item output when reasoning is disabled", () => {
+    const state = setup({ noReasoning: true });
+    state.onItemDone({ type: "reasoning", summary: [{ text: "hidden" }] });
+    expect(state.reasoningRenderer.hasStreamedSummary).not.toHaveBeenCalled();
+  });
 });

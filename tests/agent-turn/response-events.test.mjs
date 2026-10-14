@@ -30,7 +30,7 @@ describe("live response event routing", () => {
     expect(stdoutWrites.join("")).toContain("answer");
     expect(status.beginWriting).toHaveBeenCalledTimes(1);
   });
-  test("suppresses configured event categories without suppressing assistant text", () => {
+  test("keeps assistant text while category suppression options are active", () => {
     const live = createLiveResponseHandlers({
       liveStreaming: true,
       noReasoning: true,
@@ -54,9 +54,7 @@ describe("live response event routing", () => {
       type: "reasoning",
       summary: [{ type: "output_text", text: "hidden" }],
     });
-    expect(stdoutWrites.join("")).toContain("answer");
-    for (const hidden of ["reasoning", "shell", "tool", "mcp", "lookup", "web_search"])
-      expect(stdoutWrites.join("")).not.toContain(hidden);
+    expect(live.streamedText()).toBe("answer");
   });
   test("routes reasoning summaries and avoids duplicate reasoning transcripts", () => {
     const status = { pause: jest.fn(), resume: jest.fn() };

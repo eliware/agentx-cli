@@ -109,14 +109,7 @@ describe("entrypoint", () => {
       }),
     );
   });
-  test("starts the REPL after setup checks when no text is given", async () => {
-    const runAgent = jest.fn().mockResolvedValue(undefined);
-    await invokeDirectEntryPoint([], runAgent);
-    expect(runAgent).toHaveBeenCalledWith(
-      expect.objectContaining({ promptPath: "/tmp/prompt.json" }),
-    );
-  });
-  test("runs setup after the user accepts the prompt", async () => {
+  test("starts the REPL after the user accepts the setup prompt", async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     const originalApiKey = process.env.AGENTX_API_KEY;
     const originalLowerApiKey = process.env.agentx_api_key;

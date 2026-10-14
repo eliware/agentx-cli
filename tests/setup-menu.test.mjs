@@ -1,15 +1,15 @@
-import { afterEach, beforeEach, describe, expect, test } from "@jest/globals";
-import { EventEmitter } from "node:events";
-import { selectSetupMenu } from "../src/setup-menu.mjs";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
-class Terminal extends EventEmitter {
-  setRawMode(value) {
-    this.raw = value;
-  }
-  resume() {
-    this.resumed = true;
-  }
-}
+let keypresses = [];
+const runMenuInteraction = jest.fn(async (options) => {
+  options.render();
+  let selected;
+  const context = { finish: (value) => (selected = value), render: jest.fn() };
+  for (const [value, key] of keypresses) options.onKeypress(value, key, context);
+  return selected;
+});
+await jest.unstable_mockModule("../src/menu-interaction.mjs", () => ({ runMenuInteraction }));
+const { selectSetupMenu } = await import("../src/setup-menu.mjs");
 
 class Output {
   text = "";
@@ -18,15 +18,10 @@ class Output {
   }
 }
 
-const send = (input, text) => setImmediate(() => input.emit("data", Buffer.from(text)));
-
-describe("setup terminal menu", () => {
-  let originalStdoutWrite;
+describe("setup menu selection", () => {
   beforeEach(() => {
-    originalStdoutWrite = process.stdout.write;
-  });
-  afterEach(() => {
-    process.stdout.write = originalStdoutWrite;
+    keypresses = [];
+    runMenuInteraction.mockClear();
   });
 
   test("returns null when raw keyboard input is unavailable", async () => {
@@ -35,59 +30,66 @@ describe("setup terminal menu", () => {
     );
   });
 
-  test("navigates with arrows and accepts the selected entry with Enter", async () => {
-    const input = new Terminal();
+  test("renders setup paths and maps a numbered choice to its entry", async () => {
+    keypresses = [["2", {}]];
     const output = new Output();
     const entries = [
       { id: "one", label: "One" },
       { id: "two", label: "Two" },
     ];
-    const pending = selectSetupMenu(input, output, entries, 9, { envPath: "/tmp/config" });
-    send(input, "\u001b[B");
-    await new Promise((resolve) => setImmediate(resolve));
-    send(input, "\u001b[A");
-    await new Promise((resolve) => setImmediate(resolve));
-    send(input, "\u001b[B");
-    await new Promise((resolve) => setImmediate(resolve));
-    send(input, "\r");
-    await expect(pending).resolves.toBe(entries[1]);
+    await expect(
+      selectSetupMenu({ setRawMode() {}, on() {} }, output, entries, 9, {
+        envPath: "/tmp/config",
+      }),
+    ).resolves.toBe(entries[1]);
     expect(output.text).toContain("Config File: /tmp/config");
-    expect(input.raw).toBe(false);
+    expect(output.text).toContain("> 1. One");
   });
 
-  test("selects a numbered entry and returns the quit entry on Ctrl-C", async () => {
+  test("uses a valid initial selection and supplied install path", async () => {
+    const entries = [
+      { id: "one", label: "One" },
+      { id: "two", label: "Two" },
+    ];
+    keypresses = [["", { name: "return" }]];
+    const output = new Output();
+    await expect(
+      selectSetupMenu({ setRawMode() {}, on() {} }, output, entries, 1, {
+        rootDir: "/tmp/install",
+      }),
+    ).resolves.toBe(entries[1]);
+    expect(output.text).toContain("Install Path: /tmp/install");
+    expect(output.text).toContain("> 2. Two");
+  });
+
+  test("maps arrow movement and Enter to the selected entry", async () => {
+    keypresses = [
+      ["", { name: "up" }],
+      ["", { name: "down" }],
+      ["", { name: "down" }],
+      ["", { name: "return" }],
+    ];
+    const entries = [
+      { id: "one", label: "One" },
+      { id: "two", label: "Two" },
+    ];
+    await expect(
+      selectSetupMenu({ setRawMode() {}, on() {} }, new Output(), entries),
+    ).resolves.toBe(entries[1]);
+    expect(runMenuInteraction.mock.calls[0][0].render).toBeDefined();
+  });
+
+  test("maps Ctrl-C to the quit entry and ignores invalid keys", async () => {
+    keypresses = [
+      ["0", {}],
+      ["", { ctrl: true, name: "c" }],
+    ];
     const entries = [
       { id: "one", label: "One" },
       { id: "quit", label: "Quit" },
     ];
-    const numbered = new Terminal();
-    const selected = selectSetupMenu(numbered, new Output(), entries);
-    send(numbered, "2");
-    await expect(selected).resolves.toBe(entries[1]);
-
-    const cancelled = new Terminal();
-    const cancelledResult = selectSetupMenu(cancelled, new Output(), entries);
-    send(cancelled, "\u0003");
-    await expect(cancelledResult).resolves.toBe(entries[1]);
-  });
-
-  test("trims excess input and uses fallback screen paths", async () => {
-    const input = new Terminal();
-    const output = new Output();
-    const entries = [{ id: "one", label: "One" }];
-    const pending = selectSetupMenu(input, output, entries, 0, { rootDir: "/tmp/root" });
-    send(input, "123456789");
-    await new Promise((resolve) => setImmediate(resolve));
-    send(input, "\r");
-    await expect(pending).resolves.toBe(entries[0]);
-    expect(output.text).toContain("Install Path: /tmp/root");
-    expect(output.text).toContain("MCP Config:");
-
-    const shortInput = new Terminal();
-    const shortResult = selectSetupMenu(shortInput, new Output(), entries);
-    send(shortInput, "x");
-    await new Promise((resolve) => setImmediate(resolve));
-    send(shortInput, "\r");
-    await expect(shortResult).resolves.toBe(entries[0]);
+    await expect(
+      selectSetupMenu({ setRawMode() {}, on() {} }, new Output(), entries),
+    ).resolves.toBe(entries[1]);
   });
 });

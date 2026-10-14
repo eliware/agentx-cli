@@ -1,7 +1,7 @@
 import { runToolCall } from "./tool-dispatch.mjs";
 import { toolOutputForCall } from "./tool-output-adapter.mjs";
-import { saveGeneratedImage } from "./image-generation.mjs";
 import { extractTextFromResponse, extractUsage } from "./response.mjs";
+import { collectGeneratedImagePaths, formatImageBranchResult } from "./image-branch-results.mjs";
 
 const BRANCH_TOOLS = [
   { type: "shell", environment: { type: "local" } },
@@ -14,10 +14,7 @@ export async function executeImageBranch(openai, request, { cwd, onUsage } = {})
   const generatedPaths = [];
 
   for (let turn = 0; turn < 10; turn += 1) {
-    for (const item of completed?.output || []) {
-      if (item?.type === "image_generation_call" && item?.result)
-        generatedPaths.push(await saveGeneratedImage(item));
-    }
+    generatedPaths.push(...(await collectGeneratedImagePaths(completed)));
     const calls = (completed?.output || []).filter((item) => item?.type === "shell_call");
     if (!calls.length) break;
 
@@ -42,9 +39,5 @@ export async function executeImageBranch(openai, request, { cwd, onUsage } = {})
     onUsage?.(extractUsage(completed));
   }
 
-  const text = extractTextFromResponse(completed);
-  const generated = generatedPaths.length
-    ? `Generated image path(s): ${generatedPaths.join(", ")}`
-    : "";
-  return [text, generated].filter(Boolean).join("\n\n") || "The image inspection returned no text.";
+  return formatImageBranchResult(extractTextFromResponse(completed), generatedPaths);
 }

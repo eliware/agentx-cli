@@ -52,4 +52,33 @@ describe("response event handler", () => {
     hidden.onEvent({ type: "response.function_call_arguments.delta", delta: "x" });
     expect(hidden.markOutput).not.toHaveBeenCalled();
   });
+
+  test.each([
+    [
+      "noReasoning",
+      { type: "response.reasoning_summary_text.delta", delta: "x" },
+      "reasoningRenderer",
+      "writeDelta",
+    ],
+    ["noMcpOutput", { type: "response.mcp_call_arguments.delta" }, "mcpRenderer", "writeArguments"],
+    [
+      "noWebsearch",
+      { type: "response.web_search_call.searching" },
+      "webSearchRenderer",
+      "searching",
+    ],
+  ])("suppresses %s at the event handler boundary", (flag, event, renderer, method) => {
+    const state = setup({ [flag]: true });
+    state.onEvent(event);
+    expect(state[renderer][method]).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["noShellCalls", { type: "response.shell_call_command.delta", delta: "x" }],
+    ["noToolCalls", { type: "response.function_call_arguments.delta", delta: "x" }],
+  ])("suppresses %s tool deltas", (flag, event) => {
+    const state = setup({ [flag]: true });
+    state.onEvent(event);
+    expect(state.markOutput).not.toHaveBeenCalled();
+  });
 });

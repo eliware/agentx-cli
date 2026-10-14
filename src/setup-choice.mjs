@@ -1,27 +1,7 @@
 import { getPackageVersion } from "./cli-version.mjs";
 import { getSetupPaths } from "./setup-paths.mjs";
 import { selectSetupMenu } from "./setup-menu.mjs";
-
-export function buildChoiceEntries(valuesList, current) {
-  return valuesList.map((value) => ({
-    id: value,
-    label: `${value}${value === current ? " (current)" : ""}`,
-  }));
-}
-
-export function matchChoice(entries, answer) {
-  const index = Number(answer);
-  if (Number.isInteger(index) && index >= 1 && index <= entries.length)
-    return entries[index - 1].id;
-  return (
-    entries.find(
-      (entry) =>
-        entry.id === answer ||
-        entry.id.startsWith(answer) ||
-        entry.label.toLowerCase().startsWith(answer.toLowerCase()),
-    )?.id ?? null
-  );
-}
+import { buildChoiceEntries, matchChoice } from "./setup-menu-interaction.mjs";
 
 export async function selectChoice(stdin, stdout, rl, title, valuesList, current) {
   const entries = buildChoiceEntries(valuesList, current);

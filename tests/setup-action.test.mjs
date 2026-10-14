@@ -20,12 +20,21 @@ describe("setup actions", () => {
       message: "old",
     };
     const api = await applySetupAction("api", context, deps);
-    expect(api).toEqual({ readline: nextReadline, message: "saved" });
+    expect(api).toEqual({ readline: nextReadline, message: "saved", quit: false });
     for (const id of ["model", "mode", "effort", "summary", "verbosity"])
       await applySetupAction(id, context, deps);
     await applySetupAction("compaction", context, deps);
     expect(deps.editValue).toHaveBeenCalledTimes(5);
     expect(deps.editCompaction).toHaveBeenCalledTimes(1);
-    expect(await applySetupAction("unknown", context, deps)).toEqual({ readline, message: "old" });
+    expect(await applySetupAction("unknown", context, deps)).toEqual({
+      readline,
+      message: "old",
+      quit: false,
+    });
+    expect(await applySetupAction("quit", context, deps)).toEqual({
+      readline,
+      message: "old",
+      quit: true,
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "@jest/globals";
 import { EventEmitter } from "node:events";
-import { buildChoiceEntries, matchChoice, selectChoice } from "../src/setup-choice.mjs";
+import { selectChoice } from "../src/setup-choice.mjs";
 
 class Terminal extends EventEmitter {
   setRawMode() {}
@@ -9,26 +9,6 @@ class Terminal extends EventEmitter {
 }
 
 describe("setup setting choice", () => {
-  test("builds entries and marks the current value", () => {
-    expect(buildChoiceEntries(["one", "two"], "two")).toEqual([
-      { id: "one", label: "one" },
-      { id: "two", label: "two (current)" },
-    ]);
-  });
-
-  test("matches indexes, exact values, and prefixes", () => {
-    const entries = buildChoiceEntries(["one", "two"], "");
-    expect(matchChoice(entries, "2")).toBe("two");
-    expect(matchChoice(entries, "one")).toBe("one");
-    expect(matchChoice(entries, "tw")).toBe("two");
-    expect(matchChoice(entries, "Two")).toBe("two");
-    expect(matchChoice(entries, "nope")).toBeNull();
-  });
-
-  test("rejects an out-of-range numeric choice", () => {
-    expect(matchChoice(buildChoiceEntries(["one"], ""), "2")).toBeNull();
-  });
-
   test("selects through the raw menu and readline fallback", async () => {
     const input = new Terminal();
     const stdout = { write: jest.fn() };

@@ -6,6 +6,7 @@ const setupActionDefaults = { createInterface, editApiKey, editCompaction, editV
 export async function applySetupAction(id, context, deps = setupActionDefaults) {
   const { stdin, stdout, readlineInput, envState } = context;
   let { readline, message } = context;
+  if (id === "quit") return { readline, message, quit: true };
   if (id === "api") {
     readline.close();
     message = await deps.editApiKey(readlineInput, envState, stdout);
@@ -63,5 +64,5 @@ export async function applySetupAction(id, context, deps = setupActionDefaults) 
   } else if (id === "compaction") {
     await deps.editCompaction(readline, envState, stdout);
   }
-  return { readline, message };
+  return { readline, message, quit: false };
 }
