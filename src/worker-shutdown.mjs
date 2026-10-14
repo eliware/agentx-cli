@@ -1,4 +1,4 @@
-import { requestWorkerCancellation } from "./worker-child-lifecycle.mjs";
+import { requestWorkerCancellation } from "./worker-child-cancellation.mjs";
 
 export async function terminateWorkerChildren({ state, persistWorker, graceMs }) {
   const active = [...state.children.entries()];

@@ -1,20 +1,8 @@
 import { describe, expect, jest, test } from "@jest/globals";
-import {
-  recoverPendingSession,
-  shouldRecoverPendingSession,
-} from "../../src/agent/session-pending-recovery.mjs";
+import { recoverPendingSession } from "../../src/agent/session-pending-recovery.mjs";
 import { harness } from "../../test-fixtures/session-pending-recovery-helpers.mjs";
 
 describe("session pending recovery", () => {
-  test.each([
-    [{ previousResponseId: "response", pendingToolCalls: [{}], oneShot: false }, true],
-    [{ previousResponseId: "", pendingToolCalls: [{}], oneShot: false }, false],
-    [{ previousResponseId: "response", pendingToolCalls: [], oneShot: false }, false],
-    [{ previousResponseId: "response", pendingToolCalls: [{}], oneShot: true }, false],
-  ])("selects interactive pending recovery: %j", (input, expected) => {
-    expect(shouldRecoverPendingSession(input)).toBe(expected);
-  });
-
   test("routes the new-session choice to abandonment without creating a runner", async () => {
     const ctx = harness("new-session");
     await recoverPendingSession({

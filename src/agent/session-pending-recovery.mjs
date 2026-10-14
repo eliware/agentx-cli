@@ -3,10 +3,6 @@ import { abandonPendingSession } from "./pending-session-abandonment.mjs";
 import { applyPendingRecoveryOutcome } from "./session-pending-outcome.mjs";
 import { resolvePendingSessionChoice } from "./session-pending-choice.mjs";
 
-export function shouldRecoverPendingSession({ previousResponseId, pendingToolCalls, oneShot }) {
-  return Boolean(previousResponseId && pendingToolCalls.length > 0 && !oneShot);
-}
-
 export async function recoverPendingSession({
   savedState,
   input,

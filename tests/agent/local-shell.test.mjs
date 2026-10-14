@@ -9,22 +9,17 @@ describe("local shell interaction", () => {
     input = null;
   });
 
-  test("executes noninteractive commands without touching terminal state", async () => {
-    const execute = jest.fn().mockResolvedValue({ stdout: "ok" });
+  test("runs a real noninteractive command without changing terminal state", async () => {
     const preserveHistory = jest.fn();
     const replaceReadline = jest.fn();
     const result = await executeLocalShellCommand({
-      command: "pwd",
-      cwd: "C:\\work",
+      command: 'node -e "process.exit(0)"',
+      cwd: ".",
       input: { isTTY: false, setRawMode: jest.fn(), on: jest.fn() },
-      execute,
       preserveHistory,
       replaceReadline,
     });
-    expect(result).toEqual({ stdout: "ok" });
-    expect(execute).toHaveBeenCalledWith("pwd", "C:\\work", {
-      signal: expect.objectContaining({ aborted: false }),
-    });
+    expect(result.outcome.exit_code).toBe(0);
     expect(preserveHistory).not.toHaveBeenCalled();
     expect(replaceReadline).not.toHaveBeenCalled();
   });
@@ -50,6 +45,9 @@ describe("local shell interaction", () => {
       preserveHistory,
       replaceReadline,
       execute,
+    });
+    expect(execute).toHaveBeenCalledWith("dir", ".", {
+      signal: expect.objectContaining({ aborted: false }),
     });
     expect(preserveHistory).toHaveBeenCalledTimes(1);
     expect(readline.close).toHaveBeenCalledTimes(1);
@@ -120,16 +118,5 @@ describe("local shell interaction", () => {
     expect(input.setRawMode.mock.calls).toEqual([[true], [false]]);
     expect(input.listenerCount("data")).toBe(0);
     expect(replaceReadline).toHaveBeenCalledTimes(1);
-  });
-
-  test("uses the default shell executor when no executor is injected", async () => {
-    const originalWrite = process.stdout.write;
-    process.stdout.write = () => true;
-    try {
-      const result = await executeLocalShellCommand({ command: "echo local-shell-test", cwd: "." });
-      expect(result.stdout).toContain("local-shell-test");
-    } finally {
-      process.stdout.write = originalWrite;
-    }
   });
 });

@@ -4,6 +4,8 @@ const shouldRecoverPendingSession = jest.fn(() => false);
 const recoverPendingSession = jest.fn();
 await jest.unstable_mockModule("../../src/agent/session-pending-recovery.mjs", () => ({
   recoverPendingSession,
+}));
+await jest.unstable_mockModule("../../src/agent/session-pending-recovery-policy.mjs", () => ({
   shouldRecoverPendingSession,
 }));
 

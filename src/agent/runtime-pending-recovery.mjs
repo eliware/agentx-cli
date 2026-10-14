@@ -1,4 +1,5 @@
-import { recoverPendingSession, shouldRecoverPendingSession } from "./session-pending-recovery.mjs";
+import { recoverPendingSession } from "./session-pending-recovery.mjs";
+import { shouldRecoverPendingSession } from "./session-pending-recovery-policy.mjs";
 
 export async function recoverAgentPendingSession({
   savedState,
