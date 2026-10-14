@@ -67,10 +67,11 @@ describe("path completion", () => {
     try {
       makeDirectory(tmp, "workspace");
       makeFile(tmp, "workspace/agentx");
-      const [matches, token] = await completePath("/work", tmp);
-      expect(token).toBe("/work");
+      const absoluteToken = `${tmp}/work`;
+      const [matches, token] = await completePath(absoluteToken, tmp);
+      expect(token).toBe(absoluteToken);
       expect(matches).not.toContain(`//workspace${sep}`);
-      expect(matches).toContain("/workspace/");
+      expect(matches).toContain(`${tmp}/workspace${sep}`);
     } finally {
       cleanupTempDir(tmp);
     }

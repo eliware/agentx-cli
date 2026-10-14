@@ -9,6 +9,7 @@ describe("image worker request", () => {
       {
         PATH: "runtime",
         TEMP: "temp",
+        agentx_api_key: "lower-key",
         AGENTX_API_KEY: "agentx-key",
         PRIVATE_TOKEN: "secret",
       },
@@ -19,6 +20,7 @@ describe("image worker request", () => {
     expect(launch.options.env).toMatchObject({
       PATH: "runtime",
       TEMP: "temp",
+      agentx_api_key: "lower-key",
       AGENTX_API_KEY: "agentx-key",
     });
     expect(launch.options.env).not.toHaveProperty("PRIVATE_TOKEN");

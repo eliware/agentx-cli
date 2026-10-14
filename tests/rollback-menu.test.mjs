@@ -136,7 +136,9 @@ test("cleanup handles an immediate key before first render", async () => {
 
 test("evaluates noninteractive capability checks outside the test runner", async () => {
   const saved = process.env.JEST_WORKER_ID;
+  const savedCi = process.env.CI;
   delete process.env.JEST_WORKER_ID;
+  delete process.env.CI;
   try {
     await expect(
       promptRollbackMenu([{ response_id: "r" }], { input: {}, output: {} }),
@@ -144,5 +146,7 @@ test("evaluates noninteractive capability checks outside the test runner", async
   } finally {
     if (saved === undefined) delete process.env.JEST_WORKER_ID;
     else process.env.JEST_WORKER_ID = saved;
+    if (savedCi === undefined) delete process.env.CI;
+    else process.env.CI = savedCi;
   }
 });
