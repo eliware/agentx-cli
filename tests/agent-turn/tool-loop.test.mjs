@@ -7,11 +7,6 @@ beforeEach(() => {
 });
 afterEach(() => stdoutWrite.mockRestore());
 
-test("the matching implementation exports its public function", async () => {
-  const source = await import("../../src/agent-turn/tool-loop.mjs");
-  expect(Object.keys(source).length).toBeGreaterThan(0);
-});
-
 test("returns the current response when no tool calls need execution", async () => {
   const response = { id: "empty", output: [] };
   await expect(handleToolCalls({}, response, {}, "/repo")).resolves.toBe(response);
@@ -91,7 +86,7 @@ test("returns the current response when a tool call cancels a goal", async () =>
   expect(result).toBe(response);
 });
 
-test("continues after a tool response", async () => {
+test("continues a tool cycle through the coordinator", async () => {
   const next = { id: "after-tool", output: [] };
   const openai = { responses: { create: jest.fn().mockResolvedValue(next) } };
   const response = {

@@ -8,6 +8,8 @@ body: |
 
   `agent-entrypoint-dependencies.mjs` loads and maps the CLI runtime dependencies. `agent-entrypoint-bootstrap.mjs` owns invocation and startup sequencing. Keep dependency mapping tests in its matching suite and keep workflow tests in the bootstrap suite.
 
+  `agent/runtime-session-context.mjs` builds the runtime turn and prompt contexts from prepared session services. `agent/runtime.mjs` owns startup and prompt-session ordering. Keep context mapping tests in the matching suite and lifecycle integration tests with the runtime.
+
   ## Invocation
 
   The package exposes `agentx` and `agentx-setup` through `bin/agentx.mjs` and `bin/agentx-setup.mjs`. The launchers import `src/agent-entrypoint.mjs` and `src/setup-entrypoint.mjs`. `agentx-setup --help` (`-h`) prints setup usage without entering the interactive flow; `agentx-setup --version` (`-v`) prints the package version and exits successfully. Direct invocation must use the real path of `process.argv[1]` and must work through npm or operating-system symlinks. Importing an entrypoint must not start a REPL.

@@ -49,7 +49,7 @@ await jest.unstable_mockModule("../../src/agent/local-shell.mjs", () => ({
 }));
 const { runAgentPromptSession } = await import("../../src/agent/runtime-prompt-session.mjs");
 
-test("connects prompt callbacks to runtime session services", async () => {
+test("maps runtime services into prompt callbacks", async () => {
   const readline = { question: jest.fn(async () => "hello") };
   const repl = { getReadline: () => readline, preserveHistory: jest.fn(), replace: jest.fn() };
   dispatchSessionInput.mockImplementationOnce(async ({ state, deps }) => {

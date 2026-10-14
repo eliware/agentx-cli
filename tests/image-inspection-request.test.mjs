@@ -2,10 +2,16 @@ import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 const encodeImageInput = jest.fn();
 await jest.unstable_mockModule("../src/image-input.mjs", () => ({ encodeImageInput }));
-const { prepareImageInspectionRequest } = await import("../src/image-inspection-request.mjs");
+const { MAX_IMAGES, MAX_PROMPT_LENGTH, prepareImageInspectionRequest } =
+  await import("../src/image-inspection-request.mjs");
 
 describe("image inspection request", () => {
   beforeEach(() => encodeImageInput.mockReset());
+
+  test("defines request input limits", () => {
+    expect(MAX_IMAGES).toBe(10);
+    expect(MAX_PROMPT_LENGTH).toBe(10000);
+  });
 
   test("validates prompt and image limits before encoding", async () => {
     const invalid = [

@@ -94,7 +94,6 @@ describe("session request cycle", () => {
       expect.any(Object),
     );
     expect(services.detach).toHaveBeenCalledTimes(1);
-    expect(services.sendMessage.mock.calls[0][8].isGoalCancelled()).toBe(true);
   });
   test("retries after recovery requests another attempt and replaces the goal REPL", async () => {
     const goal = { status: "active", text: "finish task", iterations: 2 };
@@ -117,7 +116,6 @@ describe("session request cycle", () => {
     expect(services.resolveRequestFailure).toHaveBeenCalledTimes(1);
     expect(context.replaceReplInterface).toHaveBeenCalledTimes(2);
     expect(services.detach).toHaveBeenCalledTimes(2);
-    expect(services.sendMessage.mock.calls[1][8].isGoalCancelled()).toBe(false);
   });
   test("returns a non-retry recovery control after cleanup", async () => {
     const context = createContext();

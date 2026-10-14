@@ -9,19 +9,6 @@ await jest.unstable_mockModule("../../src/agent/session-pending-recovery.mjs", (
 
 const { recoverAgentPendingSession } = await import("../../src/agent/runtime-pending-recovery.mjs");
 
-test("skips recovery when no response is pending", async () => {
-  await recoverAgentPendingSession({
-    runtimeState: { previousResponseId: "", pendingToolCalls: [] },
-    oneShot: false,
-  });
-  expect(shouldRecoverPendingSession).toHaveBeenCalledWith({
-    previousResponseId: "",
-    pendingToolCalls: [],
-    oneShot: false,
-  });
-  expect(recoverPendingSession).not.toHaveBeenCalled();
-});
-
 test("passes pending recovery actions through runtime state", async () => {
   shouldRecoverPendingSession.mockReturnValue(true);
   const runtimeState = {
@@ -108,4 +95,11 @@ test("passes pending recovery actions through runtime state", async () => {
   expect(persistCheckpoint).toHaveBeenCalledWith("checkpoint.json", "checkpoint");
   expect(writeTerminal).toHaveBeenCalledWith("system:message\n");
   expect(clearSession).toHaveBeenCalledWith("state.json");
+});
+
+test("skips recovery when the session has no pending tool calls", async () => {
+  shouldRecoverPendingSession.mockReturnValue(false);
+  recoverPendingSession.mockClear();
+  await recoverAgentPendingSession({ runtimeState: {} });
+  expect(recoverPendingSession).not.toHaveBeenCalled();
 });

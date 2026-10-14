@@ -1,10 +1,6 @@
-import { createResponseTextRenderer } from "./response-text-renderer.mjs";
-import { createReasoningSummaryRenderer } from "./reasoning-summary-renderer.mjs";
-import { createWebSearchRenderer } from "./web-search-renderer.mjs";
-import { createMcpEventRenderer } from "./mcp-event-renderer.mjs";
-import { createToolEventRenderer } from "./tool-event-renderer.mjs";
 import { createResponseItemDoneHandler } from "./response-item-done.mjs";
 import { createResponseEventHandler } from "./response-event-handler.mjs";
+import { createResponseRenderers } from "./response-renderers.mjs";
 
 export function createLiveResponseHandlers({
   liveStreaming,
@@ -18,16 +14,12 @@ export function createLiveResponseHandlers({
 }) {
   let sawOutput = false;
   let streamedText = "";
-  const { writeTextDelta, flushTextDelta } = createResponseTextRenderer();
-  const reasoningRenderer = createReasoningSummaryRenderer(statusController);
-  const webSearchRenderer = createWebSearchRenderer(statusController);
-  const toolEventRenderer = createToolEventRenderer();
   const markOutput = () => {
     if (sawOutput) return;
     sawOutput = true;
     statusController?.beginWriting();
   };
-  const mcpRenderer = createMcpEventRenderer({ statusController, markOutput });
+  const renderers = createResponseRenderers({ statusController, markOutput });
   const onEvent = createResponseEventHandler({
     noReasoning,
     noShellCalls,
@@ -35,10 +27,10 @@ export function createLiveResponseHandlers({
     noMcpOutput,
     noWebsearch,
     debug,
-    reasoningRenderer,
-    webSearchRenderer,
-    mcpRenderer,
-    toolEventRenderer,
+    reasoningRenderer: renderers.reasoning,
+    webSearchRenderer: renderers.webSearch,
+    mcpRenderer: renderers.mcp,
+    toolEventRenderer: renderers.tool,
     markOutput,
     appendStreamedText: (text) => {
       streamedText += text;
@@ -51,10 +43,10 @@ export function createLiveResponseHandlers({
     noMcpOutput,
     noWebsearch,
     debug,
-    webSearchRenderer,
-    reasoningRenderer,
-    mcpRenderer,
-    toolEventRenderer,
+    webSearchRenderer: renderers.webSearch,
+    reasoningRenderer: renderers.reasoning,
+    mcpRenderer: renderers.mcp,
+    toolEventRenderer: renderers.tool,
     markOutput,
     appendStreamedText: (text) => {
       streamedText += text;
@@ -62,20 +54,20 @@ export function createLiveResponseHandlers({
   });
 
   return {
-    flushTextDelta,
+    flushTextDelta: renderers.text.flushTextDelta,
     sawOutput: () => sawOutput,
     streamedText: () => streamedText,
     handlers: liveStreaming
       ? {
           onEvent,
           onItemAdded(item) {
-            if (item?.type === "mcp_call" && !noMcpOutput) mcpRenderer.addCall(item);
+            if (item?.type === "mcp_call" && !noMcpOutput) renderers.mcp.addCall(item);
           },
           onTextDelta(delta) {
             markOutput();
             const text = String(delta ?? "");
             streamedText += text;
-            writeTextDelta(text);
+            renderers.text.writeTextDelta(text);
           },
           onItemDone,
         }

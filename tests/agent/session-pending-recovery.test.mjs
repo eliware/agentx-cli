@@ -15,7 +15,7 @@ describe("session pending recovery", () => {
     expect(shouldRecoverPendingSession(input)).toBe(expected);
   });
 
-  test("routes the new-session choice to session abandonment", async () => {
+  test("routes the new-session choice to abandonment without creating a runner", async () => {
     const ctx = harness("new-session");
     await recoverPendingSession({
       savedState: {},

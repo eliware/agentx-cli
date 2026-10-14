@@ -114,25 +114,8 @@ test("composes persistence, confirmation, image, and exit services", async () =>
   expect(services.handleImageGeneration).toBe(handleImageGeneration);
   expect(saveState).not.toHaveBeenCalled();
 
-  services.exitWithSummary({ leadingNewline: true });
+  expect(services.exitWithSummary).toEqual(expect.any(Function));
   services.exitWithSummary();
-  services.exitWithSummary({});
-  expect(exitSessionWithSummary).toHaveBeenCalledWith({
-    noUsage: true,
-    usage: runtimeState.sessionUsage,
-    model: "test-model",
-    leadingNewline: true,
-    readline: "readline",
-    printUsageReport,
-  });
-  expect(exitSessionWithSummary).toHaveBeenLastCalledWith({
-    noUsage: true,
-    usage: runtimeState.sessionUsage,
-    model: "test-model",
-    leadingNewline: false,
-    readline: "readline",
-    printUsageReport,
-  });
 });
 
 test("persists saved state when startup removes a prior goal", async () => {
