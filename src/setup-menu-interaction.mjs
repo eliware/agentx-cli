@@ -1,4 +1,5 @@
 import { selectSetupMenu } from "./setup-menu.mjs";
+import { selectReadlineMenuChoice } from "./setup-readline-choice.mjs";
 
 export function buildChoiceEntries(valuesList, current) {
   return valuesList.map((value) => ({
@@ -34,13 +35,4 @@ export async function selectSetupMenuChoice({
   if (selected) return selected;
   fallbackScreen();
   return selectReadlineMenuChoice(readline, entries);
-}
-
-export async function selectReadlineMenuChoice(rl, entries) {
-  const choice = String(await rl.question("\nChoose an option: "))
-    .trim()
-    .toLowerCase();
-  const index = Number(choice);
-  if (Number.isInteger(index) && index >= 1 && index <= entries.length) return entries[index - 1];
-  return entries.find((entry) => entry.id === choice || entry.label.toLowerCase() === choice);
 }

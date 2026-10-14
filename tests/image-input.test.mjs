@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "@jest/globals";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { defaultConvertToJpeg, encodeImageInput } from "../src/image-input.mjs";
+import { encodeImageInput } from "../src/image-input.mjs";
 
 describe("image input encoding", () => {
   let dir;
@@ -56,14 +56,6 @@ describe("image input encoding", () => {
     });
     expect(result.bytes).toBe(3);
     expect(result.dataUrl).toBe("data:image/jpeg;base64,AQID");
-  });
-
-  test("reports unavailable image conversion", async () => {
-    await expect(
-      defaultConvertToJpeg(Buffer.from("source"), undefined, async () => {
-        throw new Error("missing");
-      }),
-    ).rejects.toThrow("optional sharp package");
   });
 
   test("uses sharp for default conversion", async () => {

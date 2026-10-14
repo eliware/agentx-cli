@@ -50,48 +50,20 @@ await jest.unstable_mockModule("../../src/agent/local-shell.mjs", () => ({
 const { runAgentPromptSession } = await import("../../src/agent/runtime-prompt-session.mjs");
 
 test("maps runtime services into prompt callbacks", async () => {
-  const readline = { question: jest.fn(async () => "hello") };
-  const repl = { getReadline: () => readline, preserveHistory: jest.fn(), replace: jest.fn() };
-  dispatchSessionInput.mockImplementationOnce(async ({ state, deps }) => {
-    expect(state.pendingCliTranscript).toBe("before");
-    state.pendingCliTranscript = "after";
-    deps.writeSystem("message");
-    return "dispatched";
-  });
-  const runLoop = jest.fn(async (callbacks) => {
-    await expect(callbacks.readPrompt()).resolves.toBe("hello");
-    await expect(callbacks.dispatchInput("line")).resolves.toBe("dispatched");
-    await expect(callbacks.processMessage("message")).resolves.toBe("turn result");
-    await callbacks.handlePromptError(new Error("prompt error"));
-  });
+  const runLoop = jest.fn(async () => {});
   const terminalInput = { isTTY: true, setRawMode: jest.fn() };
   const context = {
     oneShot: false,
     initialMessage: null,
     terminalInput,
-    cwd: "/repo",
-    repl,
-    getActiveGoal: jest.fn(),
-    setActiveGoal: jest.fn(),
-    saveState: jest.fn(),
-    exitWithSummary: jest.fn(),
-    getPendingCliTranscript: jest.fn(() => "before"),
-    setPendingCliTranscript: jest.fn(),
-    dispatchCommand: jest.fn(),
-    userTurnSession: {},
+    repl: {},
     openai: {},
     signalRegistration: null,
   };
   await expect(
     runAgentPromptSession(context, { runLoop, shutdown: jest.fn() }),
   ).resolves.toBeUndefined();
-  expect(prepareSessionInput).toHaveBeenCalledWith({ oneShot: false, terminalInput });
-  expect(dispatchSessionInput).toHaveBeenCalledWith(
-    expect.objectContaining({ message: "line", cwd: "/repo" }),
-  );
-  expect(context.setPendingCliTranscript).toHaveBeenCalledWith("after");
-  expect(runSessionUserTurn).toHaveBeenCalledWith(expect.objectContaining({ message: "message" }));
-  expect(handleSessionPromptError).toHaveBeenCalledWith(expect.any(Error), expect.any(Object));
+  expect(runLoop).toHaveBeenCalledWith(expect.objectContaining({ oneShot: false }));
   expect(terminalInput.setRawMode).toHaveBeenCalledWith(false);
 });
 

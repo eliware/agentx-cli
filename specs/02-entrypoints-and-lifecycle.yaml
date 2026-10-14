@@ -5,6 +5,9 @@ body: |
   CLI argument tokenization lives in `cli-args.mjs`; output suppression normalization lives in `cli-flags.mjs`; package-version file access and help rendering live in `cli-version.mjs` and `cli-help.mjs`; loading user-local dotenv configuration lives in `env-loader.mjs`. Each has a mirrored focused test suite. Entrypoint and runtime orchestration consume those focused modules without duplicating parser or help-text assertions.
 
   `agent-entrypoint-config.mjs` resolves the working directory and preserves positional message arguments. Setup-state loading and model migration belong to `setup-env.mjs` and its focused format, state, and migration modules. Session settings application belongs to `agent/session-bootstrap.mjs`.
+  `runtime.mjs` resolves the package prompt path. `entrypoint-invocation.mjs` detects direct CLI invocation and launcher links. `runtime-files.mjs` owns JSON reads, optional text reads, text writes, and optional deletion.
+  `setup-env-atomic-write.mjs` owns private atomic replacement of setup files. `setup-env.mjs` coordinates setup-state reads, migrations, and updates through that helper.
+  `setup-menu-interaction.mjs` owns choice entry policy and raw-menu fallback flow. `setup-readline-choice.mjs` parses readline answers and selects a matching entry. Keep each test in its mirrored suite.
 
   `agent-entrypoint-dependencies.mjs` loads and maps the CLI runtime dependencies. `agent-entrypoint-bootstrap.mjs` owns invocation and startup sequencing. Keep dependency mapping tests in its matching suite and keep workflow tests in the bootstrap suite.
 
@@ -17,6 +20,7 @@ body: |
   Setup entrypoint invocation and setup workflow behavior are covered by the mirrored `tests/setup.test.mjs` suite, which owns the setup module boundary and its root launcher integration.
 
   `setup-entrypoint.mjs` owns direct-invocation detection and guarded bootstrap. `setup-cli-actions.mjs` owns setup CLI help, version, setup, and error actions. Keep action policy tests with that module; keep direct launcher tests with the entrypoint.
+  `setup-readline-lifecycle.mjs` owns setup Readline creation and closure. The setup coordinator owns menu and action order. Keep resource tests in its mirrored suite and workflow tests in `tests/setup.test.mjs`.
 
   `agent-entrypoint-env.mjs` resolves the home directory and loads `$HOME/.agentx` quietly. Environment variables already present remain usable; the runtime must support both `agentx_api_key` and `AGENTX_API_KEY`, preferring the lowercase name.
 
@@ -61,6 +65,8 @@ body: |
 
   Interactive rollback selection belongs to `agent/session-rollback-flow.mjs`: it detaches the REPL during the menu, applies and persists a selected checkpoint, handles cancellation/errors, and restores the REPL on every path. Its mirrored tests cover selection and cleanup; runtime tests cover the `/rollback` route only.
 
+  `setup-menu-entries.mjs` owns setup menu defaults and entry selection. `setup-presentation.mjs` renders setup screens and readline menus. Each boundary has a mirrored test.
+
   1. Prepare the prompt template and optional MCP tools, settings, AGENTS.md instructions, saved session/checkpoint, and API key.
   2. Create the official `@eliware/openai` client with its supported Responses transport through the focused AgentX client module, which owns client configuration and Responses diagnostic/error listener binding. AgentX must not create WebSocket objects, frame protocol messages, parse transport events, or implement reconnect/close behavior.
   3. Print startup settings and whether the session is new/resuming.
@@ -84,8 +90,9 @@ body: |
   Request failure and recovery-menu retry decisions are owned by `agent/request-recovery.mjs`, a pure state-transition module with mirrored tests. It classifies WebSocket and missing-response failures, applies the one-shot retry and new-chain limits, and maps recovery-menu choices to actions. Request construction, retry execution, recovery-menu interaction, and application of recovery actions belong to a focused request-cycle coordinator with mirrored tests. Turn completion persistence and one-shot cleanup belong to a focused turn-finalization module; the runtime only orders these modules and supplies process/session dependencies.
 
   Parsed internal command routing belongs to `agent/session-command-router.mjs`: it applies goal-command transitions and delegates setup, clear, rollback, usage, and working-directory operations through injected handlers. The router returns whether the prompt loop should continue, exit, or send a transformed user message. Its mirrored tests cover dispatch decisions; command-specific side effects remain in focused setup/rollback/persistence/path modules. Local `!` command behavior remains in `agent/local-shell.mjs`. Prompt reading, terminal mode preparation, Ctrl-T goal interruption, and readline replacement have a focused session-input boundary. Runtime integration tests cover only the lifecycle ordering and wiring among these modules.
+  Runtime prompt callback construction and local-shell dispatch wiring belong to `agent/runtime-prompt-input.mjs`. The mirrored suite covers those adapters; `runtime-prompt-session.mjs` owns loop and shutdown lifecycle.
 
-  `agent/session-input-dispatch.mjs` handles blank input and local `!` commands, then sends other trimmed text to the injected dispatcher. `agent/session-command-dispatcher.mjs` parses internal commands and routes them; its router returns a model request for ordinary text. Runtime supplies session state accessors and concrete persistence/terminal services. Mirrored tests cover input classification, command parsing and routing, and transcript persistence without importing the full runtime.
+  `agent/session-input-dispatch.mjs` handles blank input and local `!` commands, then sends other trimmed text to the injected dispatcher. `agent/session-command-dispatcher.mjs` parses internal commands and routes them; its router returns a model request for ordinary text. `agent/session-command-setup-adapter.mjs` and `agent/session-command-rollback-adapter.mjs` build focused service callbacks for their existing workflows. Runtime supplies session state accessors and concrete persistence/terminal services. Mirrored tests cover input classification, command parsing and routing, and transcript persistence without importing the full runtime.
 
   The interactive prompt lifecycle belongs to `agent/session-prompt-loop.mjs`: it reads prompt input and dispatches commands or ordinary messages, delegating each ordinary message to `agent/session-user-turn.mjs`. It receives explicit session state accessors and injected services; it does not create clients, load configuration, or register process signals. Runtime initializes those process/session resources, invokes the prompt loop, and guarantees cleanup. Prompt-loop tests cover action sequencing; individual dispatch, request recovery, and turn state policies remain in their mirrored focused suites.
 

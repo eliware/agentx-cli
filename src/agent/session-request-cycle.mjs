@@ -1,4 +1,4 @@
-import { buildRequestOverride, withGoalTools, WORKER_ROLE_MESSAGE } from "../request-builder.mjs";
+import { prepareSessionRequest } from "./session-request-preparation.mjs";
 import { createSessionRequestOptions } from "./session-request-options.mjs";
 import { runWithSessionRequestLifecycle } from "./session-request-lifecycle.mjs";
 import { createSessionRequestCycleServices } from "./session-request-cycle-services.mjs";
@@ -14,20 +14,11 @@ export async function runSessionRequestCycle({
   const services = createSessionRequestCycleServices(deps);
   let response;
   while (!response) {
-    const workerRoleMessage =
-      context.oneShot && process.env.AGENTX_WORKER_ID ? WORKER_ROLE_MESSAGE : "";
-    const requestTemplate = withGoalTools(
-      context.getTemplate(),
-      context.getGoal()?.status === "active",
-    );
-    const activeOverride = buildRequestOverride(
-      requestTemplate,
+    const { requestTemplate, activeOverride } = prepareSessionRequest({
+      context,
+      state,
       requestMessage,
-      context.agentsText,
-      context.getCwd(),
-      state.previousResponseId,
-      workerRoleMessage,
-    );
+    });
     const attemptResult = await runWithSessionRequestLifecycle({
       context,
       attachListener: services.attachGoalInterruptListener,

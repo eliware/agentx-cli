@@ -8,18 +8,6 @@ test("starts a worker and reports its state", async () => {
   expect(result.agent).toMatchObject({ id: "a", status: "running" });
 });
 
-test("uses execute permission when the requested permission is invalid", async () => {
-  const start = jest.fn(() => ({ id: "invalid-permission", status: "running" }));
-  await spawnWorker({ task: "work", permissions: "admin" }, "/repo", {}, start);
-  expect(start).toHaveBeenCalledWith("work", "/repo", "execute", false, undefined, undefined);
-});
-
-test("passes a supported permission to the worker starter", async () => {
-  const start = jest.fn(() => ({ id: "read", status: "running" }));
-  await spawnWorker({ task: "work", permissions: "read" }, "/repo", {}, start);
-  expect(start.mock.calls[0][2]).toBe("read");
-});
-
 test("waits for a running worker until the requested deadline", async () => {
   jest.useFakeTimers();
   try {

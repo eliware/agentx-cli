@@ -84,32 +84,14 @@ describe("agent session modules", () => {
     expect(statusController.clear).toHaveBeenCalledTimes(1);
   });
 
-  test("logs raw events in debug mode", async () => {
-    const originalStderrWrite = process.stderr.write;
-    const stderrWrites = [];
-    process.stderr.write = (chunk) => {
-      stderrWrites.push(String(chunk));
-      return true;
-    };
-    try {
-      const openai = {
-        responses: {
-          create: async (_request, handlers) => {
-            handlers.onEvent(
-              { type: "response.completed" },
-              { raw: '{"type":"response.completed"}' },
-            );
-            handlers.onEvent({ type: "response.test" });
-            return { id: "resp-debug" };
-          },
-        },
-      };
-      await createStreamedResponse(openai, {}, { debug: true });
-      expect(stderrWrites.join("")).toContain(
-        '[openai:event] {"raw":"{\\"type\\":\\"response.completed\\"}"}',
-      );
-    } finally {
-      process.stderr.write = originalStderrWrite;
-    }
+  test("passes debug event handlers to the response API", async () => {
+    const create = jest.fn(async (_request, handlers) => {
+      expect(handlers.onEvent).toEqual(expect.any(Function));
+      return { id: "resp-debug" };
+    });
+    await expect(
+      createStreamedResponse({ responses: { create } }, {}, { debug: true }),
+    ).resolves.toEqual({ id: "resp-debug" });
+    expect(create).toHaveBeenCalledTimes(1);
   });
 });

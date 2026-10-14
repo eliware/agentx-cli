@@ -14,7 +14,7 @@ body: |
   - `history`: bounded array of successful response checkpoints
   - `rollback_backup`: single bounded array containing checkpoints discarded by the latest rollback
 
-  `conversation-state-normalization.mjs` normalizes persisted fields and uses `json-value-clone.mjs` for safe JSON copies of nested values.
+  `conversation-state-normalization.mjs` assembles normalized session fields. `conversation-state-usage.mjs` normalizes usage totals. `conversation-state-history-normalization.mjs` normalizes bounded history and rollback records. `conversation-state-execution-journal.mjs` normalizes execution records. `json-value-clone.mjs` makes safe JSON copies of nested values. Each pure boundary has one mirrored test file.
 
   Each `history` entry contains:
 
@@ -78,3 +78,5 @@ body: |
   ## Goals
 
   Persist active goal metadata (`text`, `status`, `iterations`, timestamps, and result). Increment `iterations` only in the goal tool loop when a new autonomous continuation cycle is scheduled; persist that value immediately. Do not increment it again after the outer request returns or while asking a goal question. Ctrl-T cancellation must persist the cancelled status immediately. `/goal cancel`, session clear, rollback, and successful goal completion terminate active goal mode. On restart, all saved goal metadata is discarded; startup never resumes or contacts OpenAI for a prior goal. `/goal resume` applies only to a goal paused during the current session, while `/goal cancel` discards the current goal. Ctrl-C and `/stop` cancel active goal mode without exiting AgentX.
+
+  `agent/session-goal-cancellation.mjs` owns the active-goal cancellation transition and persistence. `agent/session-goal-interruption.mjs` owns Ctrl-T terminal listener setup, cancellation invocation, and listener cleanup. Request lifecycle coordinates listener attachment and cleanup. Each boundary has a mirrored test.

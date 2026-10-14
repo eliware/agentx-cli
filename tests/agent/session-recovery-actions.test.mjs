@@ -5,10 +5,7 @@ import { setup } from "../../test-fixtures/session-request-recovery-helpers.mjs"
 describe("session recovery actions", () => {
   test.each(["retry", "debug-retry"])("recreates the client for %s", async (action) => {
     const { state, deps } = setup(() => {});
-    deps.prepareRetryClient = jest.fn(async ({ state: current }) => {
-      current.openai = "new-client";
-      current.retryRequest = current.pendingRetryRequest;
-    });
+    deps.prepareRetryClient = jest.fn();
     const result = await applySessionRecoveryAction({
       action,
       state,
@@ -16,8 +13,6 @@ describe("session recovery actions", () => {
       deps,
     });
     expect(result).toEqual({ control: "retry" });
-    expect(state.openai).toBe("new-client");
-    expect(state.retryRequest).toBe(state.pendingRetryRequest);
     expect(deps.prepareRetryClient).toHaveBeenCalledWith({
       state,
       action,

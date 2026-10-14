@@ -1,7 +1,7 @@
 import { parseInternalCommand } from "../shell-commands.mjs";
 import { routeSessionCommand } from "./session-command-router.mjs";
-import { runSessionSetupFlow } from "./session-setup-flow.mjs";
-import { runSessionRollbackFlow } from "./session-rollback-flow.mjs";
+import { createSessionCommandSetupAdapter } from "./session-command-setup-adapter.mjs";
+import { createSessionCommandRollbackAdapter } from "./session-command-rollback-adapter.mjs";
 
 export function createSessionCommandDispatcher({ state, context, repl, services }) {
   const commandState = {
@@ -34,6 +34,9 @@ export function createSessionCommandDispatcher({ state, context, repl, services 
     },
   };
 
+  const runSetupFlow = createSessionCommandSetupAdapter({ services, repl, context });
+  const runRollbackFlow = createSessionCommandRollbackAdapter({ state, services, repl, context });
+
   return (message) =>
     routeSessionCommand({
       internal: parseInternalCommand(message),
@@ -41,26 +44,7 @@ export function createSessionCommandDispatcher({ state, context, repl, services 
       state: commandState,
       deps: {
         transitionGoalCommand: services.transitionGoalCommand,
-        runSetupFlow: () =>
-          runSessionSetupFlow({
-            readline: repl.getReadline(),
-            preserveHistory: repl.preserveHistory,
-            runSetup: services.runSetup,
-            reloadTemplate: async () =>
-              services.applySettings(
-                await services.loadPromptTemplate(context.promptPath, undefined, process.env, {
-                  loadMcp: !context.outputFlags.noMcp,
-                }),
-                await services.reloadSettings(),
-              ),
-            write: services.write,
-            formatMessage: services.formatMessage,
-            printError: services.printError,
-            createReadline: repl.createReadline,
-            setReadline: repl.setReadline,
-            input: context.input,
-            output: context.output,
-          }),
+        runSetupFlow,
         saveState: services.saveState,
         writeSystem: services.writeSystem,
         exitWithSummary: services.exitWithSummary,
@@ -71,23 +55,7 @@ export function createSessionCommandDispatcher({ state, context, repl, services 
         createUsageTotals: services.createUsageTotals,
         clearSession: services.clearSession,
         statePath: context.statePath,
-        runRollbackFlow: () =>
-          runSessionRollbackFlow({
-            history: state.getHistory(),
-            readline: repl.getReadline(),
-            preserveHistory: repl.preserveHistory,
-            promptRollback: services.promptRollback,
-            applyRollback: services.applyRollback,
-            saveState: services.saveState,
-            persistCheckpoint: services.persistCheckpoint,
-            checkpointPath: context.checkpointPath,
-            input: context.input,
-            output: context.output,
-            write: services.write,
-            formatMessage: services.formatMessage,
-            createReadline: repl.createReadline,
-            setReadline: repl.setReadline,
-          }),
+        runRollbackFlow,
         resolveCdTarget: services.resolveCdTarget,
         buildWorkingDirectoryNote: services.buildWorkingDirectoryNote,
       },

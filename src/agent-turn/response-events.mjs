@@ -1,6 +1,8 @@
 import { createResponseItemDoneHandler } from "./response-item-done.mjs";
 import { createResponseEventHandler } from "./response-event-handler.mjs";
 import { createResponseRenderers } from "./response-renderers.mjs";
+import { createResponseStreamState } from "./response-stream-state.mjs";
+import { createResponseTextDeltaHandler } from "./response-text-delta-handler.mjs";
 
 export function createLiveResponseHandlers({
   liveStreaming,
@@ -12,14 +14,11 @@ export function createLiveResponseHandlers({
   noMcpOutput = false,
   noWebsearch = false,
 }) {
-  let sawOutput = false;
-  let streamedText = "";
-  const markOutput = () => {
-    if (sawOutput) return;
-    sawOutput = true;
-    statusController?.beginWriting();
-  };
-  const renderers = createResponseRenderers({ statusController, markOutput });
+  const streamState = createResponseStreamState(statusController);
+  const renderers = createResponseRenderers({
+    statusController,
+    markOutput: streamState.markOutput,
+  });
   const onEvent = createResponseEventHandler({
     noReasoning,
     noShellCalls,
@@ -31,10 +30,8 @@ export function createLiveResponseHandlers({
     webSearchRenderer: renderers.webSearch,
     mcpRenderer: renderers.mcp,
     toolEventRenderer: renderers.tool,
-    markOutput,
-    appendStreamedText: (text) => {
-      streamedText += text;
-    },
+    markOutput: streamState.markOutput,
+    appendStreamedText: streamState.appendStreamedText,
   });
   const onItemDone = createResponseItemDoneHandler({
     noReasoning,
@@ -47,28 +44,25 @@ export function createLiveResponseHandlers({
     reasoningRenderer: renderers.reasoning,
     mcpRenderer: renderers.mcp,
     toolEventRenderer: renderers.tool,
-    markOutput,
-    appendStreamedText: (text) => {
-      streamedText += text;
-    },
+    markOutput: streamState.markOutput,
+    appendStreamedText: streamState.appendStreamedText,
+  });
+  const onTextDelta = createResponseTextDeltaHandler({
+    streamState,
+    textRenderer: renderers.text,
   });
 
   return {
     flushTextDelta: renderers.text.flushTextDelta,
-    sawOutput: () => sawOutput,
-    streamedText: () => streamedText,
+    sawOutput: streamState.sawOutput,
+    streamedText: streamState.streamedText,
     handlers: liveStreaming
       ? {
           onEvent,
           onItemAdded(item) {
             if (item?.type === "mcp_call" && !noMcpOutput) renderers.mcp.addCall(item);
           },
-          onTextDelta(delta) {
-            markOutput();
-            const text = String(delta ?? "");
-            streamedText += text;
-            renderers.text.writeTextDelta(text);
-          },
+          onTextDelta,
           onItemDone,
         }
       : null,

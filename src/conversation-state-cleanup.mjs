@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fs } from "@eliware/common";
-import { deleteOptional } from "./runtime.mjs";
+import { deleteOptional } from "./runtime-files.mjs";
 
 const ONESHOT_PREFIX = ".agentx_responseid.oneshot-";
 const STALE_ONESHOT_AGE_MS = 60 * 60 * 1000;

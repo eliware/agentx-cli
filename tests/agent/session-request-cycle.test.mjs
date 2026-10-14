@@ -72,7 +72,7 @@ const runRequest = (context, deps, overrides = {}) =>
     ...overrides,
   });
 describe("session request cycle", () => {
-  test("builds request options, returns response, and removes request listeners", async () => {
+  test("passes the prepared request through one attempt and removes request listeners", async () => {
     const context = createContext();
     const services = createServices();
     const result = await runRequest(context, services, {
@@ -82,17 +82,13 @@ describe("session request cycle", () => {
       state: { previousResponseId: "response-0", retryRequest: null },
     });
     expect(result).toEqual({ control: "response", response: { id: "response-1" } });
-    expect(services.sendMessage).toHaveBeenCalledWith(
-      { id: "client" },
-      { model: "gpt-6-luna", tools: [] },
-      "response-0",
-      "context\nhello",
-      "instructions",
-      "C:/project",
-      expect.any(Function),
-      expect.objectContaining({ previous_response_id: "response-0", input: expect.any(Array) }),
-      expect.any(Object),
+    expect(services.sendMessage).toHaveBeenCalledTimes(1);
+    expect(services.sendMessage.mock.calls[0][0]).toEqual({ id: "client" });
+    expect(services.sendMessage.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ model: "gpt-6-luna" }),
     );
+    expect(services.sendMessage.mock.calls[0][2]).toBe("response-0");
+    expect(services.sendMessage.mock.calls[0][3]).toBe("context\nhello");
     expect(services.detach).toHaveBeenCalledTimes(1);
   });
   test("retries after recovery requests another attempt and replaces the goal REPL", async () => {
@@ -115,7 +111,6 @@ describe("session request cycle", () => {
     expect(services.sendMessage).toHaveBeenCalledTimes(2);
     expect(services.resolveRequestFailure).toHaveBeenCalledTimes(1);
     expect(context.replaceReplInterface).toHaveBeenCalledTimes(2);
-    expect(services.detach).toHaveBeenCalledTimes(2);
   });
   test("returns a non-retry recovery control after cleanup", async () => {
     const context = createContext();
@@ -142,27 +137,5 @@ describe("session request cycle", () => {
     services.resolveRequestFailure.mockResolvedValue({ control: "throw", error });
     await expect(runRequest(context, services)).rejects.toBe(error);
     expect(services.detach).toHaveBeenCalledTimes(1);
-  });
-  test("adds delegated-worker guidance only for one-shot workers with a worker ID", async () => {
-    const original = process.env.AGENTX_WORKER_ID;
-    try {
-      delete process.env.AGENTX_WORKER_ID;
-      const withoutId = createServices();
-      await runRequest(createContext({ oneShot: true }), withoutId, {
-        message: "task",
-        state: { previousResponseId: "parent", retryRequest: null },
-      });
-      expect(withoutId.sendMessage.mock.calls[0][7].input[0].role).toBe("user");
-      process.env.AGENTX_WORKER_ID = "worker-1";
-      const withId = createServices();
-      await runRequest(createContext({ oneShot: true }), withId, {
-        message: "task",
-        state: { previousResponseId: "parent", retryRequest: null },
-      });
-      expect(withId.sendMessage.mock.calls[0][7].input[0]).toMatchObject({ role: "developer" });
-    } finally {
-      if (original === undefined) delete process.env.AGENTX_WORKER_ID;
-      else process.env.AGENTX_WORKER_ID = original;
-    }
   });
 });

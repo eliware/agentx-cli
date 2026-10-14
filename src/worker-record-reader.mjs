@@ -10,6 +10,17 @@ export async function readOptionalWorkerFile(file, read = readFile) {
   }
 }
 
+export async function readIndexedWorkerRecord(file, id, read = readFile) {
+  const contents = await readOptionalWorkerFile(file, read);
+  if (contents === null) return null;
+  try {
+    const record = JSON.parse(contents);
+    return record?.id === id ? record : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function readStoredWorkerRecord(cwd, id) {
   const primary = await readOptionalWorkerFile(workerRecordPath(cwd, id));
   const legacy =

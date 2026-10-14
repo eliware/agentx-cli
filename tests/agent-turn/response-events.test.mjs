@@ -14,6 +14,7 @@ describe("live response event routing", () => {
     try {
       const live = createLiveResponseHandlers({ liveStreaming: true, statusController });
       live.handlers.onTextDelta("answer");
+      live.handlers.onTextDelta(undefined);
       live.handlers.onEvent({ type: "response.reasoning_summary_text.delta", delta: "reasoning" });
       live.handlers.onEvent({ type: "response.function_call_arguments.delta", delta: "call" });
       live.handlers.onItemAdded({ type: "mcp_call", name: "lookup" });
@@ -25,21 +26,6 @@ describe("live response event routing", () => {
       expect(statusController.beginWriting).toHaveBeenCalled();
     } finally {
       process.stdout.write = originalWrite;
-    }
-  });
-
-  test("renders a reasoning transcript when no summary arrived", () => {
-    const write = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
-    try {
-      const live = createLiveResponseHandlers({ liveStreaming: true });
-      live.handlers.onTextDelta(undefined);
-      live.handlers.onItemDone({
-        type: "reasoning",
-        summary: [{ type: "output_text", text: "transcript" }],
-      });
-      expect(write.mock.calls.join(" ")).toContain("transcript");
-    } finally {
-      write.mockRestore();
     }
   });
 

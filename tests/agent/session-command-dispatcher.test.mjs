@@ -72,14 +72,6 @@ describe("session command dispatcher", () => {
     expect(services.printUsageReport).toHaveBeenCalledWith({ turns: 4 }, { model: "gpt-6-luna" });
   });
 
-  test("sends ordinary text to the model request path", async () => {
-    const { dispatcher } = harness();
-    await expect(dispatcher("explain this")).resolves.toEqual({
-      action: "request",
-      message: "explain this",
-    });
-  });
-
   test("applies a handled goal transition to live command state", async () => {
     const { values, services, dispatcher } = harness();
     const goal = { status: "active", text: "ship it" };

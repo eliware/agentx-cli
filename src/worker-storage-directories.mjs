@@ -1,5 +1,6 @@
 import { chmod, mkdir } from "node:fs/promises";
-import { workerDirectory, workerStateDirectory } from "./worker-paths.mjs";
+import { workerDirectory } from "./worker-paths.mjs";
+import { workerStateDirectory } from "./worker-state-root.mjs";
 
 async function secureDirectory(directory, platform = process.platform) {
   await mkdir(directory, { recursive: true, mode: 0o700 });

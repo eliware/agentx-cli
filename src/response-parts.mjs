@@ -1,5 +1,3 @@
-import { normalizeUsage } from "./usage-normalization.mjs";
-
 export function extractTextFromResponse(response) {
   const parts = [];
   for (const item of response?.output ?? []) {
@@ -13,35 +11,4 @@ export function extractTextFromResponse(response) {
 
 export function isFunctionCall(item) {
   return item?.type === "function_call";
-}
-
-export function extractUsage(response) {
-  const usage = response?.usage ?? {};
-  return normalizeUsage({
-    inputTokens: Number(usage.input_tokens ?? 0),
-    cachedTokens: Number(usage.input_tokens_details?.cached_tokens ?? 0),
-    cacheWriteTokens: Number(usage.input_tokens_details?.cache_write_tokens ?? 0),
-    outputTokens: Number(usage.output_tokens ?? 0),
-    reasoningTokens: Number(usage.output_tokens_details?.reasoning_tokens ?? 0),
-  });
-}
-
-export function createUsageTotals() {
-  return { inputTokens: 0, cachedTokens: 0, outputTokens: 0, turns: 0 };
-}
-
-export function addUsageTotals(totals, usage) {
-  totals.inputTokens += Number(usage?.inputTokens ?? 0);
-  totals.cachedTokens += Number(usage?.cachedTokens ?? 0);
-  if (usage?.cacheWriteTokens !== undefined)
-    totals.cacheWriteTokens = (totals.cacheWriteTokens ?? 0) + Number(usage.cacheWriteTokens);
-  totals.outputTokens += Number(usage?.outputTokens ?? 0);
-  if (usage?.reasoningTokens !== undefined)
-    totals.reasoningTokens = (totals.reasoningTokens ?? 0) + Number(usage.reasoningTokens);
-  return totals;
-}
-
-export function addTurn(totals) {
-  totals.turns += 1;
-  return totals;
 }

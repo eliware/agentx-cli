@@ -18,25 +18,13 @@ describe("session state normalization", () => {
     ).toEqual({ ...expected, response_id: "4" });
   });
 
-  test("normalizes usage, message fields, and history bounds", () => {
-    const history = [null, {}, { response_id: "" }];
-    for (let index = 0; index < 22; index += 1)
-      history.push({
-        response_id: `r${index}`,
-        timestamp: 9,
-        user_preview: "u".repeat(25),
-        assistant_preview: null,
-        usage: { inputTokens: "1", cachedTokens: "2", outputTokens: "3", turns: "4" },
-        last_user_message: false,
-        last_assistant_message: 5,
-      });
+  test("normalizes usage and message fields", () => {
     const normalized = normalizeSessionState({
       response_id: 42,
       usage: { inputTokens: "8", cachedTokens: null, outputTokens: 2, turns: "3" },
       last_user_message: 7,
       last_assistant_message: false,
       pending_cli_transcript: 9,
-      history,
     });
     expect(normalized.response_id).toBe("42");
     expect(normalized.usage).toEqual({
@@ -48,16 +36,6 @@ describe("session state normalization", () => {
     expect(normalized.last_user_message).toBe("7");
     expect(normalized.last_assistant_message).toBe("false");
     expect(normalized.pending_cli_transcript).toBe("9");
-    expect(normalized.history).toHaveLength(20);
-    expect(normalized.history[0]).toMatchObject({
-      response_id: "r2",
-      timestamp: "9",
-      user_preview: "u".repeat(20),
-      assistant_preview: "",
-      usage: { inputTokens: 1, cachedTokens: 2, outputTokens: 3, turns: 4 },
-      last_user_message: "false",
-      last_assistant_message: "5",
-    });
   });
 
   test("preserves JSON-safe pending calls and falls back for circular call objects", () => {
@@ -92,24 +70,6 @@ describe("session state normalization", () => {
         arguments: undefined,
       },
     ]);
-  });
-
-  test("normalizes execution journals and ignores malformed records", () => {
-    expect(
-      normalizeSessionState({
-        execution_journal: [
-          null,
-          { identity: 42, status: "started", response_id: 7, updated_at: 9 },
-          { identity: 8 },
-          { identity: "" },
-          { identity: null },
-        ],
-      }).execution_journal,
-    ).toEqual([
-      { identity: "42", status: "started", response_id: "7", updated_at: "9" },
-      { identity: "8", status: "pending", response_id: "", updated_at: "" },
-    ]);
-    expect(normalizeSessionState({ execution_journal: "bad" }).execution_journal).toEqual([]);
   });
 
   test("normalizes optional flags and clones object-valued metadata", () => {

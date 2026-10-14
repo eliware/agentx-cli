@@ -1,4 +1,4 @@
-import { cancelActiveSessionGoal } from "./session-goal-interruption.mjs";
+import { cancelActiveSessionGoal } from "./session-goal-cancellation.mjs";
 
 export async function handleSessionPromptError(
   error,

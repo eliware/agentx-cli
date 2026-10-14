@@ -47,6 +47,5 @@ describe("goal question callback", () => {
     expect(goal.last_question).toBeUndefined();
     expect(saveState).toHaveBeenCalledTimes(1);
     expect(ask).toHaveBeenCalledWith(expect.objectContaining({ question: undefined, choices: [] }));
-    expect(saveState).toHaveBeenCalledTimes(1);
   });
 });

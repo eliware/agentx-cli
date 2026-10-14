@@ -1,54 +1,24 @@
 import { writeTerminal } from "../terminal-output.mjs";
+import { createResponseAnsiParser } from "./response-ansi-parser.mjs";
 
 const WHITE = "\u001b[38;5;255m";
 
 export function createResponseTextRenderer(write = writeTerminal) {
-  let pendingAnsi = "";
+  const parser = createResponseAnsiParser();
   let textOutputStarted = false;
 
-  const writeTextDelta = (text) => {
-    const input = `${pendingAnsi}${text}`;
-    pendingAnsi = "";
-    let output = "";
-    let index = 0;
-    while (index < input.length) {
-      if (input[index] !== "\u001b") {
-        output += input[index++];
-        continue;
-      }
-      if (index + 1 >= input.length) {
-        pendingAnsi = input.slice(index);
-        break;
-      }
-      if (input[index + 1] !== "[") {
-        output += input[index++];
-        continue;
-      }
-      let end = index + 2;
-      while (
-        end < input.length &&
-        !(input.charCodeAt(end) >= 0x40 && input.charCodeAt(end) <= 0x7e)
-      )
-        end += 1;
-      if (end >= input.length) {
-        pendingAnsi = input.slice(index);
-        break;
-      }
-      output += input.slice(index, end + 1);
-      index = end + 1;
-    }
+  const writeParsedText = (output) => {
     if (!output) return;
     write(`${textOutputStarted ? "" : WHITE}${output}`);
     textOutputStarted = true;
   };
 
   return {
-    writeTextDelta,
+    writeTextDelta(text) {
+      writeParsedText(parser.parse(text));
+    },
     flushTextDelta() {
-      if (!pendingAnsi) return;
-      write(`${textOutputStarted ? "" : WHITE}${pendingAnsi}`);
-      textOutputStarted = true;
-      pendingAnsi = "";
+      writeParsedText(parser.flush());
     },
   };
 }

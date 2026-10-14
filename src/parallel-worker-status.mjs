@@ -1,10 +1,10 @@
 import { isWorkerTerminal, normalizeWorkerWait, snapshotWorker } from "./worker-status.mjs";
 import { parseWorkerIds } from "./parallel-worker-arguments.mjs";
+import { waitForWorker } from "./parallel-worker-wait.mjs";
 
 export async function getWorkerStatus(args, state) {
   const ids = parseWorkerIds(args);
   const wait = normalizeWorkerWait(args.wait_ms);
-  const deadline = Date.now() + wait;
   const read = () =>
     ids.map((id) =>
       state.workers.has(id)
@@ -12,17 +12,13 @@ export async function getWorkerStatus(args, state) {
         : { id, status: "unknown" },
     );
   let agents = read();
-  while (
-    wait > 0 &&
-    agents.some((item) => !isWorkerTerminal(item.status)) &&
-    Date.now() < deadline
-  ) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
+  const timedOut = await waitForWorker(wait, () => {
     agents = read();
-  }
+    return agents.some((item) => !isWorkerTerminal(item.status));
+  });
   return {
     agents,
     waited_ms: wait,
-    timed_out: wait > 0 && agents.some((item) => !isWorkerTerminal(item.status)),
+    timed_out: timedOut,
   };
 }

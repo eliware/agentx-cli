@@ -13,3 +13,12 @@ export function parseWorkerIds(args) {
     ? args.agent_ids.filter((id) => typeof id === "string" && id.trim()).slice(0, 10)
     : [];
 }
+
+export function normalizeSpawnWorkerArguments(args) {
+  const task = typeof args?.task === "string" ? args.task.trim() : "";
+  if (!task) return { error: "task must be a non-empty string" };
+  const permissions = ["read", "write", "execute"].includes(args?.permissions)
+    ? args.permissions
+    : "execute";
+  return { task, permissions };
+}

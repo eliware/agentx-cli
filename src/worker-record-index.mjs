@@ -1,4 +1,5 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
+import { readIndexedWorkerRecord } from "./worker-record-reader.mjs";
 import {
   legacyWorkerDirectory,
   workerDirectory,
@@ -19,8 +20,8 @@ export async function recordsIn(directory, readDirectory = readdir) {
     const id = name.slice(0, -5);
     if (!workerPathInternals.WORKER_ID_PATTERN.test(id)) continue;
     try {
-      const record = JSON.parse(await readFile(workerFilePath(directory, id, ".json"), "utf8"));
-      if (record?.id === id) records.push(record);
+      const record = await readIndexedWorkerRecord(workerFilePath(directory, id, ".json"), id);
+      if (record) records.push(record);
     } catch {
       /* ignore corrupt or mismatched records */
     }

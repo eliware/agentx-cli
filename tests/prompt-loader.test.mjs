@@ -13,7 +13,7 @@ describe("prompt loader", () => {
       if (filePath === "/prompt.json") return { input: [] };
       throw { code: "ENOENT" };
     });
-    await jest.unstable_mockModule("../src/runtime.mjs", () => ({ readJson }));
+    await jest.unstable_mockModule("../src/runtime-files.mjs", () => ({ readJson }));
     const { loadPromptTemplate: loadWithFallback } = await import("../src/prompt-loader.mjs");
     await expect(loadWithFallback("/prompt.json")).resolves.toEqual({ input: [] });
     expect(readJson.mock.calls[1][0]).toBe(path.join(homedir(), ".agentx.mcp.json"));
@@ -145,7 +145,7 @@ describe("prompt loader", () => {
     }
 
     jest.resetModules();
-    await jest.unstable_mockModule("../src/runtime.mjs", () => ({
+    await jest.unstable_mockModule("../src/runtime-files.mjs", () => ({
       readJson: async () => {
         throw "broken prompt";
       },

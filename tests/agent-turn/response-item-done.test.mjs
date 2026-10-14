@@ -61,4 +61,18 @@ describe("response item completion", () => {
     state.onItemDone({ type: "reasoning", summary: [{ text: "hidden" }] });
     expect(state.reasoningRenderer.hasStreamedSummary).not.toHaveBeenCalled();
   });
+
+  test("renders a reasoning transcript when no summary arrived", () => {
+    const write = jest.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      const state = setup({ reasoningRenderer: { hasStreamedSummary: jest.fn(() => false) } });
+      state.onItemDone({
+        type: "reasoning",
+        summary: [{ type: "output_text", text: "transcript" }],
+      });
+      expect(write.mock.calls.join(" ")).toContain("transcript");
+    } finally {
+      write.mockRestore();
+    }
+  });
 });

@@ -1,4 +1,4 @@
-import { appendWorkerLog } from "./worker-registry.mjs";
+import { appendStoredWorkerLog } from "./worker-log-appender.mjs";
 import { redactWorkerLog } from "./worker-log-redaction.mjs";
 
 export function createWorkerLogStream(worker, persistWorker) {
@@ -11,7 +11,9 @@ export function createWorkerLogStream(worker, persistWorker) {
     bufferedLog = "";
     if (!text) return;
     writeQueue = writeQueue
-      .then(() => appendWorkerLog(worker.cwd, worker.id, text).then(() => persistWorker(worker)))
+      .then(() =>
+        appendStoredWorkerLog(worker.cwd, worker.id, text).then(() => persistWorker(worker)),
+      )
       .catch(() => {});
   };
 

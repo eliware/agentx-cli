@@ -1,11 +1,12 @@
 import { reloadSettings } from "./settings.mjs";
 import { readEnvState } from "./setup-env.mjs";
 import { getSetupPaths } from "./setup-paths.mjs";
-import { buildMenuEntries, DEFAULTS, renderReadlineMenu } from "./setup-presentation.mjs";
-import { createInterface } from "node:readline/promises";
+import { buildMenuEntries, DEFAULTS } from "./setup-menu-entries.mjs";
+import { renderReadlineMenu } from "./setup-presentation.mjs";
 import { applySetupAction } from "./setup-action.mjs";
 import { selectSetupMenuChoice } from "./setup-menu-interaction.mjs";
 import { hasInteractiveSetupTerminal } from "./setup-terminal-policy.mjs";
+import { withSetupReadline } from "./setup-readline-lifecycle.mjs";
 
 export { buildMenuEntries };
 
@@ -21,9 +22,8 @@ export async function runSetup({
     stdout.write("AgentX setup requires an interactive terminal.\n");
     return;
   }
-  let rl = createInterface({ input: readlineInput, output: stdout });
   let message = "";
-  try {
+  await withSetupReadline({ input: readlineInput, output: stdout }, async (rl) => {
     while (true) {
       const entries = buildMenuEntries({ values: envState.values, includeSettings: true });
       const selected = await selectSetupMenuChoice({
@@ -62,9 +62,7 @@ export async function runSetup({
       if (action.quit) break;
       ({ readline: rl, message } = action);
     }
-  } finally {
-    rl.close();
-  }
+  });
   // Reload environment variables so subsequent code sees updated values.
   await reloadSettings();
 }

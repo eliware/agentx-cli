@@ -1,16 +1,8 @@
-function normalizeCommandList(commands) {
-  if (Array.isArray(commands)) return commands.map((command) => String(command ?? ""));
-  if (typeof commands === "string") return [commands];
-  return [];
-}
-
-function commandText(call) {
-  return normalizeCommandList(call?.action?.commands).join(" && ").toLowerCase().trim();
-}
+import { toolCommandText } from "./tool-command-text.mjs";
 
 export function commandPermission(call) {
   if (call?.type !== "shell_call") return "execute";
-  const commands = commandText(call);
+  const commands = toolCommandText(call);
   if (!commands) return "read";
   if (
     commands.includes(">") ||

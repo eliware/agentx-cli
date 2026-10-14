@@ -35,20 +35,21 @@ describe("session pending recovery", () => {
     expect(ctx.deps.writeSystem).toHaveBeenCalledWith("Resuming pending tool execution");
   });
 
-  test.each([
-    ["interrupt-retry", "retry hint"],
-    ["interrupt-request", "interruption notice"],
-  ])("shows the %s recovery notice", async (choice, notice) => {
-    const ctx = harness(choice);
-    await recoverPendingSession({
-      savedState: {},
-      getState: ctx.getState,
-      setState: ctx.setState,
-      execute: jest.fn(async () => ({})),
-      deps: ctx.deps,
-    });
-    expect(ctx.deps.writeSystem).toHaveBeenCalledWith(
-      `Resuming pending tool execution with ${notice}`,
-    );
-  });
+  test.each(["interrupt-retry", "interrupt-request"])(
+    "executes the %s choice through recovery",
+    async (choice) => {
+      const ctx = harness(choice);
+      const execute = jest.fn(async () => ({}));
+      await recoverPendingSession({
+        savedState: {},
+        getState: ctx.getState,
+        setState: ctx.setState,
+        execute,
+        deps: ctx.deps,
+      });
+      expect(ctx.deps.createRunner).toHaveBeenCalledTimes(1);
+      expect(execute).toHaveBeenCalledWith("runner");
+      expect(ctx.deps.writeSystem).toHaveBeenCalledTimes(1);
+    },
+  );
 });

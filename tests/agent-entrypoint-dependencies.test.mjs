@@ -1,7 +1,8 @@
 import { expect, jest, test } from "@jest/globals";
 
 const modules = {
-  runtime: { isDirectInvocation: jest.fn(), promptPath: "prompt" },
+  runtime: { promptPath: "prompt" },
+  invocation: { isDirectInvocation: jest.fn() },
   agent: { runAgent: jest.fn() },
   help: { formatQuickHelp: jest.fn() },
   version: { getPackageVersion: jest.fn() },
@@ -16,6 +17,7 @@ const modules = {
 test("loads and maps entrypoint dependencies", async () => {
   await jest.isolateModulesAsync(async () => {
     await jest.unstable_mockModule("../src/runtime.mjs", () => modules.runtime);
+    await jest.unstable_mockModule("../src/entrypoint-invocation.mjs", () => modules.invocation);
     await jest.unstable_mockModule("../src/agent/runtime.mjs", () => modules.agent);
     await jest.unstable_mockModule("../src/cli-help.mjs", () => modules.help);
     await jest.unstable_mockModule("../src/cli-version.mjs", () => modules.version);
@@ -28,7 +30,7 @@ test("loads and maps entrypoint dependencies", async () => {
     const { loadAgentEntrypointDependencies } =
       await import("../src/agent-entrypoint-dependencies.mjs");
     await expect(loadAgentEntrypointDependencies()).resolves.toEqual({
-      isDirectInvocation: modules.runtime.isDirectInvocation,
+      isDirectInvocation: modules.invocation.isDirectInvocation,
       promptPath: "prompt",
       runAgent: modules.agent.runAgent,
       formatQuickHelp: modules.help.formatQuickHelp,

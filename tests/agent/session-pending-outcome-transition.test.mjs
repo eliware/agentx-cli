@@ -17,6 +17,16 @@ test("records a completed response and clears pending calls", () => {
   expect(state.pending_tool_calls).toHaveLength(1);
 });
 
+test("keeps the current response ID when a completed response has no ID", () => {
+  expect(
+    transitionPendingRecoveryState(
+      { status: "completed", response: { output_text: "done" } },
+      { response_id: "previous", pending_tool_calls: [] },
+      () => "done",
+    ).response_id,
+  ).toBe("previous");
+});
+
 test("keeps the response ID and applies the pending-call failure policy", () => {
   const state = { response_id: "previous", pending_tool_calls: [{ id: "call" }] };
   expect(

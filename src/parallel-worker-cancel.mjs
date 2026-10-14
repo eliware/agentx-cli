@@ -5,6 +5,7 @@ import {
 } from "./parallel-worker-cancel-selection.mjs";
 import { cancelRecoveredWorkerProcess } from "./parallel-worker-process-cancel.mjs";
 import { cancelLiveWorkerProcess } from "./parallel-worker-live-cancel.mjs";
+import { selectWorkerCancelAction } from "./parallel-worker-cancel-policy.mjs";
 
 export async function cancelWorkers(args, cwd, { state, readRecord, persist }) {
   const ids = parseWorkerIds(args);
@@ -16,9 +17,10 @@ export async function cancelWorkers(args, cwd, { state, readRecord, persist }) {
       agents.push(target.result);
       continue;
     }
-    if (child && ["running", "timed_out"].includes(worker.status)) {
+    const action = selectWorkerCancelAction(worker, child);
+    if (action === "live") {
       await cancelLiveWorkerProcess(worker, child, persist);
-    } else if (!child && ["running", "timed_out"].includes(worker.status) && worker.pid) {
+    } else if (action === "recovered") {
       await cancelRecoveredWorkerProcess(worker, persist);
     }
     agents.push(workerCancelResult(worker, args));

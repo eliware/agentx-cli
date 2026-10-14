@@ -23,7 +23,7 @@ describe("image worker process", () => {
 
   beforeEach(() => spawn.mockReset());
 
-  test("collects child output and spawn options", async () => {
+  test("collects child output with custom and default spawn options", async () => {
     queueWorker({ stdout: JSON.stringify({ text: "inspected", usage: { inputTokens: 3 } }) });
     await expect(
       runImageInspectionProcess({ prompt: "look" }, { cwd: process.cwd() }),
@@ -37,6 +37,12 @@ describe("image worker process", () => {
       [expect.stringContaining("image-worker.mjs")],
       expect.objectContaining({ cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] }),
     );
+    queueWorker({ stdout: JSON.stringify({ text: "default options" }) });
+    await expect(runImageInspectionProcess({}, undefined)).resolves.toEqual({
+      stdout: JSON.stringify({ text: "default options" }),
+      stderr: "",
+      code: 0,
+    });
   });
 
   test("passes only runtime variables and AgentX credentials to the worker", async () => {
@@ -71,15 +77,6 @@ describe("image worker process", () => {
       if (previousKey === undefined) delete process.env.AGENTX_API_KEY;
       else process.env.AGENTX_API_KEY = previousKey;
     }
-  });
-
-  test("uses an empty options object when options are undefined", async () => {
-    queueWorker({ stdout: JSON.stringify({ text: "default options" }) });
-    await expect(runImageInspectionProcess({}, undefined)).resolves.toEqual({
-      stdout: JSON.stringify({ text: "default options" }),
-      stderr: "",
-      code: 0,
-    });
   });
 
   test("collects child stderr while the worker returns valid text", async () => {

@@ -1,5 +1,6 @@
 import { formatContentTranscript } from "../response-format-content.mjs";
-import { compactTranscriptJson, formatToolTranscript } from "../response-format-tool-items.mjs";
+import { compactTranscriptJson } from "../response-transcript-compaction.mjs";
+import { formatToolTranscript } from "../response-format-tool-items.mjs";
 
 export function responseItemToTranscript(item) {
   if (!item || item.role === "developer" || item.role === "system") return "";

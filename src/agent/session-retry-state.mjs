@@ -1,3 +1,5 @@
+import { buildSessionRetryTransaction } from "./session-retry-transaction.mjs";
+
 export async function persistSessionRetryState({
   request,
   response,
@@ -9,15 +11,14 @@ export async function persistSessionRetryState({
   saveState,
 }) {
   setPendingRetryRequest(request);
-  const transaction = getPendingTransaction();
-  setPendingTransaction({
-    ...transaction,
-    base_response_id: response?.id || transaction?.base_response_id || "",
-    request,
-    calls: getPendingToolCalls(),
-    outputs: request?.input || [],
-    execution_journal: getExecutionJournal(),
-    attempt_count: Number(transaction?.attempt_count || 0) + 1,
-  });
+  setPendingTransaction(
+    buildSessionRetryTransaction({
+      request,
+      response,
+      transaction: getPendingTransaction(),
+      calls: getPendingToolCalls(),
+      executionJournal: getExecutionJournal(),
+    }),
+  );
   await saveState();
 }

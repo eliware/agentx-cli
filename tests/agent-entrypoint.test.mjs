@@ -3,9 +3,9 @@ async function invokeDirectEntryPoint(args, runAgent, setupPrompt = null) {
   jest.resetModules();
   const originalArgv = process.argv;
   process.argv = [process.argv[0], process.argv[1], ...args];
-  await jest.unstable_mockModule("../src/runtime.mjs", () => ({
+  await jest.unstable_mockModule("../src/runtime.mjs", () => ({ promptPath: "/tmp/prompt.json" }));
+  await jest.unstable_mockModule("../src/entrypoint-invocation.mjs", () => ({
     isDirectInvocation: () => true,
-    promptPath: "/tmp/prompt.json",
   }));
   await jest.unstable_mockModule("../src/agent-entrypoint-env.mjs", () => ({
     loadEntrypointEnvironment: () => null,

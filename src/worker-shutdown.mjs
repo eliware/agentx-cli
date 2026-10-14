@@ -8,7 +8,7 @@ export async function terminateWorkerChildren({ state, persistWorker, graceMs })
   }
   await new Promise((resolve) => setTimeout(resolve, graceMs));
   for (const [, child] of active) {
-    if (!child.killed) {
+    if (child.exitCode == null && child.signalCode == null) {
       try {
         child.kill("SIGKILL");
       } catch {

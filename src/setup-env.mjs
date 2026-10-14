@@ -1,9 +1,8 @@
-import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { snowflake } from "@eliware/common";
-import nodePath from "node:path";
+import { readFile } from "node:fs/promises";
 import { getSetupPaths } from "./setup-paths.mjs";
 import { updateEnvText } from "./setup-env-format.mjs";
 import { loadSetupEnvState } from "./setup-env-state.mjs";
+import { writeSetupEnvAtomically } from "./setup-env-atomic-write.mjs";
 
 async function readOptionalText(filePath) {
   try {
@@ -28,20 +27,7 @@ export async function writeEnvState(filePath, values, baseText = null) {
   const text = baseText === null ? await readOptionalText(filePath) : baseText;
   const updates = Object.fromEntries(Object.keys(values).map((key) => [key, values[key]]));
   const nextText = updateEnvText(text ?? "", updates);
-  const directory = nodePath.dirname(filePath);
-  const temporaryPath = nodePath.join(
-    directory,
-    `.${nodePath.basename(filePath)}.${snowflake()}.tmp`,
-  );
-  await mkdir(directory, { recursive: true });
-  try {
-    await writeFile(temporaryPath, nextText, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    await chmod(temporaryPath, 0o600);
-    await rename(temporaryPath, filePath);
-    await chmod(filePath, 0o600);
-  } finally {
-    await unlink(temporaryPath).catch(() => {});
-  }
+  await writeSetupEnvAtomically(filePath, nextText);
   return nextText;
 }
 

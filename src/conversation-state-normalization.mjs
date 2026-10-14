@@ -1,13 +1,7 @@
 import { cloneJsonValue } from "./json-value-clone.mjs";
-
-function normalizeUsage(usage = {}) {
-  return {
-    inputTokens: Number(usage?.inputTokens ?? 0),
-    cachedTokens: Number(usage?.cachedTokens ?? 0),
-    outputTokens: Number(usage?.outputTokens ?? 0),
-    turns: Number(usage?.turns ?? 0),
-  };
-}
+import { normalizeUsage } from "./conversation-state-usage.mjs";
+import { normalizeHistory } from "./conversation-state-history-normalization.mjs";
+import { normalizeExecutionJournal } from "./conversation-state-execution-journal.mjs";
 
 function normalizePendingToolCall(call) {
   if (!call || typeof call !== "object") return null;
@@ -22,43 +16,9 @@ function normalizePendingToolCall(call) {
   };
 }
 
-function normalizeHistoryEntry(entry) {
-  if (!entry || typeof entry !== "object") return null;
-  return {
-    response_id: String(entry.response_id ?? ""),
-    timestamp: String(entry.timestamp ?? ""),
-    user_preview: String(entry.user_preview ?? "").slice(0, 20),
-    assistant_preview: String(entry.assistant_preview ?? "").slice(0, 20),
-    usage: normalizeUsage(entry.usage),
-    last_user_message: String(entry.last_user_message ?? ""),
-    last_assistant_message: String(entry.last_assistant_message ?? ""),
-  };
-}
-
-function normalizeHistory(history) {
-  if (!Array.isArray(history)) return [];
-  return history
-    .map(normalizeHistoryEntry)
-    .filter((entry) => entry?.response_id)
-    .slice(-20);
-}
-
 function normalizePendingToolCalls(calls) {
   if (!Array.isArray(calls)) return [];
   return calls.map(normalizePendingToolCall).filter(Boolean);
-}
-
-function normalizeExecutionJournal(records) {
-  if (!Array.isArray(records)) return [];
-  return records
-    .filter((record) => record && typeof record === "object")
-    .map((record) => ({
-      identity: String(record.identity ?? ""),
-      status: String(record.status ?? "pending"),
-      response_id: String(record.response_id ?? ""),
-      updated_at: String(record.updated_at ?? ""),
-    }))
-    .filter((record) => record.identity);
 }
 
 function cloneOptionalObject(value) {

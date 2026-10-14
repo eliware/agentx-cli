@@ -92,23 +92,6 @@ describe("tool call runner", () => {
     expect(result.outputs[0].output).toBe("ok");
   });
 
-  test("routes goal tool calls through goal lifecycle handling", async () => {
-    const goalState = { finished: false, completionSnapshot: null };
-    const onGoalComplete = testMocks.fn();
-    const result = await executeToolCallSequence({
-      calls: [functionCall("goal", "goal_update", '{"method":"complete","result":"done"}')],
-      cwd: ".",
-      currentResponse: { id: "goal-response" },
-      executeToolCall: testMocks.fn(),
-      goalMode: true,
-      goalState,
-      streamOptions: { onGoalComplete },
-    });
-    expect(goalState.finished).toBe(true);
-    expect(onGoalComplete).toHaveBeenCalledWith({ method: "complete", result: "done" });
-    expect(result.outputs[0].output).toBe("Goal complete acknowledged.");
-  });
-
   test("flushes worker completion while the status display is active", async () => {
     const worker = { id: "worker-1" };
     const status = {

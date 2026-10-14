@@ -4,6 +4,7 @@ import { handleEmptyToolLoopCycle } from "./tool-loop-empty-cycle.mjs";
 import { executeToolLoopCycle } from "./tool-loop-tool-cycle.mjs";
 import { createToolLoopState } from "./tool-loop-state.mjs";
 import * as toolLoopPolicy from "./tool-loop-policy.mjs";
+import { applyToolLoopTransition } from "./tool-loop-transition.mjs";
 
 export async function handleToolCalls(
   openai,
@@ -66,9 +67,9 @@ export async function handleToolCalls(
         liveStreaming,
       });
       if (result.done) return result.response;
-      goalIterations = result.goalIterations;
-      current = result.response;
-      currentPreviousResponseId = result.previousResponseId;
+      const cycleState = { current, currentPreviousResponseId, goalIterations };
+      applyToolLoopTransition(cycleState, result);
+      ({ current, currentPreviousResponseId, goalIterations } = cycleState);
       continue;
     }
 
@@ -92,7 +93,8 @@ export async function handleToolCalls(
     });
     if (toolLoopPolicy.shouldStopAfterToolCycle(result, state, streamOptions)) return current;
     if (result.done) return result.response;
-    current = result.response;
-    currentPreviousResponseId = result.previousResponseId;
+    const cycleState = { current, currentPreviousResponseId, goalIterations };
+    applyToolLoopTransition(cycleState, result);
+    ({ current, currentPreviousResponseId } = cycleState);
   }
 }

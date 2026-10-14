@@ -6,7 +6,8 @@ import {
   ensureWorkerStorage,
   workerStorageDirectoryInternals,
 } from "../src/worker-storage-directories.mjs";
-import { workerDirectory, workerStateDirectory } from "../src/worker-paths.mjs";
+import { workerDirectory } from "../src/worker-paths.mjs";
+import { workerStateDirectory } from "../src/worker-state-root.mjs";
 
 test("creates private worker storage directories", async () => {
   const root = await mkdtemp(join(tmpdir(), "agentx-dirs-"));

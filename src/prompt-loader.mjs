@@ -1,6 +1,6 @@
 import { path } from "@eliware/common";
 import { homedir } from "node:os";
-import { readJson } from "./runtime.mjs";
+import { readJson } from "./runtime-files.mjs";
 import { getHomeDirectory } from "./platform.mjs";
 import { filterWorkerTools } from "./prompt-tools.mjs";
 

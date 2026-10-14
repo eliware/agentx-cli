@@ -2,7 +2,10 @@ import { expect, jest, test } from "@jest/globals";
 import { terminateWorkerChildren } from "../src/worker-shutdown.mjs";
 
 test("terminates active children with escalation", async () => {
-  const child = { kill: jest.fn(), killed: false };
+  const child = { exitCode: null, signalCode: null, killed: false };
+  child.kill = jest.fn(() => {
+    child.killed = true;
+  });
   const worker = { id: "a1", status: "running" };
   const persistWorker = jest.fn().mockResolvedValue(undefined);
   await terminateWorkerChildren({
@@ -15,13 +18,15 @@ test("terminates active children with escalation", async () => {
   expect(persistWorker).toHaveBeenCalledWith(worker);
 });
 
-test("skips terminal workers and already killed children", async () => {
+test("skips terminal workers and children that exit during the grace period", async () => {
   const terminal = { id: "done", status: "completed" };
   const child = {
     kill: jest.fn(() => {
       throw new Error("already closed");
     }),
     killed: true,
+    exitCode: 0,
+    signalCode: null,
   };
   const persistWorker = jest.fn();
   await terminateWorkerChildren({
@@ -38,7 +43,7 @@ test("skips terminal workers and already killed children", async () => {
 });
 
 test("handles children without worker records", async () => {
-  const child = { kill: jest.fn(), killed: true };
+  const child = { kill: jest.fn(), killed: true, exitCode: null, signalCode: "SIGTERM" };
   await terminateWorkerChildren({
     state: { children: new Map([["orphan", child]]), workers: new Map() },
     persistWorker: jest.fn(),
@@ -49,7 +54,7 @@ test("handles children without worker records", async () => {
 });
 
 test("continues shutdown when worker persistence fails", async () => {
-  const child = { kill: jest.fn(), killed: true };
+  const child = { kill: jest.fn(), killed: true, exitCode: null, signalCode: "SIGTERM" };
   await terminateWorkerChildren({
     state: {
       children: new Map([["active", child]]),

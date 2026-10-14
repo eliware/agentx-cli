@@ -51,7 +51,7 @@ describe("tool dispatch", () => {
     }
   });
 
-  test("dispatches shell execution, normalizes command shapes, and enforces permissions", async () => {
+  test("dispatches shell execution and normalizes command shapes", async () => {
     const cwd = makeTempDir("agentx-dispatch-");
     try {
       const output = await runToolCall(
@@ -83,26 +83,27 @@ describe("tool dispatch", () => {
       await expect(
         runToolCall({ type: "shell_call", call_id: "empty", action: {} }, cwd),
       ).resolves.toMatchObject({ type: "shell_call_output", call_id: "empty", output: [] });
+    } finally {
+      cleanupTempDir(cwd);
+    }
+  });
+
+  test.each([
+    [{ call_id: "call-id", id: "fallback" }, "call-id"],
+    [{ id: "fallback" }, "fallback"],
+    [{}, ""],
+  ])("blocks shell writes under read permission and returns the call ID", async (ids, callId) => {
+    const cwd = makeTempDir("agentx-dispatch-permission-");
+    try {
       await expect(
-        runToolCall(
-          { type: "shell_call", call_id: "blocked", action: { commands: ["touch blocked"] } },
-          cwd,
-          { permission: "read" },
-        ),
-      ).resolves.toMatchObject({
-        type: "shell_call_output",
-        call_id: "blocked",
-        status: "incomplete",
-        output: [{ outcome: { exit_code: 126 } }],
-      });
-      await expect(
-        runToolCall({ type: "shell_call", action: { commands: ["touch blocked"] } }, cwd, {
+        runToolCall({ type: "shell_call", ...ids, action: { commands: ["touch blocked"] } }, cwd, {
           permission: "read",
         }),
       ).resolves.toMatchObject({
         type: "shell_call_output",
-        call_id: "",
+        call_id: callId,
         status: "incomplete",
+        output: [{ outcome: { exit_code: 126 } }],
       });
     } finally {
       cleanupTempDir(cwd);

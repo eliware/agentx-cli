@@ -42,12 +42,25 @@ describe("image worker bridge", () => {
     await expect(second).resolves.toBe("recovered");
   });
 
-  test("uses default queue keys and response IDs", async () => {
-    queueWorker("default options");
-    await expect(runImageInspectionProcess({})).resolves.toBe("default options");
-    queueWorker("response key");
-    await expect(runImageInspectionProcess({}, { responseId: "response" })).resolves.toBe(
-      "response key",
-    );
+  test("keeps queues separate when response IDs differ", async () => {
+    const children = [];
+    spawn.mockImplementation(() => {
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      children.push(child);
+      return child;
+    });
+    const first = runImageInspectionProcess({}, { cwd: "/queue", responseId: "first" });
+    const second = runImageInspectionProcess({}, { cwd: "/queue", responseId: "second" });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(spawn).toHaveBeenCalledTimes(2);
+    for (const [index, child] of children.entries()) {
+      child.stdout.emit("data", JSON.stringify({ text: `result-${index}` }));
+      child.emit("close", 0);
+    }
+    await expect(Promise.all([first, second])).resolves.toEqual(["result-0", "result-1"]);
+    queueWorker("default queue key");
+    await expect(runImageInspectionProcess({}, undefined)).resolves.toBe("default queue key");
   });
 });

@@ -2,7 +2,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, test } from "@jest/globals";
-import { readStoredWorkerRecord, readOptionalWorkerFile } from "../src/worker-record-reader.mjs";
+import {
+  readIndexedWorkerRecord,
+  readStoredWorkerRecord,
+  readOptionalWorkerFile,
+} from "../src/worker-record-reader.mjs";
 import { legacyWorkerDirectory, workerRecordPath } from "../src/worker-paths.mjs";
 
 test("prefers current records and falls back to legacy records", async () => {
@@ -35,4 +39,24 @@ test("preserves worker record read errors outside missing paths", async () => {
     throw Object.assign(new Error("denied"), { code: "EACCES" });
   };
   await expect(readOptionalWorkerFile("record.json", read)).rejects.toThrow("denied");
+});
+
+test("decodes indexed records and skips corrupt or mismatched data", async () => {
+  const read = async (_file, encoding) => {
+    expect(encoding).toBe("utf8");
+    return JSON.stringify({ id: "worker-1", status: "ready" });
+  };
+  await expect(readIndexedWorkerRecord("record.json", "worker-1", read)).resolves.toEqual({
+    id: "worker-1",
+    status: "ready",
+  });
+  await expect(readIndexedWorkerRecord("record.json", "worker-2", read)).resolves.toBeNull();
+  await expect(
+    readIndexedWorkerRecord("record.json", "worker-1", async () => "{"),
+  ).resolves.toBeNull();
+  await expect(
+    readIndexedWorkerRecord("record.json", "worker-1", async () => {
+      throw Object.assign(new Error("missing"), { code: "ENOENT" });
+    }),
+  ).resolves.toBeNull();
 });

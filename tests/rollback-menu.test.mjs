@@ -90,10 +90,6 @@ describe("rollback menu", () => {
       true,
     );
   });
-  test("covers default arguments", async () => {
-    await expect(promptRollbackMenu([])).resolves.toBeNull();
-  });
-
   test("works with optional terminal methods absent", async () => {
     const input = new EventEmitter();
     input.removeListener = testMocks.fn((event, listener) => listener("", {}));

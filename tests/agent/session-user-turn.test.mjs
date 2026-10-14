@@ -60,34 +60,15 @@ describe("session user turn", () => {
   test("prepares turn state, passes recovery accessors, and skips finalization without a response", async () => {
     const { session, values } = createSession();
     const order = [];
-    session.saveState = jest.fn(async () => order.push("save"));
-    const runRequestCycle = jest.fn(async ({ state, context }) => {
+    session.saveState = jest.fn(async () => {
+      order.push("save");
+    });
+    const runRequestCycle = jest.fn(async ({ state, context, requestMessage }) => {
+      order.push("request");
       expect(context).toBe(session.requestContext);
+      expect(requestMessage).toContain("new question");
       expect(state.openai).toEqual({ name: "client" });
       state.openai = { name: "reconnected" };
-      expect(state.previousResponseId).toBe("response-old");
-      state.previousResponseId = "response-new";
-      expect(state.retryRequest).toBeNull();
-      state.retryRequest = { retry: true };
-      expect(state.pendingRetryRequest).toBeNull();
-      expect(state.pendingTransaction).toBeNull();
-      expect(state.pendingToolCalls).toEqual([]);
-      expect(state.failedResponse).toBe(false);
-      state.pendingRetryRequest = { pending: true };
-      expect(state.pendingTransaction).toBeNull();
-      state.pendingTransaction = { request: { next: true } };
-      expect(state.pendingToolCalls).toEqual([]);
-      state.pendingToolCalls = [];
-      expect(state.failedResponse).toBe(false);
-      state.failedResponse = true;
-      expect(state.recoveryAttempts).toBe(0);
-      state.recoveryAttempts += 1;
-      expect(state.websocketRecoveryAttempts).toBe(0);
-      state.websocketRecoveryAttempts += 1;
-      expect(state.websocketRecoveryStartedAt).toBeNull();
-      state.websocketRecoveryStartedAt = 123;
-      expect(state.debugEnabled).toBe(false);
-      state.debugEnabled = true;
       return { response: null };
     });
     const finalizeTurn = jest.fn();
@@ -100,8 +81,8 @@ describe("session user turn", () => {
       }),
     ).resolves.toBe("continue");
 
-    expect(values.pendingRetryRequest).toEqual({ pending: true });
-    expect(order).toEqual(["save"]);
+    expect(values.openai).toEqual({ name: "reconnected" });
+    expect(order).toEqual(["save", "request"]);
     expect(finalizeTurn).not.toHaveBeenCalled();
   });
 

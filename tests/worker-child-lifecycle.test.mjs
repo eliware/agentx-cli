@@ -46,8 +46,7 @@ test.each([
   expect(worker.status).toBe(expected);
 });
 
-test("records a child error and kills a timed-out child", async () => {
-  jest.useFakeTimers();
+test("records a child error", () => {
   const child = new EventEmitter();
   child.stdout = new EventEmitter();
   child.stderr = new EventEmitter();
@@ -59,16 +58,12 @@ test("records a child error and kills a timed-out child", async () => {
     worker,
     state: { children: new Map([[worker.id, child]]) },
     persistWorker,
-    timeoutMs: 5,
+    timeoutMs: 100000,
     shutdownGraceMs: 10,
   });
-  await jest.advanceTimersByTimeAsync(5);
-  expect(child.kill).toHaveBeenCalledWith("SIGTERM");
-  expect(worker.status).toBe("timed_out");
   child.emit("error", new Error("spawn failed"));
   expect(worker.status).toBe("failed");
   expect(worker.error).toBe("spawn failed");
-  jest.useRealTimers();
 });
 
 test("escalates a timed-out child and preserves its timeout state on close", async () => {
